@@ -20,7 +20,9 @@ public class MovieService : IMovieService
 
         var data = await _db.Movies
             .AsNoTracking()
-            .Where(p => p.NgayKhoiChieu <= today && p.NgayKetThuc >= today)
+            .Where(p =>
+                (p.TrangThai == null || p.TrangThai != "Inactive") &&
+                _db.Showtimes.Any(s => s.MaPhim == p.MaPhim && s.NgayChieu.Date >= today && (s.TrangThai == null || s.TrangThai != "Expired")))
             .OrderBy(p => p.TenPhim)
             .Select(p => new Movie
             {
