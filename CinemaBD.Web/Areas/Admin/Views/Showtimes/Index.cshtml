@@ -39,7 +39,7 @@
             <label class="form-label">Ngày chiếu</label>
             <input type="date" name="date" class="form-control" value="@Model.SelectedDate.ToString("yyyy-MM-dd")" />
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <label class="form-label">Phòng</label>
             <select name="roomId" class="form-select">
                 <option value="">Tất cả phòng</option>
@@ -49,8 +49,28 @@
                 }
             </select>
         </div>
-        <div class="col-md-2"><button class="btn btn-outline-primary w-100"><i class="bi bi-search"></i> Lọc</button></div>
-        <div class="col-md-2"><a asp-action="Index" class="btn btn-outline-secondary w-100">Hôm nay</a></div>
+        <div class="col-md-3">
+            <label class="form-label">Phim</label>
+            <select name="movieId" class="form-select">
+                <option value="">Tất cả phim</option>
+                @foreach (var m in Model.Movies)
+                {
+                    <option value="@m.Id" selected="@(m.Id == Model.MovieId)">@m.Title</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Trạng thái</label>
+            <select name="status" class="form-select">
+                <option value="">Tất cả</option>
+                <option value="Scheduled" selected="@(Model.Status == "Scheduled")">Scheduled</option>
+                <option value="Selling" selected="@(Model.Status == "Selling")">Selling</option>
+                <option value="Expired" selected="@(Model.Status == "Expired")">Expired</option>
+                <option value="Cancelled" selected="@(Model.Status == "Cancelled")">Cancelled</option>
+            </select>
+        </div>
+        <div class="col-md-1"><button class="btn btn-outline-primary w-100"><i class="bi bi-search"></i> Lọc</button></div>
+        <div class="col-md-1"><a asp-action="Index" class="btn btn-outline-secondary w-100">Reset</a></div>
     </div>
 </form>
 
@@ -67,10 +87,10 @@
 </ul>
 
 <ul class="nav nav-pills mb-3 flex-wrap gap-1">
-    <li class="nav-item"><a class="nav-link @(string.IsNullOrWhiteSpace(Model.RoomId) ? "active" : "")" asp-action="Index" asp-route-date="@Model.SelectedDate.ToString("yyyy-MM-dd")">Tất cả</a></li>
+    <li class="nav-item"><a class="nav-link @(string.IsNullOrWhiteSpace(Model.RoomId) ? "active" : "")" asp-action="Index" asp-route-date="@Model.SelectedDate.ToString("yyyy-MM-dd")" asp-route-movieId="@Model.MovieId" asp-route-status="@Model.Status">Tất cả</a></li>
     @foreach (var r in Model.Rooms)
     {
-        <li class="nav-item"><a class="nav-link @(r.Id == Model.RoomId ? "active" : "")" asp-action="Index" asp-route-roomId="@r.Id" asp-route-date="@Model.SelectedDate.ToString("yyyy-MM-dd")">@r.Name</a></li>
+        <li class="nav-item"><a class="nav-link @(r.Id == Model.RoomId ? "active" : "")" asp-action="Index" asp-route-roomId="@r.Id" asp-route-date="@Model.SelectedDate.ToString("yyyy-MM-dd")" asp-route-movieId="@Model.MovieId" asp-route-status="@Model.Status">@r.Name</a></li>
     }
 </ul>
 

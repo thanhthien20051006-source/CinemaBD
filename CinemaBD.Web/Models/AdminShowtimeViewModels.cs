@@ -3,6 +3,8 @@ namespace CinemaBD.Web.Models;
 public class AdminShowtimePageViewModel
 {
     public string? RoomId { get; set; }
+    public string? MovieId { get; set; }
+    public string? Status { get; set; }
     public DateTime SelectedDate { get; set; } = DateTime.Today;
     public IReadOnlyList<AdminRoomViewModel> Rooms { get; set; } = Array.Empty<AdminRoomViewModel>();
     public IReadOnlyList<AdminMovieOptionViewModel> Movies { get; set; } = Array.Empty<AdminMovieOptionViewModel>();
