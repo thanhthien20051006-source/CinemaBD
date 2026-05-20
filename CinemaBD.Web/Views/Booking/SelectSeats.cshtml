@@ -157,10 +157,9 @@
         });
         connection.on('SeatsConfirmed', (seatIds) => (seatIds || []).forEach(id => setHeldByOther(id, true)));
         connection.start().then(() => connection.invoke('JoinShowtime', showtimeId)).catch(() => {});
-        window.addEventListener('beforeunload', () => {
-            if (!connection) return;
-            Array.from(selected.keys()).forEach(id => connection.invoke('ReleaseSeat', showtimeId, id).catch(() => {}));
-        });
+        // Không nhả ghế khi rời trang: sau khi bấm tiếp tục, backend giữ toàn bộ ghế 5 phút.
+        // Nếu nhả ở beforeunload, request SignalR dễ chạy không đủ/race với request giữ ghế,
+        // dẫn tới quay lại chỉ thấy một phần ghế còn đang giữ.
     })();
 </script>
 
