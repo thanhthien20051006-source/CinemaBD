@@ -1,0 +1,38 @@
+﻿@model CinemaBD.Web.Models.EmployeeFormViewModel
+@using CinemaBD.Web.Models
+@{
+    ViewData["Title"] = Model.Id > 0 ? "Sửa nhân viên" : "Thêm nhân viên";
+    var roles = ViewBag.Roles as IReadOnlyList<RoleFormViewModel> ?? Array.Empty<RoleFormViewModel>();
+}
+
+<h3>@ViewData["Title"]</h3>
+<form asp-area="Admin" asp-controller="NhanVien" asp-action="Save" method="post" class="card mt-3">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+    <div class="card-body row g-3">
+        <div class="col-md-6"><label class="form-label">Họ tên</label><input asp-for="FullName" class="form-control" required /></div>
+        <div class="col-md-3"><label class="form-label">Ngày sinh</label><input asp-for="BirthDate" type="date" class="form-control" /></div>
+        <div class="col-md-3"><label class="form-label">Ngày bắt đầu</label><input asp-for="StartDate" type="date" class="form-control" /></div>
+        <div class="col-md-4"><label class="form-label">Email</label><input asp-for="Email" type="email" class="form-control" /></div>
+        <div class="col-md-4"><label class="form-label">SĐT</label><input asp-for="PhoneNumber" class="form-control" /></div>
+        <div class="col-md-4">
+            <label class="form-label">Chức vụ</label>
+            <select asp-for="RoleId" class="form-select">
+                <option value="">-- Chọn chức vụ --</option>
+                @foreach (var role in roles)
+                {
+                    <option value="@role.Id">@role.Name</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-12 form-check ms-2">
+            <input asp-for="IsActive" class="form-check-input" />
+            <label class="form-check-label">Đang hoạt động</label>
+        </div>
+    </div>
+    <div class="card-footer text-end">
+        <a class="btn btn-secondary" asp-area="Admin" asp-controller="NhanVien" asp-action="Index">Hủy</a>
+        <button class="btn btn-primary">Lưu</button>
+    </div>
+</form>
+

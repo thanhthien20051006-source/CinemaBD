@@ -1,0 +1,20 @@
+﻿@model CinemaBD.Web.Models.RoleFormViewModel
+@{
+    ViewData["Title"] = Model.Id > 0 ? "Sửa chức vụ" : "Thêm chức vụ";
+}
+
+<h3>@ViewData["Title"]</h3>
+<form asp-area="Admin" asp-controller="Role" asp-action="Save" method="post" class="card mt-3">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+    <div class="card-body row g-3">
+        <div class="col-md-6"><label class="form-label">Tên chức vụ</label><input asp-for="Name" class="form-control" required /></div>
+        <div class="col-md-3 form-check mt-5"><input asp-for="IsMaster" class="form-check-input" /><label class="form-check-label">Master</label></div>
+        <div class="col-md-3 form-check mt-5"><input asp-for="IsActive" class="form-check-input" /><label class="form-check-label">Hoạt động</label></div>
+    </div>
+    <div class="card-footer text-end">
+        <a class="btn btn-secondary" asp-area="Admin" asp-controller="Role" asp-action="Index">Hủy</a>
+        <button class="btn btn-primary">Lưu</button>
+    </div>
+</form>
+

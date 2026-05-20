@@ -1,0 +1,22 @@
+﻿@model IEnumerable<CinemaBD.Web.Domain.Booking>
+@{ ViewData["Title"] = "Đặt vé/Hóa đơn"; }
+<h4>Danh sách đặt vé</h4>
+<table class="table table-bordered table-striped">
+    <thead><tr><th>Mã giao dịch</th><th>Khách hàng</th><th>Phim</th><th>Suất chiếu</th><th>Ghế</th><th>Tổng tiền</th><th>Trạng thái</th><th>Thời gian</th></tr></thead>
+    <tbody>
+    @foreach (var b in Model)
+    {
+        <tr>
+            <td>@b.TxnRef</td>
+            <td>@b.User?.FullName (@b.User?.Username)</td>
+            <td>@b.Showtime?.Movie?.Title</td>
+            <td>@b.Showtime?.ShowDate.ToString("dd/MM/yyyy") @b.Showtime?.StartTime</td>
+            <td>@b.SeatsCsv</td>
+            <td>@string.Format("{0:N0}", b.TotalAmount)</td>
+            <td>@b.PaymentStatus</td>
+            <td>@b.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+        </tr>
+    }
+    </tbody>
+</table>
+

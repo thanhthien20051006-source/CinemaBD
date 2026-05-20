@@ -1,0 +1,82 @@
+@model CinemaBD.Web.Models.AdminStatisticsPageViewModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Dashboard doanh thu";
+    var monthLabels = JsonSerializer.Serialize(Model.DataPoints.Select(x => x.Label));
+    var monthValues = JsonSerializer.Serialize(Model.DataPoints.Select(x => x.Value));
+    var pmLabels = JsonSerializer.Serialize(Model.PaymentMethods.Select(x => x.Method));
+    var pmCounts = JsonSerializer.Serialize(Model.PaymentMethods.Select(x => x.OrderCount));
+    var pmRevenue = JsonSerializer.Serialize(Model.PaymentMethods.Select(x => x.Revenue));
+    var topMovieLabels = JsonSerializer.Serialize(Model.TopMovies.Select(x => x.Label));
+    var topMovieValues = JsonSerializer.Serialize(Model.TopMovies.Select(x => x.Value));
+    var dailyLabels = JsonSerializer.Serialize(Model.DailyData.Select(x => x.Label));
+    var dailyValues = JsonSerializer.Serialize(Model.DailyData.Select(x => x.Value));
+    var hourlyLabels = JsonSerializer.Serialize(Model.HourlyData.Select(x => x.Label));
+    var hourlyValues = JsonSerializer.Serialize(Model.HourlyData.Select(x => x.Value));
+    var weekdayLabels = JsonSerializer.Serialize(Model.WeekdayData.Select(x => x.Label));
+    var weekdayValues = JsonSerializer.Serialize(Model.WeekdayData.Select(x => x.Value));
+    var comboLabels = JsonSerializer.Serialize(Model.TopCombos.Select(x => x.Label));
+    var comboValues = JsonSerializer.Serialize(Model.TopCombos.Select(x => x.Value));
+    var customerLabels = JsonSerializer.Serialize(Model.TopCustomers.Select(x => x.Label));
+    var customerValues = JsonSerializer.Serialize(Model.TopCustomers.Select(x => x.Value));
+}
+
+<style>
+    .metric-card { border:0; border-radius:16px; color:white; box-shadow:0 10px 25px rgba(15,23,42,.12); }
+    .metric-card .label { opacity:.85; font-weight:600; }
+    .metric-card .value { font-size:1.7rem; font-weight:900; }
+    .chart-card { border:0; border-radius:16px; box-shadow:0 8px 22px rgba(15,23,42,.10); }
+</style>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <h3 class="fw-bold mb-0"><i class="bi bi-speedometer2"></i> Dashboard doanh thu nâng cao</h3>
+    <form method="get" class="d-flex align-items-center gap-2">
+        <select name="year" class="form-select form-select-sm" style="width:110px;">
+            @for (int y = DateTime.Today.Year - 5; y <= DateTime.Today.Year + 1; y++) { <option value="@y" selected="@(y == Model.StatisticsDate.Year)">@y</option> }
+        </select>
+        <button class="btn btn-primary btn-sm">Xem</button>
+    </form>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6"><div class="card metric-card p-3" style="background:linear-gradient(135deg,#0ea5e9,#2563eb)"><div class="label">Tổng doanh thu năm</div><div class="value">@Model.TotalRevenue.ToString("N0") đ</div></div></div>
+    <div class="col-lg-3 col-md-6"><div class="card metric-card p-3" style="background:linear-gradient(135deg,#22c55e,#15803d)"><div class="label">Doanh thu tháng này</div><div class="value">@Model.CurrentMonthRevenue.ToString("N0") đ</div></div></div>
+    <div class="col-lg-3 col-md-6"><div class="card metric-card p-3" style="background:linear-gradient(135deg,#f97316,#dc2626)"><div class="label">Doanh thu hôm nay</div><div class="value">@Model.TodayRevenue.ToString("N0") đ</div></div></div>
+    <div class="col-lg-3 col-md-6"><div class="card metric-card p-3" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9)"><div class="label">Giá trị TB/đơn</div><div class="value">@Model.AverageOrderValue.ToString("N0") đ</div></div></div>
+    <div class="col-lg-3 col-md-6"><div class="card metric-card p-3" style="background:linear-gradient(135deg,#334155,#0f172a)"><div class="label">Tổng đơn</div><div class="value">@Model.TotalOrders đơn</div></div></div>
+    <div class="col-lg-3 col-md-6"><div class="card metric-card p-3" style="background:linear-gradient(135deg,#14b8a6,#0f766e)"><div class="label">Tổng vé</div><div class="value">@Model.TotalTickets vé</div></div></div>
+    <div class="col-lg-3 col-md-6"><div class="card metric-card p-3" style="background:linear-gradient(135deg,#06b6d4,#0369a1)"><div class="label">Vé đã check-in</div><div class="value">@Model.CheckedInTickets vé</div></div></div>
+    <div class="col-lg-3 col-md-6"><div class="card metric-card p-3" style="background:linear-gradient(135deg,#64748b,#475569)"><div class="label">Tỷ lệ check-in</div><div class="value">@(Model.TotalTickets == 0 ? "0" : Math.Round(Model.CheckedInTickets * 100m / Model.TotalTickets, 1).ToString("0.0"))%</div></div></div>
+</div>
+
+<div class="row g-4">
+    <div class="col-xl-8"><div class="card chart-card p-3"><h6>Doanh thu theo tháng</h6><canvas id="monthChart" height="110"></canvas></div></div>
+    <div class="col-xl-4"><div class="card chart-card p-3"><h6>Đơn hàng theo phương thức</h6><canvas id="pieChart" height="230"></canvas></div></div>
+    <div class="col-xl-6"><div class="card chart-card p-3"><h6>Doanh thu theo ngày trong tháng</h6><canvas id="dailyChart" height="160"></canvas></div></div>
+    <div class="col-xl-6"><div class="card chart-card p-3"><h6>Doanh thu hôm nay theo giờ</h6><canvas id="hourlyChart" height="160"></canvas></div></div>
+    <div class="col-xl-6"><div class="card chart-card p-3"><h6>Doanh thu theo thứ trong tuần</h6><canvas id="weekdayChart" height="160"></canvas></div></div>
+    <div class="col-xl-6"><div class="card chart-card p-3"><h6>Doanh thu theo phương thức thanh toán</h6><canvas id="methodChart" height="160"></canvas></div></div>
+    <div class="col-xl-4"><div class="card chart-card p-3"><h6>Top phim</h6><canvas id="topMovieChart" height="220"></canvas></div></div>
+    <div class="col-xl-4"><div class="card chart-card p-3"><h6>Top combo</h6><canvas id="comboChart" height="220"></canvas></div></div>
+    <div class="col-xl-4"><div class="card chart-card p-3"><h6>Top khách hàng</h6><canvas id="customerChart" height="220"></canvas></div></div>
+</div>
+
+@section scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const moneyTick = v => Number(v).toLocaleString('vi-VN') + ' đ';
+const colors = ['#2563eb','#16a34a','#f59e0b','#dc2626','#7c3aed','#0891b2','#db2777','#475569'];
+function chart(id, type, labels, values, label, extra = {}) {
+    return new Chart(document.getElementById(id), { type, data: { labels: labels.length ? labels : ['Không có dữ liệu'], datasets: [{ label, data: values.length ? values : [0], backgroundColor: type === 'pie' || type === 'doughnut' ? colors : colors[0], borderColor: colors[0], fill: type === 'line', tension: .35 }] }, options: Object.assign({ responsive:true, plugins:{ legend:{ position:'bottom' } }, scales: type === 'pie' || type === 'doughnut' ? {} : { y:{ beginAtZero:true, ticks:{ callback: moneyTick } } } }, extra) });
+}
+chart('monthChart','bar',@Html.Raw(monthLabels),@Html.Raw(monthValues),'Doanh thu');
+chart('pieChart','doughnut',@Html.Raw(pmLabels),@Html.Raw(pmCounts),'Số đơn');
+chart('dailyChart','line',@Html.Raw(dailyLabels),@Html.Raw(dailyValues),'Doanh thu ngày');
+chart('hourlyChart','line',@Html.Raw(hourlyLabels),@Html.Raw(hourlyValues),'Doanh thu giờ');
+chart('weekdayChart','bar',@Html.Raw(weekdayLabels),@Html.Raw(weekdayValues),'Doanh thu');
+chart('methodChart','bar',@Html.Raw(pmLabels),@Html.Raw(pmRevenue),'Doanh thu');
+chart('topMovieChart','bar',@Html.Raw(topMovieLabels),@Html.Raw(topMovieValues),'Doanh thu vé',{ indexAxis:'y', scales:{ x:{ beginAtZero:true, ticks:{ callback: moneyTick } } } });
+chart('comboChart','bar',@Html.Raw(comboLabels),@Html.Raw(comboValues),'Doanh thu combo',{ indexAxis:'y', scales:{ x:{ beginAtZero:true, ticks:{ callback: moneyTick } } } });
+chart('customerChart','bar',@Html.Raw(customerLabels),@Html.Raw(customerValues),'Chi tiêu',{ indexAxis:'y', scales:{ x:{ beginAtZero:true, ticks:{ callback: moneyTick } } } });
+</script>
+}

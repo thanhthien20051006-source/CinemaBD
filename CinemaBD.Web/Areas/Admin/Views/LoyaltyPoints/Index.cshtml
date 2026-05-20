@@ -1,0 +1,29 @@
+﻿@model IReadOnlyList<CinemaBD.Web.Models.AdminLoyaltyPointViewModel>
+@{
+    ViewData["Title"] = "Tích điểm thành viên";
+    Layout = "~/Areas/Admin/Views/Shared/_AdminLayout.cshtml";
+    var search = ViewBag.Search as string;
+}
+<div class="card sys-card mt-3">
+    <div class="card-header"><h6 class="card-title mb-0">Tích điểm thành viên</h6></div>
+    <div class="card-body">
+        <form method="get" class="row g-2 mb-3">
+            <div class="col-md-5"><input name="search" value="@search" class="form-control" placeholder="Tìm khách hàng / mã tích điểm..." /></div>
+            <div class="col-auto"><button class="btn btn-outline-primary">Tìm</button></div>
+        </form>
+        <div id="loyaltyTableWrap" class="table-responsive"><partial name="_Table" model="Model" /></div>
+    </div>
+</div>
+@section Scripts {
+<script>
+$(document).on('submit', '.adjust-point-form', function(e) {
+    e.preventDefault();
+    const form = $(this);
+    $.ajax({
+        url: form.attr('action'), type: 'POST', data: form.serialize(),
+        success: html => $('#loyaltyTableWrap').html(html),
+        error: xhr => alert(xhr.responseText || 'Không cập nhật được điểm')
+    });
+});
+</script>
+}

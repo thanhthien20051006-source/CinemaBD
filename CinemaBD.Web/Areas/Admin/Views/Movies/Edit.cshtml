@@ -1,0 +1,18 @@
+﻿@model CinemaBD.Web.Domain.Movie
+@{ ViewData["Title"] = "Sửa phim"; }
+<h4>Sửa phim</h4>
+<form method="post">
+    @Html.AntiForgeryToken()
+    <input asp-for="Id" type="hidden" />
+    <div class="row g-3">
+        <div class="col-md-9"><label>Tên phim</label><input asp-for="Title" class="form-control" /></div>
+        <div class="col-md-3"><label>Thể loại</label><input asp-for="Genre" class="form-control" /></div>
+        <div class="col-md-4"><label>Thời lượng</label><input asp-for="DurationMinutes" class="form-control" /></div>
+        <div class="col-md-4"><label>Trạng thái</label><input asp-for="Status" class="form-control" /></div>
+        <div class="col-md-4"><label>Poster URL</label><input asp-for="PosterUrl" class="form-control" /></div>
+        <div class="col-12"><label>Mô tả</label><textarea asp-for="Description" class="form-control"></textarea></div>
+    </div>
+    <button class="btn btn-primary mt-3">Cập nhật</button>
+    <a asp-action="Index" class="btn btn-secondary mt-3">Quay lại</a>
+</form>
+

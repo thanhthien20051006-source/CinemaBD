@@ -1,0 +1,60 @@
+@model CinemaBD.Web.Models.InvoiceViewModel
+@{
+    ViewData["Title"] = "Chi Tiết Hóa Đơn";
+    var tickets = Model.Tickets?.Any() == true
+        ? Model.Tickets
+        : (Model.Seats ?? Array.Empty<string>()).Select(s => new CinemaBD.Web.Models.InvoiceTicketViewModel { SeatId = s }).ToList();
+}
+<div class="container mt-5">
+    <div class="card shadow-sm">
+        <div class="card-header bg-danger text-white">
+            <h4><i class="bi bi-receipt"></i> Chi Tiết Hóa Đơn @Model.TransactionRef</h4>
+        </div>
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Tên phim</dt>
+                <dd class="col-sm-9">@Model.MovieTitle</dd>
+                <dt class="col-sm-3">Ngày chiếu</dt>
+                <dd class="col-sm-9">@(Model.ShowDate?.ToString("dd/MM/yyyy") ?? "-")</dd>
+                <dt class="col-sm-3">Giờ bắt đầu</dt>
+                <dd class="col-sm-9">@(Model.StartTime?.ToString(@"hh\:mm") ?? "-")</dd>
+                <dt class="col-sm-3">Phòng chiếu</dt>
+                <dd class="col-sm-9">@Model.RoomName</dd>
+                <dt class="col-sm-3">Ghế</dt>
+                <dd class="col-sm-9">@string.Join(", ", Model.Seats ?? Array.Empty<string>())</dd>
+                <dt class="col-sm-3">Combo</dt>
+                <dd class="col-sm-9">@(Model.Combos.Any() ? string.Join(", ", Model.Combos) : "Không có")</dd>
+                <dt class="col-sm-3">Tổng tiền</dt>
+                <dd class="col-sm-9">@Model.TotalAmount.ToString("n0") đ</dd>
+                <dt class="col-sm-3">Trạng thái</dt>
+                <dd class="col-sm-9">@Model.PaymentStatus</dd>
+                <dt class="col-sm-3">Mã thanh toán</dt>
+                <dd class="col-sm-9">@Model.PaymentId</dd>
+            </dl>
+
+            <hr />
+            <h5 class="mb-3"><i class="bi bi-qr-code"></i> QR check-in từng vé</h5>
+            <div class="row g-3">
+                @foreach (var ticket in tickets)
+                {
+                    <div class="col-md-4 col-sm-6">
+                        <div class="border rounded-3 p-3 h-100 text-center">
+                            @if (!string.IsNullOrWhiteSpace(ticket.QrCodeDataUrl))
+                            {
+                                <img src="@ticket.QrCodeDataUrl" alt="QR @ticket.TicketId" class="img-fluid" style="max-width:160px" />
+                            }
+                            <div class="fw-bold mt-2">Ghế @ticket.SeatId</div>
+                            <div class="small text-muted">@ticket.TicketId</div>
+                            <div class="small">@(ticket.IsCheckedIn ? "Đã check-in" : "Chưa check-in")</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        <div class="card-footer text-end">
+            <a asp-controller="Account" asp-action="History" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Quay lại
+            </a>
+        </div>
+    </div>
+</div>

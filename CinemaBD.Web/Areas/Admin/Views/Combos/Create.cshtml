@@ -1,0 +1,16 @@
+﻿@model CinemaBD.Web.Domain.Combo
+@{ ViewData["Title"] = "Thêm combo"; }
+<h4>Thêm combo</h4>
+<form method="post">
+    @Html.AntiForgeryToken()
+    <div class="row g-3">
+        <div class="col-md-4"><label>Mã combo</label><input asp-for="Id" class="form-control" /></div>
+        <div class="col-md-8"><label>Tên combo</label><input asp-for="Name" class="form-control" /></div>
+        <div class="col-md-4"><label>Giá</label><input asp-for="Price" class="form-control" /></div>
+        <div class="col-md-8"><label>Ảnh</label><input asp-for="ImageUrl" class="form-control" /></div>
+        <div class="col-12"><label>Mô tả</label><textarea asp-for="Description" class="form-control"></textarea></div>
+    </div>
+    <button class="btn btn-primary mt-3">Lưu</button>
+    <a asp-action="Index" class="btn btn-secondary mt-3">Quay lại</a>
+</form>
+

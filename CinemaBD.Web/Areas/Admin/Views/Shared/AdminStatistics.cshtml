@@ -1,0 +1,23 @@
+﻿@model CinemaBD.Web.Models.AdminThongKeViewModel
+@{
+    ViewData["Title"] = "Thống kê";
+}
+
+<h3 class="mb-3">Thống kê</h3>
+<div class="row g-3">
+    @foreach (var card in Model.Cards)
+    {
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="text-muted">@card.Label</div>
+                    <h5 class="mb-0">@card.Value</h5>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+<div class="alert alert-info mt-3">
+    Bộ lọc thống kê ngày/tháng/năm của MVC5 sẽ được port sau khi hoàn tất module hóa đơn/in vé.
+</div>
+

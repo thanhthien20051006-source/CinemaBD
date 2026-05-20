@@ -1,0 +1,102 @@
+@model IReadOnlyList<CinemaBD.Web.Models.AdminCinemaViewModel>
+@{
+    ViewData["Title"] = "Quản lý rạp";
+    var i = 1;
+}
+
+<div class="row g-3 mt-2">
+    <div class="col-lg-4">
+        <div class="card sys-card">
+            <div class="card-header"><h6 class="card-title mb-0">Thêm / sửa rạp</h6></div>
+            <div class="card-body">
+                <form asp-action="Save" method="post">
+                    @Html.AntiForgeryToken()
+                    <label class="form-label">Mã rạp</label>
+                    <input name="Id" class="form-control mb-2" placeholder="Để trống để tự sinh" />
+                    <label class="form-label">Tên rạp</label>
+                    <input name="Name" class="form-control mb-2" required />
+                    <label class="form-label">Địa chỉ</label>
+                    <input name="Address" class="form-control mb-2" />
+                    <label class="form-label">Số điện thoại</label>
+                    <input name="Phone" class="form-control mb-2" />
+                    <label class="form-label">Trạng thái</label>
+                    <select name="Status" class="form-select mb-3">
+                        <option>Hoạt động</option>
+                        <option>Ngưng hoạt động</option>
+                    </select>
+                    <button class="btn btn-danger w-100">Lưu rạp</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="card sys-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="card-title mb-0">Danh sách cụm rạp</h6>
+                <span class="badge bg-secondary">@Model.Count rạp</span>
+            </div>
+            <div class="card-body table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                    <tr>
+                        <th style="width:60px">#</th>
+                        <th>Mã</th>
+                        <th>Tên rạp</th>
+                        <th>Địa chỉ</th>
+                        <th>Phòng</th>
+                        <th style="width:160px">Trạng thái</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @if (Model.Any())
+                    {
+                        foreach (var item in Model)
+                        {
+                            var tt = (item.Status ?? "").Trim();
+                            bool isActive = tt.Equals("Hoạt động", StringComparison.OrdinalIgnoreCase) || tt.Equals("Hoat dong", StringComparison.OrdinalIgnoreCase) || tt.Equals("ACTIVE", StringComparison.OrdinalIgnoreCase);
+                            <tr>
+                                <td>@i</td>
+                                <td>@item.Id</td>
+                                <td class="fw-semibold">@item.Name<br /><small class="text-muted">@item.Phone</small></td>
+                                <td>@item.Address</td>
+                                <td><a asp-controller="AdminPhong" asp-action="Index" asp-route-cinemaId="@item.Id" class="badge bg-info text-dark text-decoration-none">@item.RoomCount phòng</a></td>
+                                <td>
+                                    <span class="badge status-toggle @(isActive ? "bg-success" : "bg-danger")" data-id="@item.Id" style="cursor:pointer;">
+                                        @(isActive ? "Hoạt động" : "Bảo trì")
+                                    </span>
+                                </td>
+                            </tr>
+                            i++;
+                        }
+                    }
+                    else
+                    {
+                        <tr><td colspan="6" class="text-center text-muted py-4">Chưa có rạp nào.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+<script>
+$(function () {
+    $('.status-toggle').click(function () {
+        const badge = $(this);
+        const id = badge.data('id');
+        $.ajax({
+            url: '@Url.Action("ToggleStatus", "AdminRap", new { area = "Admin" })',
+            type: 'POST',
+            data: { id },
+            success: function (res) {
+                if (!res.success) return;
+                const active = (res.status || '').toLowerCase().includes('hoạt') || (res.status || '').toLowerCase().includes('hoat');
+                badge.toggleClass('bg-success', active).toggleClass('bg-danger', !active).text(active ? 'Hoạt động' : 'Bảo trì');
+            }
+        });
+    });
+});
+</script>
+}

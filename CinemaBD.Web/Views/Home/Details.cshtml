@@ -1,0 +1,173 @@
+﻿@model CinemaBD.Web.Models.MovieDetailsPageViewModel
+@{
+    ViewData["Title"] = Model.Movie?.Title;
+}
+
+<div class="container mt-4">
+    <div class="card shadow-sm border-0 overflow-hidden">
+        <div class="row g-0">
+            <div class="col-md-4">
+                <img src="@Model.Movie?.PosterUrl" class="img-fluid w-100 h-100" style="object-fit: cover; min-height: 500px;" onerror="this.src='https://placehold.co/400x600?text=No+Poster'">
+            </div>
+            <div class="col-md-8 p-4">
+                <h2 class="text-danger fw-bold mb-3">@Model.Movie?.Title</h2>
+                
+                <div class="mb-3">
+                    <span class="me-3"><strong>Thời lượng:</strong> @(Model.Movie?.DurationMinutes > 0 ? Model.Movie.DurationMinutes + " phút" : "Đang cập nhật")</span>
+                    <span class="me-3"><strong>Ngày khởi chiếu:</strong> @Model.Movie?.ReleaseDate?.ToString("dd/MM/yyyy")</span>
+                    <span><strong>Ngày kết thúc:</strong> @Model.Movie?.EndDate?.ToString("dd/MM/yyyy")</span>
+                </div>
+
+                <div class="mb-4">
+                    <strong>Trạng thái:</strong> <span class="badge @(Model.Movie?.Status == "Đang chiếu" ? "bg-success" : "bg-warning")">@Model.Movie?.Status</span>
+                </div>
+
+                <hr />
+
+                <div class="row mb-4">
+                    <div class="col-6">
+                        <h6 class="text-danger fw-bold">QUỐC GIA</h6>
+                        <p>@(Model.Movie?.Country ?? "Việt Nam")</p>
+                    </div>
+                    <div class="col-6">
+                        <h6 class="text-danger fw-bold">THỂ LOẠI</h6>
+                        <p>@Model.Movie?.Genre</p>
+                    </div>
+                    <div class="col-6 mt-2">
+                        <h6 class="text-danger fw-bold">ĐẠO DIỄN</h6>
+                        <p>@Model.Movie?.Director</p>
+                    </div>
+                    <div class="col-6 mt-2">
+                        <h6 class="text-danger fw-bold">DIỄN VIÊN</h6>
+                        <p>@Model.Movie?.Cast</p>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <h6 class="text-danger fw-bold">MÔ TẢ PHIM</h6>
+                    <p class="text-muted">@Model.Movie?.Description</p>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <a href="@Model.Movie?.TrailerUrl" target="_blank" class="btn btn-outline-secondary px-4 rounded-pill">Xem trailer</a>
+                    <button onclick="document.getElementById('booking-section').scrollIntoView({behavior:'smooth'})" class="btn btn-danger px-4 rounded-pill">
+                        <i class="bi bi-ticket-perforated"></i> ĐẶT VÉ NGAY
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="booking-section" class="mt-5">
+        <div class="card shadow-sm border-0 p-4">
+            <h4 class="text-danger fw-bold mb-4">LỊCH CHIẾU</h4>
+            
+            <div class="row align-items-end mb-4">
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">CHỌN NGÀY</label>
+                    <input type="date" id="show-date" class="form-control" value="@Model.SelectedDate.ToString("yyyy-MM-dd")" min="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-danger w-100" onclick="loadShowtimes()">Xem suất chiếu</button>
+                </div>
+            </div>
+
+            <div id="showtimes-container">
+                @if (Model.Showtimes != null && Model.Showtimes.Any())
+                {
+                    <div class="row g-3">
+                        @foreach (var st in Model.Showtimes)
+                        {
+                            <div class="col-auto">
+                                <a href="/booking/seats?showtimeId=@st.Id" class="btn btn-outline-danger px-4 py-2">
+                                    <div class="fw-bold">@st.StartTime</div>
+                                    <div class="small">@st.RoomName</div>
+                                </a>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-info">Vui lòng chọn ngày để xem lịch chiếu.</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div id="review-section" class="mt-5 mb-5">
+        <div class="card shadow-sm border-0 p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="text-danger fw-bold mb-0">ĐÁNH GIÁ PHIM</h4>
+                <span class="badge bg-danger">@Model.Reviews.Count đánh giá</span>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(Model.ReviewMessage))
+            {
+                <div class="alert alert-info">@Model.ReviewMessage</div>
+            }
+
+            @if (Model.ReviewEligibility?.CanReview == true)
+            {
+                <form method="post" asp-controller="Home" asp-action="CreateReview" asp-route-id="@Model.Movie?.Id" class="border rounded-4 p-3 mb-4 bg-light">
+                    @Html.AntiForgeryToken()
+                    <label class="form-label fw-bold">Chấm điểm</label>
+                    <select name="rating" class="form-select mb-3" style="max-width: 220px;">
+                        <option value="5">★★★★★ - Rất hay</option>
+                        <option value="4">★★★★☆ - Hay</option>
+                        <option value="3">★★★☆☆ - Tạm ổn</option>
+                        <option value="2">★★☆☆☆ - Chưa tốt</option>
+                        <option value="1">★☆☆☆☆ - Tệ</option>
+                    </select>
+                    <label class="form-label fw-bold">Nội dung đánh giá</label>
+                    <textarea name="content" class="form-control mb-3" rows="3" maxlength="1000" required placeholder="Viết cảm nhận của bạn sau khi xem phim..."></textarea>
+                    <button class="btn btn-danger rounded-pill px-4">Gửi đánh giá</button>
+                </form>
+            }
+            else
+            {
+                <div class="alert alert-light border">
+                    @(Model.ReviewEligibility?.ReviewRuleMessage ?? "Bạn cần đăng nhập và xem phim này để đánh giá.")
+                </div>
+            }
+
+            @if (Model.Reviews.Any())
+            {
+                <div class="row g-3">
+                    @foreach (var review in Model.Reviews)
+                    {
+                        <div class="col-md-6">
+                            <div class="border rounded-4 p-3 h-100">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <strong>@(review.CustomerName ?? "Khách hàng")</strong>
+                                    <span class="text-warning">@string.Concat(Enumerable.Repeat("★", Math.Clamp(review.Rating, 1, 5)))@string.Concat(Enumerable.Repeat("☆", 5 - Math.Clamp(review.Rating, 1, 5)))</span>
+                                </div>
+                                <p class="mb-2 text-muted">@review.Content</p>
+                                <small class="text-secondary">@review.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="text-muted text-center py-4">Chưa có đánh giá nào cho phim này.</div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function loadShowtimes() {
+            const date = document.getElementById('show-date').value;
+            const movieId = '@Model.Movie?.Id';
+            const container = document.getElementById('showtimes-container');
+            
+            container.innerHTML = '<div class="text-center p-5"><div class="spinner-border text-danger"></div></div>';
+            
+            location.href = `/movies/${movieId}?date=${date}`;
+        }
+    </script>
+}
+

@@ -1,0 +1,18 @@
+﻿@model CinemaBD.Web.Domain.Showtime
+@{ ViewData["Title"] = "Thêm suất chiếu"; }
+<h4>Thêm suất chiếu</h4>
+<form method="post">
+    @Html.AntiForgeryToken()
+    <div class="row g-3">
+        <div class="col-md-4"><label>Mã suất</label><input asp-for="Id" class="form-control" /></div>
+        <div class="col-md-8"><label>Phim</label><select asp-for="MovieId" asp-items="ViewBag.Movies" class="form-select"></select></div>
+        <div class="col-md-4"><label>Mã phòng</label><input asp-for="RoomId" class="form-control" /></div>
+        <div class="col-md-4"><label>Tên phòng</label><input asp-for="RoomName" class="form-control" /></div>
+        <div class="col-md-4"><label>Ngày chiếu</label><input asp-for="ShowDate" type="date" class="form-control" /></div>
+        <div class="col-md-4"><label>Giờ bắt đầu</label><input asp-for="StartTime" class="form-control" /></div>
+        <div class="col-md-4"><label>Giá vé</label><input asp-for="TicketPrice" class="form-control" /></div>
+    </div>
+    <button class="btn btn-primary mt-3">Lưu</button>
+    <a asp-action="Index" class="btn btn-secondary mt-3">Quay lại</a>
+</form>
+

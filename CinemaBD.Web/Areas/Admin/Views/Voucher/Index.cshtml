@@ -1,0 +1,74 @@
+﻿@model CinemaBD.Web.Models.AdminVoucherPageViewModel
+@{
+    ViewData["Title"] = "Quản lý voucher";
+    Layout = "~/Areas/Admin/Views/Shared/_AdminLayout.cshtml";
+}
+
+<div class="card sys-card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="card-title mb-0">Danh sách voucher</h6>
+        <button id="btnAddVoucher" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Thêm voucher</button>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-2 mb-3">
+            <div class="col-md-5">
+                <input name="search" value="@Model.Search" class="form-control" placeholder="Tìm theo mã, khách hàng, code..." />
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-outline-primary">Tìm</button>
+            </div>
+        </form>
+
+        <div id="voucherTableWrap" class="table-responsive">
+            <partial name="_Table" model="Model.Vouchers" />
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="voucherModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Thông tin voucher</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="voucherFormWrap"></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    const modal = new bootstrap.Modal(document.getElementById('voucherModal'));
+
+    function loadVoucherForm(id) {
+        const url = '@Url.Action("Form", "Voucher", new { area = "Admin" })' + (id ? '?id=' + encodeURIComponent(id) : '');
+        $('#voucherFormWrap').load(url, () => modal.show());
+    }
+
+    $('#btnAddVoucher').on('click', () => loadVoucherForm(''));
+
+    $(document).on('click', '.btn-edit-voucher', function () {
+        loadVoucherForm($(this).data('id'));
+    });
+
+    $(document).on('submit', '#voucherForm', function (e) {
+        e.preventDefault();
+        const form = $(this);
+        $.ajax({
+            url: form.attr('action'),
+            type: 'POST',
+            data: form.serialize(),
+            success: html => { $('#voucherTableWrap').html(html); modal.hide(); },
+            error: xhr => alert(xhr.responseText || 'Không lưu được voucher')
+        });
+    });
+
+    $(document).on('click', '.btn-delete-voucher', function () {
+        if (!confirm('Bạn chắc chắn muốn xóa voucher này?')) return;
+        $.post('@Url.Action("Delete", "Voucher", new { area = "Admin" })', { id: $(this).data('id') })
+            .done(html => $('#voucherTableWrap').html(html))
+            .fail(xhr => alert(xhr.responseText || 'Không xóa được voucher'));
+    });
+</script>
+}

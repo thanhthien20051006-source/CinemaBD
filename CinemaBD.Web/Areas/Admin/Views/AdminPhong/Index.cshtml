@@ -1,0 +1,85 @@
+﻿@model IReadOnlyList<CinemaBD.Web.Models.AdminRoomViewModel>
+@{
+    ViewData["Title"] = "Danh sách phòng";
+    var i = 1;
+    var cinemas = ViewBag.Cinemas as IReadOnlyList<CinemaBD.Web.Models.AdminCinemaViewModel> ?? Array.Empty<CinemaBD.Web.Models.AdminCinemaViewModel>();
+    string? selectedCinema = ViewBag.CinemaId as string;
+}
+
+<div class="card sys-card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center gap-3">
+        <h6 class="card-title mb-0">Danh Sách Phòng</h6>
+        <form method="get" class="d-flex gap-2 align-items-center">
+            <select name="cinemaId" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">Tất cả rạp</option>
+                @foreach (var c in cinemas)
+                {
+                    <option value="@c.Id" selected="@(selectedCinema == c.Id)">@c.Name</option>
+                }
+            </select>
+        </form>
+    </div>
+    <div class="card-body table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+            <tr>
+                <th style="width:60px">#</th>
+                <th>Mã phòng</th>
+                <th>Tên phòng</th>
+                <th>Rạp</th>
+                <th>Số ghế</th>
+                <th style="width:160px">Tình trạng</th>
+            </tr>
+            </thead>
+            <tbody>
+            @if (Model.Any())
+            {
+                foreach (var p in Model)
+                {
+                    var tt = (p.Status ?? "").Trim();
+                    bool isActive = tt.Equals("Hoạt động", StringComparison.OrdinalIgnoreCase) || tt.Equals("Hoat dong", StringComparison.OrdinalIgnoreCase) || tt.Equals("ACTIVE", StringComparison.OrdinalIgnoreCase);
+                    <tr>
+                        <td>@i</td>
+                        <td>@p.Id</td>
+                        <td>@p.Name</td>
+                        <td>@(p.CinemaName ?? p.CinemaId ?? "Chưa gán")</td>
+                        <td>@p.SeatCount</td>
+                        <td>
+                            <span class="badge status-toggle @(isActive ? "bg-success" : "bg-danger")" data-id="@p.Id" style="cursor:pointer;">
+                                @(isActive ? "Hoạt động" : "Bảo trì")
+                            </span>
+                        </td>
+                    </tr>
+                    i++;
+                }
+            }
+            else
+            {
+                <tr><td colspan="6" class="text-center text-muted">Chưa có phòng chiếu nào.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section scripts {
+<script>
+$(function () {
+    $('.status-toggle').click(function () {
+        const badge = $(this);
+        const id = badge.data('id');
+        $.ajax({
+            url: '@Url.Action("ToggleStatus", "AdminPhong", new { area = "Admin" })',
+            type: 'POST',
+            data: { id },
+            success: function (res) {
+                if (!res.success) return;
+                const active = (res.status || '').toLowerCase().includes('hoạt') || (res.status || '').toLowerCase().includes('hoat');
+                badge.toggleClass('bg-success', active).toggleClass('bg-danger', !active).text(active ? 'Hoạt động' : 'Bảo trì');
+            }
+        });
+    });
+});
+</script>
+}
+

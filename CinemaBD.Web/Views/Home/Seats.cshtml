@@ -1,0 +1,238 @@
+﻿@model SeatSelectionPageViewModel
+@{
+    ViewData["Title"] = "Chọn ghế";
+}
+
+<div class="container py-4">
+    <div class="card shadow p-4">
+        <h3 class="text-primary mb-3"><i class="bi bi-person-lines-fill"></i> Chọn ghế xem phim</h3>
+
+        <div class="screen text-center mb-4">
+            <div class="screen-bar">MÀN HÌNH</div>
+        </div>
+
+        <input type="hidden" id="MaSuatChieu" value="@Model.ShowtimeId" />
+
+        <div class="mb-3">
+            <span class="badge" style="background:#2ecc71;">Ghế thường</span>
+            <span class="badge" style="background:#f39c12;">Ghế VIP</span>
+            <span class="badge" style="background:#e74c3c;">Đã bán</span>
+            <span class="badge" style="background:#3498db;">Đang chọn</span>
+        </div>
+
+        <div class="seat-map d-flex flex-column align-items-center">
+            @foreach (var group in Model.Seats.GroupBy(x => x.Row).OrderBy(g => g.Key))
+            {
+                <div class="seat-row mb-2">
+                    <span class="row-label">Hàng @group.Key</span>
+
+                    @foreach (var seat in group.OrderBy(x => x.Column))
+                    {
+                        var css = "seat ";
+                        if (seat.IsBooked)
+                        {
+                            css += "seat-sold";
+                        }
+                        else if (string.Equals(seat.SeatType, "VIP", StringComparison.OrdinalIgnoreCase))
+                        {
+                            css += "seat-vip";
+                        }
+                        else
+                        {
+                            css += "seat-free";
+                        }
+
+                        if (seat.IsBooked)
+                        {
+                            <button type="button" class="@css" disabled>@seat.Column</button>
+                        }
+                        else
+                        {
+                            <label>
+                                <input type="checkbox" name="Seats" value="@seat.Id" hidden />
+                                <button type="button" class="@css" data-seatcode="@seat.Id" data-price="@seat.Price" onclick="toggleSeat(this)">@seat.Column</button>
+                            </label>
+                        }
+                    }
+                </div>
+            }
+        </div>
+
+        <hr />
+
+        <div class="card p-3 mt-4 shadow-sm">
+            <h5><i class="bi bi-ticket-detailed"></i> Thông tin đặt vé</h5>
+            <table class="table table-bordered mt-2 text-center">
+                <tr>
+                    <th>Ghế đã chọn:</th>
+                    <td id="selectedSeats">Vui lòng chọn ghế</td>
+                </tr>
+                <tr id="holdTimeRow" style="display:none;">
+                    <th>Thời gian để thanh toán:</th>
+                    <td>
+                        <span class="badge bg-warning text-dark">
+                            <i class="bi bi-clock"></i> <span id="holdCountdown">15:00</span>
+                        </span>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Tạm tính:</th>
+                    <td><span id="totalPrice" class="badge bg-danger fs-6">0 đ</span></td>
+                </tr>
+            </table>
+
+            <div class="text-end">
+                <button type="button" class="btn btn-primary px-4" onclick="goToCheckout()">
+                    <i class="bi bi-arrow-right-circle"></i> Tiếp tục
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        var selected = [];
+        var holdTimer = null;
+        var remainingHoldTime = 15 * 60;
+
+        function toggleSeat(btn) {
+            var cb = btn.previousElementSibling;
+            var seatId = cb.value;
+
+            if (cb.checked) {
+                cb.checked = false;
+                btn.classList.remove("seat-selected");
+                selected = selected.filter(function (x) { return x !== seatId; });
+                if (selected.length === 0) stopHoldCountdown();
+            } else {
+                cb.checked = true;
+                btn.classList.add("seat-selected");
+                selected.push(seatId);
+                if (!holdTimer) startHoldCountdown();
+            }
+            updateBookingInfo();
+        }
+
+        function updateBookingInfo() {
+            var seatContainer = document.getElementById("selectedSeats");
+            var totalContainer = document.getElementById("totalPrice");
+
+            if (selected.length === 0) {
+                seatContainer.innerText = "Vui lòng chọn ghế";
+                totalContainer.innerText = "0 đ";
+                return;
+            }
+
+            seatContainer.innerHTML = selected.map(function (s) {
+                return '<span class="badge bg-success me-1">' + s + '</span>';
+            }).join("");
+
+            var total = 0;
+            selected.forEach(function (seatCode) {
+                var btn = document.querySelector('[data-seatcode="' + seatCode + '"]');
+                if (!btn) return;
+                total += Number(btn.dataset.price || 0);
+            });
+
+            totalContainer.innerText = total.toLocaleString("vi-VN") + " đ";
+        }
+
+        function startHoldCountdown() {
+            remainingHoldTime = 15 * 60;
+            document.getElementById("holdTimeRow").style.display = "";
+            updateHoldCountdown();
+
+            if (holdTimer) clearInterval(holdTimer);
+            holdTimer = setInterval(function () {
+                remainingHoldTime--;
+                updateHoldCountdown();
+                if (remainingHoldTime <= 0) {
+                    clearInterval(holdTimer);
+                    holdTimer = null;
+                    alert("⏰ Hết thời gian giữ chỗ! Hệ thống sẽ hủy các ghế bạn đã chọn.");
+                    document.querySelectorAll(".seat-selected").forEach(function (btn) {
+                        btn.classList.remove("seat-selected");
+                        var cb = btn.previousElementSibling;
+                        if (cb) cb.checked = false;
+                    });
+                    selected = [];
+                    updateBookingInfo();
+                    document.getElementById("holdTimeRow").style.display = "none";
+                }
+            }, 1000);
+        }
+
+        function stopHoldCountdown() {
+            if (holdTimer) clearInterval(holdTimer);
+            holdTimer = null;
+            document.getElementById("holdTimeRow").style.display = "none";
+        }
+
+        function updateHoldCountdown() {
+            var countdownSpan = document.getElementById("holdCountdown");
+            var minutes = Math.floor(remainingHoldTime / 60);
+            var seconds = remainingHoldTime % 60;
+            countdownSpan.textContent = (minutes < 10 ? '0' + minutes : minutes) + ':' + (seconds < 10 ? '0' + seconds : seconds);
+
+            if (remainingHoldTime <= 60) {
+                var badge = countdownSpan.parentElement;
+                badge.classList.remove("bg-warning", "text-dark");
+                badge.classList.add("bg-danger", "text-white");
+            }
+        }
+
+        function goToCheckout() {
+            if (selected.length === 0) {
+                alert("Vui lòng chọn ít nhất một ghế!");
+                return;
+            }
+
+            var showtimeId = document.getElementById("MaSuatChieu").value;
+            window.location.href = '/booking/combo?showtimeId=' + encodeURIComponent(showtimeId)
+                + '&seats=' + encodeURIComponent(selected.join(','));
+        }
+    </script>
+
+    <style>
+        .screen-bar {
+            background: #555;
+            color: #fff;
+            padding: 8px;
+            font-weight: bold;
+            border-radius: 4px;
+            width: 60%;
+            margin: auto;
+        }
+
+        .seat-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .row-label {
+            width: 70px;
+            font-weight: bold;
+            text-align: right;
+            margin-right: 10px;
+        }
+
+        .seat {
+            width: 40px;
+            height: 40px;
+            margin: 3px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .seat-free { background-color: #2ecc71; }
+        .seat-vip { background-color: #f39c12; }
+        .seat-sold { background-color: #e74c3c; cursor: not-allowed; }
+        .seat-selected { background-color: #3498db !important; box-shadow: 0 0 6px #2980b9; }
+    </style>
+}
+

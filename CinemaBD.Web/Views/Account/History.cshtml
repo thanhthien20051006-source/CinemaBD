@@ -1,0 +1,100 @@
+@model IReadOnlyList<CinemaBD.Web.Models.InvoiceViewModel>
+@{
+    ViewData["Title"] = "Vé Của Tôi";
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3 class="fw-bold mb-1"><i class="bi bi-ticket-perforated text-danger"></i> Vé của tôi</h3>
+            <div class="text-muted">Quản lý vé đã mua, xem QR check-in và tải PDF.</div>
+        </div>
+        <a href="/" class="btn btn-outline-danger"><i class="bi bi-film"></i> Đặt vé mới</a>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">@TempData["Success"]</div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
+
+    @if (Model != null && Model.Any())
+    {
+        <div class="row g-4">
+            @foreach (var item in Model)
+            {
+                var isPaid = !string.IsNullOrEmpty(item.PaymentStatus) &&
+                    (item.PaymentStatus.Contains("paid", StringComparison.OrdinalIgnoreCase) ||
+                     item.PaymentStatus.Contains("thành công", StringComparison.OrdinalIgnoreCase) ||
+                     item.PaymentStatus.Contains("đã thanh toán", StringComparison.OrdinalIgnoreCase));
+                var seats = item.SeatIds?.Any() == true ? string.Join(", ", item.SeatIds) : string.Join(", ", item.Seats ?? Array.Empty<string>());
+
+                <div class="col-lg-6">
+                    <div class="card border-0 shadow-sm h-100" style="border-radius:18px; overflow:hidden;">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                                <div>
+                                    <div class="small text-muted">Mã hóa đơn</div>
+                                    <div class="fw-bold text-danger">@item.TransactionRef</div>
+                                </div>
+                                @if (isPaid)
+                                {
+                                    <span class="badge rounded-pill bg-success px-3 py-2">Đã thanh toán</span>
+                                }
+                                else
+                                {
+                                    <span class="badge rounded-pill bg-secondary px-3 py-2">@item.PaymentStatus</span>
+                                }
+                            </div>
+
+                            <h5 class="fw-bold mb-2">@item.MovieTitle</h5>
+                            <div class="row text-muted small g-2 mb-3">
+                                <div class="col-6"><i class="bi bi-calendar-event"></i> @(item.ShowDate?.ToString("dd/MM/yyyy") ?? "-")</div>
+                                <div class="col-6"><i class="bi bi-clock"></i> @(item.StartTime?.ToString(@"hh\:mm") ?? "-")</div>
+                                <div class="col-12"><i class="bi bi-grid-3x3-gap"></i> Ghế: @(string.IsNullOrWhiteSpace(seats) ? "-" : seats)</div>
+                            </div>
+
+                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                <span class="badge bg-light text-dark border">@item.TicketCount vé</span>
+                                <span class="badge bg-light text-dark border">Check-in: @item.CheckedInCount/@item.TicketCount</span>
+                                <span class="badge bg-light text-dark border">@item.TotalAmount.ToString("N0") đ</span>
+                            </div>
+
+                            <div class="d-flex flex-wrap gap-2">
+                                <a asp-controller="Account" asp-action="InvoiceDetail" asp-route-txnRef="@item.TransactionRef" class="btn btn-danger btn-sm px-3">
+                                    <i class="bi bi-qr-code"></i> Xem QR
+                                </a>
+                                <a asp-controller="Booking" asp-action="InvoicePdf" asp-route-txnRef="@item.TransactionRef" class="btn btn-outline-success btn-sm px-3">
+                                    <i class="bi bi-file-earmark-pdf"></i> Tải PDF
+                                </a>
+                                @if (isPaid)
+                                {
+                                    <form asp-controller="Account" asp-action="RefundRequest" method="post" class="d-inline" onsubmit="return confirm('Gửi yêu cầu hủy vé/hoàn tiền cho hóa đơn này?');">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="transactionRef" value="@item.TransactionRef" />
+                                        <input type="hidden" name="reason" value="Khách hàng yêu cầu hủy vé từ Vé của tôi" />
+                                        <button type="submit" class="btn btn-outline-warning btn-sm px-3">
+                                            <i class="bi bi-arrow-counterclockwise"></i> Yêu cầu hủy
+                                        </button>
+                                    </form>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm text-center p-5" style="border-radius:18px;">
+            <i class="bi bi-ticket-perforated text-muted" style="font-size:56px;"></i>
+            <h5 class="mt-3">Bạn chưa có vé nào.</h5>
+            <p class="text-muted">Đặt vé xong, vé và QR check-in sẽ xuất hiện tại đây.</p>
+            <a href="/" class="btn btn-danger px-4">Đặt vé ngay</a>
+        </div>
+    }
+</div>

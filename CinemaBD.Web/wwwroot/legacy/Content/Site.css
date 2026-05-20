@@ -1,0 +1,311 @@
+﻿/* === RESET & CƠ BẢN === */
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    overflow-x: hidden;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.body-content {
+    margin-top: 15px;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* --- FIX FORM --- */
+.dl-horizontal dt {
+    white-space: normal;
+}
+
+/* === NỀN TRANG & CHỮ === */
+body {
+    background-color: #f9fafc;
+    color: #222;
+}
+
+/* === HEADER NAVBAR === */
+.navbar {
+    font-size: 16px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    z-index: 9999;
+}
+
+    .navbar .nav-link {
+        color: #333 !important;
+        transition: color 0.3s, transform 0.2s;
+    }
+
+        .navbar .nav-link:hover {
+            color: #28a745 !important;
+            transform: scale(1.05);
+        }
+
+        .navbar .nav-link.active {
+            color: #28a745 !important;
+            font-weight: 700;
+            border-bottom: 3px solid #28a745;
+        }
+
+.navbar-brand img {
+    border-radius: 8px;
+}
+
+/* === BANNER FULL WIDTH === */
+.banner-wrapper {
+    width: 100vw; /* full màn hình */
+    position: relative;
+    left: 50%;
+    right: 50%;
+    margin-left: -50vw;
+    margin-right: -50vw;
+    overflow: hidden;
+    z-index: 1;
+}
+
+#bannerCarousel {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.banner-image {
+    width: 100%;
+    height: 600px;
+    object-fit: cover;
+    border-radius: 0;
+}
+
+.banner-caption {
+    background: rgba(0, 0, 0, 0.45);
+    padding: 25px;
+    border-radius: 10px;
+    bottom: 15%;
+}
+
+    .banner-caption h2 {
+        color: #fff;
+        font-size: 2.2rem;
+        text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.6);
+    }
+
+    .banner-caption p {
+        font-size: 1.1rem;
+        color: #e8ffe8;
+    }
+
+.carousel-control-prev-icon,
+.carousel-control-next-icon {
+    filter: invert(1);
+}
+
+
+/* === TIÊU ĐỀ MỤC === */
+.section-title {
+    font-weight: 700;
+    color: #000;
+    font-size: 1.6rem;
+    position: relative;
+    display: inline-block;
+    margin-bottom: 30px;
+}
+
+    .section-title::after {
+        content: "";
+        position: absolute;
+        bottom: -8px;
+        left: 0;
+        width: 40px;
+        height: 3px;
+        background-color: #e50914;
+    }
+
+/* === CARD PHIM === */
+.movie-card {
+    background-color: #fff;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    transition: transform 0.25s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+}
+
+    .movie-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+    }
+
+.movie-poster {
+    width: 100%;
+    height: 370px;
+    object-fit: cover;
+    border-bottom: 3px solid #e50914;
+}
+
+.movie-info {
+    text-align: center;
+    padding: 10px 15px 20px;
+}
+
+.movie-name {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 10px 0;
+    color: #111;
+    height: 45px;
+}
+
+/* === NÚT === */
+.movie-button {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 25px;
+    background-color: #e50914;
+    color: #fff;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: background-color 0.3s ease;
+}
+
+    .movie-button:hover {
+        background-color: #b00710;
+    }
+
+    .movie-button.upcoming {
+        background-color: #f0ad4e;
+    }
+
+        .movie-button.upcoming:hover {
+            background-color: #d48806;
+        }
+
+/* === PHÂN TRANG === */
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+}
+
+.page-link {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 6px;
+    background-color: #fff;
+    border: 1px solid #28a745;
+    color: #28a745;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+    .page-link:hover {
+        background-color: #28a745;
+        color: #fff;
+    }
+
+    .page-link.active {
+        background-color: #28a745;
+        color: #fff;
+        cursor: default;
+    }
+
+/* === FOOTER FULL WIDTH === */
+.footer {
+    background-color: #111;
+    color: #ddd;
+    font-size: 0.95rem;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.footer-inner {
+    max-width: 100%;
+    padding-left: 5%;
+    padding-right: 5%;
+}
+
+.footer-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 15px;
+}
+
+.footer-subtitle {
+    font-size: 1rem;
+    font-weight: 600;
+    border-bottom: 2px solid #e50914;
+    display: inline-block;
+    margin-bottom: 10px;
+    padding-bottom: 4px;
+}
+
+.footer p,
+.footer li {
+    color: #ccc;
+    line-height: 1.6;
+}
+
+.footer a {
+    color: #ccc;
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+    .footer a:hover {
+        color: #e50914;
+    }
+
+/* --- ICON MẠNG XÃ HỘI --- */
+.social-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 35px;
+    height: 35px;
+    background-color: #222;
+    color: #e50914;
+    border-radius: 50%;
+    font-size: 1.2rem;
+    transition: all 0.3s ease;
+}
+
+    .social-icon:hover {
+        background-color: #e50914;
+        color: #fff;
+        transform: translateY(-3px);
+    }
+/* === ẢNH POSTER + NÚT ĐẶT VÉ TRÊN ẢNH === */
+.movie-detail-poster {
+    max-height: 500px;
+    border-radius: 10px;
+    object-fit: cover;
+    transition: transform 0.3s;
+    width: 100%;
+}
+
+    .movie-detail-poster:hover {
+        transform: scale(1.02);
+    }
+
+/* === NÚT ĐẶT VÉ NGAY GÓC PHẢI DƯỚI TRONG CHI TIẾT PHIM === */
+.btn-book-bottom {
+    background-color: #e50914;
+    border: none;
+    color: #fff;
+    font-weight: 600;
+    font-size: 1rem;
+    border-radius: 30px;
+    padding: 10px 24px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+    .btn-book-bottom:hover {
+        background-color: #b00710;
+        transform: scale(1.05);
+        color: #fff;
+    }
+
+

@@ -1,0 +1,133 @@
+﻿@model IEnumerable<CinemaBD.Web.Models.RoleFormViewModel>
+@{
+    ViewData["Title"] = "Chức vụ";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>Quản lý chức vụ</h4>
+    <button class="btn btn-primary" onclick="openRoleModal()"><i class="bi bi-plus-circle"></i> Thêm chức vụ</button>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr><th>ID</th><th>Tên chức vụ</th><th>Quyền Master</th><th>Trạng thái</th><th class="text-end">Thao tác</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr id="row-@item.Id">
+                        <td>@item.Id</td>
+                        <td class="fw-bold">@item.Name</td>
+                        <td>
+                            @if (item.IsMaster) { <span class="badge bg-danger">Master</span> }
+                            else { <span class="badge bg-secondary">Thường</span> }
+                        </td>
+                        <td>
+                            <span class="badge @(item.IsActive ? "bg-success" : "bg-danger")">@(item.IsActive ? "Hoạt động" : "Khóa")</span>
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-primary" onclick="editRole(@item.Id)"><i class="bi bi-pencil-square"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteRole(@item.Id)"><i class="bi bi-trash"></i></button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="roleModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="roleForm">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">Chức vụ</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body row g-3">
+                    <input type="hidden" name="Id" id="Id" />
+                    <div class="col-12">
+                        <label class="form-label">Tên chức vụ</label>
+                        <input name="Name" id="Name" class="form-control" required />
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="IsMaster" id="IsMaster" value="true">
+                            <label class="form-check-label" for="IsMaster">Quyền Master (toàn quyền admin)</label>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="IsActive" id="IsActive" value="true" checked>
+                            <label class="form-check-label" for="IsActive">Kích hoạt chức vụ</label>
+                        </div>
+                    </div>
+                    <div class="col-12"><div id="roleMessage" class="alert d-none mb-0"></div></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+<script>
+let roleModal;
+document.addEventListener('DOMContentLoaded', () => {
+    roleModal = new bootstrap.Modal(document.getElementById('roleModal'));
+    document.getElementById('roleForm').addEventListener('submit', saveRole);
+});
+
+function openRoleModal() {
+    document.getElementById('modalTitle').innerText = 'Thêm chức vụ';
+    document.getElementById('roleForm').reset();
+    document.getElementById('Id').value = '0';
+    document.getElementById('IsActive').checked = true;
+    setRoleMessage('', true);
+    roleModal.show();
+}
+
+async function editRole(id) {
+    const res = await fetch('/Admin/Role/Get/' + id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    if (!res.ok) { alert('Lỗi'); return; }
+    const d = await res.json();
+    document.getElementById('modalTitle').innerText = 'Cập nhật chức vụ';
+    document.getElementById('Id').value = d.id;
+    document.getElementById('Name').value = d.name;
+    document.getElementById('IsMaster').checked = d.isMaster;
+    document.getElementById('IsActive').checked = d.isActive;
+    setRoleMessage('', true);
+    roleModal.show();
+}
+
+async function saveRole(e) {
+    e.preventDefault();
+    const res = await fetch('/Admin/Role/SaveAjax', { method: 'POST', body: new FormData(e.target), headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    const data = await res.json();
+    setRoleMessage(data.message, data.success);
+    if (data.success) setTimeout(() => location.reload(), 600);
+}
+
+async function deleteRole(id) {
+    if (!confirm('Xóa chức vụ này?')) return;
+    const res = await fetch('/Admin/Role/DeleteAjax/' + id, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    const data = await res.json();
+    if (data.success) document.getElementById('row-' + id).remove();
+    else alert(data.message);
+}
+
+function setRoleMessage(t, s) {
+    const b = document.getElementById('roleMessage');
+    if (!t) { b.className = 'alert d-none mb-0'; return; }
+    b.className = 'alert mb-0 ' + (s ? 'alert-success' : 'alert-danger');
+    b.innerText = t;
+}
+</script>
+}
+

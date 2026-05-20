@@ -1,0 +1,306 @@
+@model CinemaBD.Web.Models.InvoiceViewModel
+@{
+    ViewData["Title"] = "Thanh toán thành công";
+    var invoiceMessage = TempData["InvoiceMessage"] as string;
+    var showDate = Model.ShowDate?.ToString("dd/MM/yyyy") ?? "-";
+    var showTime = Model.StartTime?.ToString(@"hh\:mm") ?? "-";
+    var invoiceTickets = Model.Tickets?.Any() == true
+        ? Model.Tickets
+        : (Model.Seats ?? Array.Empty<string>()).Select(s => new CinemaBD.Web.Models.InvoiceTicketViewModel { SeatId = s }).ToList();
+    var invoiceSeats = Model.Seats ?? invoiceTickets.Select(x => x.SeatId).ToList();
+    var seats = invoiceSeats.Any() ? string.Join(", ", invoiceSeats) : "-";
+    var combos = Model.Combos?.Any() == true ? Model.Combos : Array.Empty<string>();
+    var posterUrl = Model.MoviePosterUrl;
+}
+
+<style>
+    .success-wrap {
+        background: #f5f7fb;
+        margin: -1.5rem 0;
+        padding: 34px 0 48px;
+    }
+
+    .invoice-card {
+        max-width: 980px;
+        margin: auto;
+        border: 0;
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, .12);
+    }
+
+    .invoice-top {
+        background: linear-gradient(135deg, #16a34a 0%, #22c55e 55%, #86efac 100%);
+        color: white;
+        padding: 28px 34px;
+        position: relative;
+    }
+
+    .invoice-top::after {
+        content: "";
+        position: absolute;
+        right: -50px;
+        top: -70px;
+        width: 210px;
+        height: 210px;
+        border-radius: 50%;
+        background: rgba(255,255,255,.16);
+    }
+
+    .success-icon {
+        width: 62px;
+        height: 62px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: rgba(255,255,255,.22);
+        border: 2px solid rgba(255,255,255,.65);
+        font-size: 34px;
+        margin-right: 16px;
+    }
+
+    .invoice-code {
+        background: rgba(255,255,255,.22);
+        border: 1px solid rgba(255,255,255,.35);
+        color: white;
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-weight: 700;
+        font-size: .92rem;
+    }
+
+    .section-title {
+        font-weight: 800;
+        color: #111827;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+
+    .info-line {
+        display: grid;
+        grid-template-columns: 145px 1fr;
+        gap: 12px;
+        margin-bottom: 11px;
+        color: #374151;
+    }
+
+    .info-line .label {
+        color: #6b7280;
+        font-weight: 600;
+    }
+
+    .movie-poster-box {
+        width: 128px;
+        height: 176px;
+        flex: 0 0 128px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #111827, #dc2626);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 0;
+        font-weight: 800;
+        box-shadow: 0 12px 24px rgba(0,0,0,.18);
+        overflow: hidden;
+    }
+
+    .movie-poster-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .ticket-table th {
+        background: #f8fafc;
+        color: #475569;
+        font-size: .86rem;
+    }
+
+    .ticket-table td, .ticket-table th {
+        padding: 11px 14px;
+        vertical-align: middle;
+    }
+
+    .qr-panel {
+        border-top: 1px dashed #d1d5db;
+        padding-top: 24px;
+        text-align: center;
+    }
+
+    .qr-box {
+        display: inline-block;
+        background: white;
+        padding: 14px;
+        border-radius: 16px;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 10px 26px rgba(15, 23, 42, .10);
+    }
+
+    .qr-box img {
+        width: 190px;
+        height: 190px;
+    }
+
+    .total-box {
+        background: #fff7ed;
+        color: #c2410c;
+        border-radius: 12px;
+        padding: 13px 16px;
+        font-size: 1.15rem;
+        font-weight: 900;
+    }
+
+    @@media print {
+        .navbar, .footer, .no-print { display: none !important; }
+        .app-main { padding: 0 !important; }
+        .success-wrap { background: white; padding: 0; }
+        .invoice-card { box-shadow: none; border-radius: 0; }
+    }
+</style>
+
+<div class="success-wrap">
+    <div class="container">
+        @if (!string.IsNullOrWhiteSpace(invoiceMessage))
+        {
+            <div class="alert alert-success border-0 shadow-sm mx-auto mb-3" style="max-width:980px;">
+                <i class="bi bi-check-circle-fill me-1"></i> @invoiceMessage
+            </div>
+        }
+
+        <div class="card invoice-card">
+            <div class="invoice-top d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div class="d-flex align-items-center position-relative">
+                    <span class="success-icon"><i class="bi bi-check-lg"></i></span>
+                    <div>
+                        <div class="small text-white-50 fw-semibold">BD CINEMA</div>
+                        <h2 class="mb-1 fw-black">Thanh toán thành công</h2>
+                        <div>Vé đã được xác nhận. Vui lòng quét QR tại quầy soát vé.</div>
+                    </div>
+                </div>
+                <div class="invoice-code position-relative">
+                    Mã hóa đơn: @Model.TransactionRef
+                </div>
+            </div>
+
+            <div class="card-body p-4 p-lg-5">
+                <div class="row g-4 mb-4">
+                    <div class="col-lg-6">
+                        <h5 class="section-title"><i class="bi bi-receipt-cutoff text-danger"></i> Thông tin hóa đơn</h5>
+                        <div class="info-line"><span class="label">Trạng thái:</span><span><span class="badge rounded-pill text-bg-success">@Model.PaymentStatus</span></span></div>
+                        <div class="info-line"><span class="label">Phương thức:</span><span>VNPAY / MoMo</span></div>
+                        <div class="info-line"><span class="label">Mã giao dịch:</span><span class="fw-semibold">@Model.TransactionRef</span></div>
+                        <div class="info-line"><span class="label">Ngày thanh toán:</span><span>@DateTime.Now.ToString("dd/MM/yyyy HH:mm")</span></div>
+                        <div class="info-line"><span class="label">Tổng tiền:</span><span class="text-danger fw-bold">@Model.TotalAmount.ToString("N0") đ</span></div>
+                        <div class="info-line"><span class="label">Ghi chú:</span><span>Thông tin vé đã được gửi về email người đặt nếu hệ thống đã cấu hình SMTP.</span></div>
+                    </div>
+
+                    <div class="col-lg-6">
+                        <h5 class="section-title"><i class="bi bi-film text-danger"></i> Thông tin phim</h5>
+                        <div class="d-flex gap-4 align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="info-line"><span class="label">Phim:</span><span class="fw-bold">@Model.MovieTitle</span></div>
+                                <div class="info-line"><span class="label">Ngày chiếu:</span><span>@showDate</span></div>
+                                <div class="info-line"><span class="label">Giờ chiếu:</span><span>@showTime</span></div>
+                                <div class="info-line"><span class="label">Phòng chiếu:</span><span>@Model.RoomName</span></div>
+                                <div class="info-line"><span class="label">Ghế:</span><span class="fw-bold text-danger">@seats</span></div>
+                            </div>
+                            <div class="movie-poster-box d-none d-sm-flex">
+                                @if (!string.IsNullOrWhiteSpace(posterUrl))
+                                {
+                                    <img src="@posterUrl" alt="@Model.MovieTitle" />
+                                }
+                                else
+                                {
+                                    <span class="p-3">@Model.MovieTitle</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h5 class="section-title"><i class="bi bi-ticket-perforated text-primary"></i> Chi tiết ghế đã đặt</h5>
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered ticket-table mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width:80px;">STT</th>
+                                <th>Tên ghế</th>
+                                <th>Loại ghế</th>
+                                <th class="text-end">Giá vé</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (var i = 0; i < invoiceTickets.Count; i++)
+                            {
+                                var ticket = invoiceTickets[i];
+                                <tr>
+                                    <td>@(i + 1)</td>
+                                    <td class="fw-semibold">@ticket.SeatId</td>
+                                    <td>@(string.IsNullOrWhiteSpace(ticket.TicketId) ? "-" : ticket.TicketId)</td>
+                                    <td class="text-end">@(ticket.Price > 0 ? ticket.Price.ToString("N0") + " đ" : "-")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <h5 class="section-title"><i class="bi bi-cup-straw text-warning"></i> Chi tiết dịch vụ đã đặt</h5>
+                <div class="border rounded-3 p-3 mb-4 bg-light">
+                    @if (combos.Any())
+                    {
+                        <ul class="mb-0">
+                            @foreach (var combo in combos)
+                            {
+                                <li>@combo</li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <span class="text-muted">Không có dịch vụ nào được đặt.</span>
+                    }
+                </div>
+
+                <div class="row align-items-center g-4">
+                    <div class="col-md-7 qr-panel">
+                        <h4 class="fw-bold mb-1">Mã QR từng vé</h4>
+                        <p class="text-muted mb-3">Mỗi ghế có một QR riêng để check-in chính xác.</p>
+                        <div class="row g-3">
+                            @foreach (var ticket in invoiceTickets)
+                            {
+                                <div class="col-sm-6 col-lg-4">
+                                    <div class="qr-box h-100 p-2">
+                                        @if (!string.IsNullOrWhiteSpace(ticket.QrCodeDataUrl))
+                                        {
+                                            <img src="@ticket.QrCodeDataUrl" alt="QR vé @ticket.TicketId" />
+                                        }
+                                        <div class="small fw-bold mt-2">Ghế @ticket.SeatId</div>
+                                        <div class="small text-muted">@ticket.TicketId</div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <div class="small text-muted mt-2">@Model.TransactionRef</div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="total-box d-flex justify-content-between align-items-center mb-3">
+                            <span>Tổng thanh toán</span>
+                            <span>@Model.TotalAmount.ToString("N0") đ</span>
+                        </div>
+                        <div class="d-grid gap-2 no-print">
+                            <a asp-controller="Booking" asp-action="InvoicePdf" asp-route-txnRef="@Model.TransactionRef" class="btn btn-success btn-lg"><i class="bi bi-file-earmark-pdf me-1"></i> Tải vé PDF</a>
+                            <button type="button" onclick="window.print()" class="btn btn-danger btn-lg"><i class="bi bi-printer me-1"></i> In vé</button>
+                            <a href="/account/history" class="btn btn-outline-primary"><i class="bi bi-clock-history me-1"></i> Lịch sử giao dịch</a>
+                            <a href="/" class="btn btn-outline-secondary"><i class="bi bi-house-door me-1"></i> Về trang chủ</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

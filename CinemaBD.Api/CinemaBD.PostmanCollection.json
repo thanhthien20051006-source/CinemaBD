@@ -1,0 +1,350 @@
+{
+  "info": {
+    "_postman_id": "6fd0896a-4e26-4fb6-b18e-0a0f1f2f0a01",
+    "name": "CinemaBD Web API",
+    "description": "Postman collection for testing the migrated ASP.NET Core Web API of CinemaBD.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://localhost:7067" },
+    { "key": "userToken", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "movieId", "value": "VN019" },
+    { "key": "showDate", "value": "2025-11-20" },
+    { "key": "showtimeId", "value": "S_VN019_20251120_2015_PC01" },
+    { "key": "txnRef", "value": "" },
+    { "key": "roleId", "value": "1" },
+    { "key": "permissionId", "value": "1" },
+    { "key": "customerId", "value": "" },
+    { "key": "employeeId", "value": "" },
+    { "key": "adminMovieId", "value": "" },
+    { "key": "adminShowtimeId", "value": "" },
+    { "key": "newRoleId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Public APIs",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Nguyen Van A\",\n  \"username\": \"userapi05\",\n  \"password\": \"123456\",\n  \"email\": \"userapi05@example.com\",\n  \"phoneNumber\": \"0900000005\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/register"
+          }
+        },
+        {
+          "name": "Login User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.token) {",
+                  "  pm.collectionVariables.set('userToken', json.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"userapi05\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/login"
+          }
+        },
+        {
+          "name": "Get Movies",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/movies"
+          }
+        },
+        {
+          "name": "Get Movie Detail",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/movies/{{movieId}}"
+          }
+        },
+        {
+          "name": "Get Movie Showtimes",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/movies/{{movieId}}/showtimes?date={{showDate}}"
+          }
+        },
+        {
+          "name": "Get Showtime Seats",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/bookings/showtimes/{{showtimeId}}/seats"
+          }
+        },
+        {
+          "name": "Checkout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.transactionRef) {",
+                  "  pm.collectionVariables.set('txnRef', json.data.transactionRef);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"showtimeId\": \"{{showtimeId}}\",\n  \"seats\": [\"A1\"],\n  \"combos\": \"\",\n  \"totalAmount\": 50000\n}"
+            },
+            "url": "{{baseUrl}}/api/bookings/checkout"
+          }
+        },
+        {
+          "name": "Get Invoice By TxnRef",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/bookings/invoice/{{txnRef}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin APIs",
+      "item": [
+        {
+          "name": "Admin Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.token) {",
+                  "  pm.collectionVariables.set('adminToken', json.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/auth/login"
+          }
+        },
+        {
+          "name": "Admin Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/admin/dashboard"
+          }
+        },
+        {
+          "name": "Get Admin Movies",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/admin/movies"
+          }
+        },
+        {
+          "name": "Create Admin Movie",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Phim API Test\",\n  \"genre\": \"Hanh dong\",\n  \"durationMinutes\": 120,\n  \"director\": \"Dao dien A\",\n  \"cast\": \"Dien vien 1, Dien vien 2\",\n  \"country\": \"Viet Nam\",\n  \"ageRestriction\": 16,\n  \"description\": \"Phim duoc tao tu Web API\",\n  \"posterUrl\": \"poster-test.jpg\",\n  \"trailerUrl\": \"https://youtube.com/watch?v=test\",\n  \"releaseDate\": \"2025-11-01T00:00:00\",\n  \"endDate\": \"2025-12-01T00:00:00\",\n  \"status\": \"Hoat dong\"\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/movies"
+          }
+        },
+        {
+          "name": "Get Admin Showtimes",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/admin/showtimes?date={{showDate}}"
+          }
+        },
+        {
+          "name": "Create Admin Showtime",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"movieId\": \"{{movieId}}\",\n  \"roomId\": \"PC01\",\n  \"showDate\": \"2025-11-20T00:00:00\",\n  \"startTime\": \"20:15\",\n  \"ticketPrice\": 50000\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/showtimes"
+          }
+        },
+        {
+          "name": "Get Admin Customers",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/admin/customers"
+          }
+        },
+        {
+          "name": "Create Admin Customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Khach Hang Test\",\n  \"username\": \"kh_test_api\",\n  \"password\": \"123456\",\n  \"email\": \"kh_test_api@example.com\",\n  \"phoneNumber\": \"0909000000\",\n  \"birthDate\": \"2002-01-01T00:00:00\"\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/customers"
+          }
+        },
+        {
+          "name": "Get Admin Employees",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/admin/employees"
+          }
+        },
+        {
+          "name": "Create Admin Employee",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Nhan Vien API\",\n  \"birthDate\": \"2000-05-10T00:00:00\",\n  \"phoneNumber\": \"0911000000\",\n  \"email\": \"nv_api@example.com\",\n  \"startDate\": \"2025-11-01T00:00:00\",\n  \"roleId\": 1,\n  \"isActive\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/employees"
+          }
+        },
+        {
+          "name": "Get Admin Roles",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/admin/roles"
+          }
+        },
+        {
+          "name": "Create Admin Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nhan vien API\",\n  \"isMaster\": false,\n  \"isActive\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/roles"
+          }
+        },
+        {
+          "name": "Get All Permissions",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/admin/roles/permissions"
+          }
+        },
+        {
+          "name": "Get Role Permissions",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/admin/roles/{{roleId}}/permissions"
+          }
+        },
+        {
+          "name": "Assign Permission To Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roleId\": {{roleId}},\n  \"permissionId\": {{permissionId}}\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/roles/permissions/assign"
+          }
+        },
+        {
+          "name": "Remove Permission From Role",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/admin/roles/{{roleId}}/permissions/{{permissionId}}"
+          }
+        }
+      ]
+    }
+  ]
+}

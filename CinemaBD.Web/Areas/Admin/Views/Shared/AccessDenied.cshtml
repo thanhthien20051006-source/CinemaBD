@@ -1,0 +1,17 @@
+﻿@{
+    ViewData["Title"] = "Không có quyền";
+}
+
+<div class="container py-5">
+    <div class="card shadow-sm border-0 mx-auto" style="max-width: 640px;">
+        <div class="card-body text-center p-5">
+            <div class="display-4 text-danger mb-3"><i class="bi bi-shield-lock"></i></div>
+            <h3 class="fw-bold mb-2">Bạn không có quyền truy cập</h3>
+            <p class="text-muted mb-4">Tài khoản hiện tại chưa được cấp quyền sử dụng chức năng này.</p>
+            <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index" class="btn btn-primary">
+                <i class="bi bi-house-door"></i> Về Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+

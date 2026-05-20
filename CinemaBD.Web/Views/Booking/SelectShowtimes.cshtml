@@ -1,0 +1,44 @@
+﻿@model CinemaBD.Web.Models.ShowtimeSelectionPageViewModel
+@{
+    ViewData["Title"] = "Chọn suất chiếu";
+}
+
+<h2>Lịch chiếu - @(Model.Movie?.Title ?? "Phim")</h2>
+
+<form method="get" asp-controller="Booking" asp-action="Select" class="mb-4 d-flex align-items-center">
+    <input type="hidden" name="movieId" value="@Model.Movie?.Id" />
+    <input type="date" name="date" value="@Model.SelectedDate.ToString("yyyy-MM-dd")" class="form-control me-2" style="width:200px;" />
+    <button type="submit" class="btn btn-danger">Xem suất chiếu</button>
+</form>
+
+@if (!string.IsNullOrWhiteSpace(Model.Message))
+{
+    <div class="alert alert-warning">@Model.Message</div>
+}
+else if (Model.Showtimes.Any())
+{
+    <div class="card shadow-sm p-3">
+        <h5><span class="badge bg-danger">2D</span> Suất chiếu trong ngày</h5>
+        <p class="text-muted small mb-0">Chỉ hiển thị suất từ 08:00 đến 23:30. Suất đã qua giờ sẽ tự ẩn.</p>
+
+        <div class="d-flex flex-wrap mt-3">
+            @foreach (var s in Model.Showtimes.OrderBy(x => TimeSpan.TryParse(x.StartTime, out var t) ? t : TimeSpan.MaxValue))
+            {
+                <div class="card text-center m-2" style="width: 160px;">
+                    <div class="card-body p-2">
+                        <h6 class="text-danger fw-bold">@s.StartTime</h6>
+                        <p class="mb-1"><strong>@s.RoomName</strong></p>
+                        <p class="text-muted mb-1">@String.Format("{0:N0} đ", s.TicketPrice)</p>
+                        <hr class="my-2" />
+                        <a asp-controller="Booking" asp-action="SelectSeats" asp-route-showtimeId="@s.Id" class="btn btn-sm btn-outline-danger w-100">Chọn ghế</a>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <p class="text-muted">Không có suất chiếu cho ngày này.</p>
+}
+

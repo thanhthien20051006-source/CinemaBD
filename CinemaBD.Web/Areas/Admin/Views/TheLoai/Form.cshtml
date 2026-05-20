@@ -1,0 +1,9 @@
+﻿@model CinemaBD.Web.Models.AdminGenreViewModel
+@{ ViewData["Title"] = Model.Id > 0 ? "Sửa thể loại" : "Thêm thể loại"; }
+<h3>@ViewData["Title"]</h3>
+<form class="card mt-3" asp-area="Admin" asp-controller="TheLoai" asp-action="Save" method="post">
+@Html.AntiForgeryToken()<input type="hidden" asp-for="Id" />
+<div class="card-body row g-3"><div class="col-md-6"><label class="form-label">Tên thể loại</label><input asp-for="Name" class="form-control" required /></div><div class="col-md-12"><label class="form-label">Mô tả</label><textarea asp-for="Description" class="form-control" rows="4"></textarea></div></div>
+<div class="card-footer text-end"><a class="btn btn-secondary" asp-area="Admin" asp-controller="TheLoai" asp-action="Index">Hủy</a><button class="btn btn-primary">Lưu</button></div>
+</form>
+

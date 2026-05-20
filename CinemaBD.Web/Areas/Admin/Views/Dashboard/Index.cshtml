@@ -1,0 +1,12 @@
+﻿@{
+    ViewData["Title"] = "Dashboard";
+}
+<h3>Xin chào, @ViewBag.AdminName</h3>
+<div class="row g-3 mt-2">
+    <div class="col-md-3"><div class="card"><div class="card-body"><b>Phim</b><div>@ViewBag.MovieCount</div></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body"><b>Suất chiếu</b><div>@ViewBag.ShowtimeCount</div></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body"><b>Khách hàng</b><div>@ViewBag.UserCount</div></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body"><b>Đơn vé</b><div>@ViewBag.BookingCount</div></div></div></div>
+</div>
+<div class="alert alert-success mt-3">Tổng doanh thu: @string.Format("{0:N0}", ViewBag.TotalRevenue) đ</div>
+
