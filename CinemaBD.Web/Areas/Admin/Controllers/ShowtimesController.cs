@@ -1,6 +1,7 @@
 using System.Text;
 using CinemaBD.Web.Core;
 using CinemaBD.Web.Models;
+using CinemaBD.Web.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CinemaBD.Web.Areas.Admin.Controllers;
@@ -8,11 +9,44 @@ namespace CinemaBD.Web.Areas.Admin.Controllers;
 [AdminPermission("suatchieu", "lichchieu")]
 public class ShowtimesController : AdminApiCrudController
 {
-    public ShowtimesController(HttpClient http, IConfiguration configuration) : base(http, configuration) { }
+    private readonly CinemaApiClient _apiClient;
+
+    public ShowtimesController(HttpClient http, IConfiguration configuration, CinemaApiClient apiClient) : base(http, configuration)
+    {
+        _apiClient = apiClient;
+    }
 
     public async Task<IActionResult> Index(string? roomId, string? movieId, string? status, DateTime? date, DateTime? toDate, CancellationToken ct)
     {
         var model = await BuildPageModelAsync(roomId, movieId, status, date, toDate, ct);
+        return View(model);
+    }
+
+    public async Task<IActionResult> Seats(string id, DateTime? date, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+            return RedirectToAction(nameof(Index));
+
+        var targetDate = date ?? DateTime.Today;
+        var page = await BuildPageModelAsync(null, null, null, targetDate, targetDate, ct);
+        var showtime = page.Showtimes.FirstOrDefault(x => x.Id == id)
+            ?? (await BuildPageModelAsync(null, null, null, DateTime.Today.AddDays(-31), DateTime.Today.AddDays(31), ct)).Showtimes.FirstOrDefault(x => x.Id == id);
+
+        var seats = await _apiClient.GetSeatsAsync(id, ct);
+        var model = new AdminShowtimeSeatMapViewModel
+        {
+            ShowtimeId = id,
+            MovieTitle = showtime?.MovieTitle ?? showtime?.MovieId ?? id,
+            RoomName = showtime?.RoomName ?? showtime?.RoomId ?? string.Empty,
+            ShowDate = showtime?.ShowDate ?? targetDate,
+            StartTime = showtime?.StartTime ?? string.Empty,
+            Status = showtime?.Status ?? string.Empty,
+            TotalSeats = seats.Count,
+            HeldOrBookedSeats = seats.Count(x => x.IsBooked),
+            AvailableSeats = seats.Count(x => !x.IsBooked),
+            Seats = seats.OrderBy(x => x.Row).ThenBy(x => x.Column).ToList()
+        };
+
         return View(model);
     }
 
