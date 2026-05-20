@@ -21,6 +21,20 @@
     .slot-card.selling { border-color: #bbf7d0; border-left-color: #16a34a; background:#f7fff9; }
     .slot-time { font-size: 1.1rem; font-weight: 800; }
     .slot-title { font-weight: 700; min-height: 42px; }
+    .print-header { display: none; }
+    @@media print {
+        body * { visibility: hidden !important; }
+        #printArea, #printArea * { visibility: visible !important; }
+        #printArea { position: absolute; left: 0; top: 0; width: 100%; }
+        .print-header { display: block; margin-bottom: 16px; }
+        .no-print, .btn, .nav, form, .card:not(.printable-card) { display: none !important; }
+        .showtime-calendar { gap: 8px; }
+        .room-lane { break-inside: avoid; page-break-inside: avoid; border: 1px solid #333; border-radius: 0; margin-bottom: 10px; }
+        .room-lane-header { background: #eee !important; color: #000 !important; border-bottom: 1px solid #333; }
+        .slot-wrap { overflow: visible; flex-wrap: wrap; padding: 8px; gap: 8px; }
+        .slot-card { min-width: 180px; max-width: 220px; border: 1px solid #444; border-left: 4px solid #444; background: #fff !important; color: #000 !important; }
+        .slot-title { min-height: auto; }
+    }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -81,6 +95,11 @@
                 <i class="bi bi-file-earmark-spreadsheet"></i> CSV
             </button>
         </div>
+        <div class="col-md-1">
+            <button type="button" class="btn btn-outline-dark w-100" onclick="printCalendar()">
+                <i class="bi bi-printer"></i> In
+            </button>
+        </div>
     </div>
 </form>
 
@@ -106,6 +125,13 @@
 
 <div class="tab-content">
     <div class="tab-pane fade show active" id="calendarPane" role="tabpanel">
+        <div id="printArea">
+            <div class="print-header">
+                <h2>Lịch chiếu Bình Dương Cinema</h2>
+                <div>Khoảng ngày: @Model.SelectedDate.ToString("dd/MM/yyyy") - @Model.ToDate.ToString("dd/MM/yyyy")</div>
+                <div>Phòng: @(string.IsNullOrWhiteSpace(Model.RoomId) ? "Tất cả" : Model.RoomId) | Phim: @(string.IsNullOrWhiteSpace(Model.MovieId) ? "Tất cả" : Model.MovieId) | Trạng thái: @(string.IsNullOrWhiteSpace(Model.Status) ? "Tất cả" : Model.Status)</div>
+                <div>Tổng suất: @Model.Showtimes.Count</div>
+            </div>
         @if (!calendarRooms.Any())
         {
             <div class="card"><div class="card-body text-center text-muted py-5">KhÃ´ng cÃ³ lá»‹ch chiáº¿u trong ngÃ y nÃ y</div></div>
@@ -145,6 +171,7 @@
                 }
             </div>
         }
+        </div>
     </div>
 
     <div class="tab-pane fade" id="tablePane" role="tabpanel">
@@ -212,6 +239,9 @@
 
 @section scripts {
 <script>
+function printCalendar(){ window.print(); }
+</script>
+<script>
 let showtimeModal, generateModal;
 document.addEventListener('DOMContentLoaded', () => {
     showtimeModal = new bootstrap.Modal(document.getElementById('showtimeModal'));
@@ -264,4 +294,5 @@ function setMessage(id, text, success) {
 }
 </script>
 }
+
 
