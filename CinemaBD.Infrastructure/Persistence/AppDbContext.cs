@@ -26,6 +26,10 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<LegacyTicket>()
             .Ignore(x => x.DaCheckIn)
             .Ignore(x => x.ThoiGianCheckIn);
+
+        modelBuilder.Entity<LegacyReview>()
+            .Ignore(x => x.Rating)
+            .Ignore(x => x.IsHidden);
     }
 
     public DbSet<LegacyMovie> Movies => Set<LegacyMovie>();
