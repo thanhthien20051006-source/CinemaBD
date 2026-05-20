@@ -13,6 +13,8 @@ public class MoviesController : AdminApiCrudController
     public async Task<IActionResult> Index(string? search, CancellationToken ct)
     {
         var movies = await GetDataAsync<List<Movie>>("api/admin/movies", ct) ?? new();
+        foreach (var movie in movies)
+            movie.PosterUrl = NormalizePosterUrl(movie.PosterUrl);
         if (!string.IsNullOrWhiteSpace(search))
         {
             var s = search.Trim();
@@ -29,6 +31,7 @@ public class MoviesController : AdminApiCrudController
         if (string.IsNullOrWhiteSpace(id)) return BadRequest();
         var movie = await GetDataAsync<Movie>($"api/admin/movies/{Uri.EscapeDataString(id)}", ct);
         if (movie == null) return NotFound();
+        movie.PosterUrl = NormalizePosterUrl(movie.PosterUrl);
         return Json(movie);
     }
 
@@ -68,6 +71,21 @@ public class MoviesController : AdminApiCrudController
         if (string.IsNullOrWhiteSpace(id)) return Json(new { success = false, message = "Thiếu mã phim." });
         var ok = await SendAsync(HttpMethod.Delete, $"api/admin/movies/{Uri.EscapeDataString(id)}", null, ct);
         return Json(new { success = ok, message = ok ? "Đã xóa phim." : "Không xóa được phim." });
+    }
+
+    private string NormalizePosterUrl(string? posterUrl)
+    {
+        if (string.IsNullOrWhiteSpace(posterUrl))
+            return string.Empty;
+
+        if (Uri.TryCreate(posterUrl, UriKind.Absolute, out _))
+            return posterUrl;
+
+        var fileName = Path.GetFileName(posterUrl.Replace('\\', '/'));
+        if (string.IsNullOrWhiteSpace(fileName))
+            return string.Empty;
+
+        return Url.Content($"~/legacy/Content/img/Posters/{fileName}");
     }
 
     private static bool Contains(string? source, string value) => source?.Contains(value, StringComparison.OrdinalIgnoreCase) == true;
