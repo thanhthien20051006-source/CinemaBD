@@ -6,6 +6,7 @@ public class AdminShowtimePageViewModel
     public string? MovieId { get; set; }
     public string? Status { get; set; }
     public DateTime SelectedDate { get; set; } = DateTime.Today;
+    public DateTime ToDate { get; set; } = DateTime.Today;
     public IReadOnlyList<AdminRoomViewModel> Rooms { get; set; } = Array.Empty<AdminRoomViewModel>();
     public IReadOnlyList<AdminMovieOptionViewModel> Movies { get; set; } = Array.Empty<AdminMovieOptionViewModel>();
     public IReadOnlyList<AdminShowtimeViewModel> Showtimes { get; set; } = Array.Empty<AdminShowtimeViewModel>();
