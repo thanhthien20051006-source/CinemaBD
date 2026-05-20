@@ -1,11 +1,9 @@
 services:
-
-  # ─── SQL Server ────────────────────────────────────────────────────────────
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: cinemabd_sqlserver
     environment:
-      SA_PASSWORD: "10062005qweR?"
+      SA_PASSWORD: ${SA_PASSWORD:-Your_strong_password123!}
       ACCEPT_EULA: "Y"
       MSSQL_PID: "Express"
     ports:
@@ -13,14 +11,16 @@ services:
     volumes:
       - sqlserver_data:/var/opt/mssql
     healthcheck:
-      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost",
-             "-U", "sa", "-P", "10062005qweR?", "-Q", "SELECT 1", "-No"]
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"${SA_PASSWORD:-Your_strong_password123!}\" -Q \"SELECT 1\" -C -No || exit 1"
+        ]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 30s
+      retries: 12
+      start_period: 40s
 
-  # ─── API ───────────────────────────────────────────────────────────────────
   api:
     build:
       context: .
@@ -30,23 +30,21 @@ services:
       - "5188:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__DefaultConnection: >
-        Server=sqlserver,1433;Database=CinemaBD;
-        User Id=sa;Password=10062005qweR?;
-        TrustServerCertificate=True;MultipleActiveResultSets=True
-      Jwt__Key: "DOCKER_JWT_SECRET_CHANGE_IN_PROD_32CHARS"
-      Jwt__Issuer: "CinemaBD"
-      Jwt__Audience: "CinemaBD.Client"
-      VnPay__BaseUrl: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
-      VnPay__ReturnUrl: "http://localhost:7188/booking/payment-return"
-      VnPay__TmnCode: "CHANGE_ME_VNPAY_TMN_CODE"
-      VnPay__HashSecret: "CHANGE_ME_VNPAY_HASH_SECRET"
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=${DB_NAME:-CinemaBD};User Id=sa;Password=${SA_PASSWORD:-Your_strong_password123!};TrustServerCertificate=True;MultipleActiveResultSets=True"
+      DatabaseSeed__SqlFile: /app/Database/CinemaBD.sql
+      Jwt__Key: ${JWT_KEY:-CHANGE_ME_TO_A_LONG_RANDOM_SECRET_32CHARS}
+      Jwt__Issuer: ${JWT_ISSUER:-CinemaBD}
+      Jwt__Audience: ${JWT_AUDIENCE:-CinemaBD.Client}
+      VnPay__BaseUrl: ${VNPAY_BASE_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+      VnPay__ReturnUrl: ${WEB_PUBLIC_URL:-http://localhost:7188}/booking/payment-return
+      VnPay__TmnCode: ${VNPAY_TMN_CODE:-CHANGE_ME}
+      VnPay__HashSecret: ${VNPAY_HASH_SECRET:-CHANGE_ME}
     depends_on:
       sqlserver:
         condition: service_healthy
     restart: on-failure
 
-  # ─── Web ───────────────────────────────────────────────────────────────────
   web:
     build:
       context: .
@@ -56,28 +54,32 @@ services:
       - "7188:8090"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ApiSettings__BaseUrl: "http://api:8080/"
-      ConnectionStrings__DefaultConnection: "Data Source=/app/cinemabd.web.db"
-      PaymentSettings__Url: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
-      PaymentSettings__ReturnUrl: "http://localhost:7188/booking/payment-return"
-      PaymentSettings__TmnCode: "CHANGE_ME_VNPAY_TMN_CODE"
-      PaymentSettings__HashSecret: "CHANGE_ME_VNPAY_HASH_SECRET"
-      GoogleAuth__ClientId: "CHANGE_ME_GOOGLE_CLIENT_ID"
-      GoogleAuth__ClientSecret: "CHANGE_ME_GOOGLE_CLIENT_SECRET"
-      EmailSettings__SmtpHost: "smtp.gmail.com"
-      EmailSettings__SmtpPort: "587"
-      EmailSettings__EnableSsl: "true"
-      EmailSettings__FromName: "CinemaBD"
-      EmailSettings__FromEmail: "change-me@example.com"
-      EmailSettings__FromPassword: "CHANGE_ME_SMTP_PASSWORD"
-      EmailSettings__SMTPAccount: "change-me@example.com"
-      EmailSettings__SMTPPassword: "CHANGE_ME_SMTP_PASSWORD"
+      ASPNETCORE_URLS: http://+:8090
+      ApiSettings__BaseUrl: http://api:8080/
+      ConnectionStrings__DefaultConnection: Data Source=/app/data/cinemabd.web.db
+      PaymentSettings__Url: ${VNPAY_BASE_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+      PaymentSettings__ReturnUrl: ${WEB_PUBLIC_URL:-http://localhost:7188}/booking/payment-return
+      PaymentSettings__TmnCode: ${VNPAY_TMN_CODE:-CHANGE_ME}
+      PaymentSettings__HashSecret: ${VNPAY_HASH_SECRET:-CHANGE_ME}
+      GoogleAuth__ClientId: ${GOOGLE_CLIENT_ID:-CHANGE_ME}
+      GoogleAuth__ClientSecret: ${GOOGLE_CLIENT_SECRET:-CHANGE_ME}
+      EmailSettings__SmtpHost: ${SMTP_HOST:-smtp.gmail.com}
+      EmailSettings__SmtpPort: ${SMTP_PORT:-587}
+      EmailSettings__EnableSsl: ${SMTP_ENABLE_SSL:-true}
+      EmailSettings__FromName: ${SMTP_FROM_NAME:-CinemaBD}
+      EmailSettings__FromEmail: ${SMTP_FROM_EMAIL:-change-me@example.com}
+      EmailSettings__FromPassword: ${SMTP_PASSWORD:-CHANGE_ME}
+      EmailSettings__SMTPAccount: ${SMTP_FROM_EMAIL:-change-me@example.com}
+      EmailSettings__SMTPPassword: ${SMTP_PASSWORD:-CHANGE_ME}
     volumes:
+      - web_data:/app/data
       - web_dataprotection_keys:/app/DataProtectionKeys
     depends_on:
-      - api
+      api:
+        condition: service_started
     restart: on-failure
 
 volumes:
   sqlserver_data:
+  web_data:
   web_dataprotection_keys:

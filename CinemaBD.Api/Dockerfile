@@ -10,6 +10,7 @@ COPY CinemaBD.Api/CinemaBD.Api.csproj               CinemaBD.Api/
 COPY CinemaBD.Web/CinemaBD.Web.csproj               CinemaBD.Web/
 
 COPY CinemaBD.sql ./CinemaBD.sql
+COPY CinemaBD.sql CinemaBD.Api/Database/CinemaBD.sql
 
 RUN dotnet restore CinemaBD.Api/CinemaBD.Api.csproj
 
@@ -24,9 +25,6 @@ RUN dotnet publish CinemaBD.Api/CinemaBD.Api.csproj \
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
-
- # Cai libfaketime de dong bo ngay test voi du lieu demo
-RUN apt-get update -qq && apt-get install -y --no-install-recommends libfaketime && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/publish .
 

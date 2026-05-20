@@ -25,9 +25,6 @@ RUN dotnet publish CinemaBD.Web/CinemaBD.Web.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
- # Cai libfaketime de dong bo ngay test voi du lieu demo
-RUN apt-get update -qq && apt-get install -y --no-install-recommends libfaketime && rm -rf /var/lib/apt/lists/*
-
 COPY --from=build /app/publish .
 
 ENV ASPNETCORE_ENVIRONMENT=Production
