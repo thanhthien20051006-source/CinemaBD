@@ -27,5 +27,10 @@ public class AdminShowtimeViewModel
     public decimal TicketPrice { get; set; }
     public int TotalSeats { get; set; }
     public int AvailableSeats { get; set; }
+    public int HeldSeats { get; set; }
+    public int SoldSeats { get; set; }
+    public int CheckedInSeats { get; set; }
+    public bool CanEdit { get; set; } = true;
+    public bool CanDelete { get; set; } = true;
     public string? Status { get; set; }
 }
