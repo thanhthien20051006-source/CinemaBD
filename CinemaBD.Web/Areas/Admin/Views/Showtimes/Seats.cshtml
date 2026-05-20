@@ -1,0 +1,100 @@
+@model CinemaBD.Web.Models.AdminShowtimeSeatMapViewModel
+@{
+    ViewData["Title"] = "Sơ đồ ghế suất chiếu";
+    var rows = Model.Seats
+        .GroupBy(x => x.Row)
+        .OrderBy(g => g.Key)
+        .ToList();
+}
+
+<style>
+    .seat-map { display: grid; gap: .55rem; }
+    .seat-row { display: flex; align-items: center; gap: .45rem; }
+    .seat-row-label { width: 34px; font-weight: 800; color: #64748b; text-align: center; }
+    .admin-seat { width: 46px; height: 42px; border-radius: 10px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: .78rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; position: relative; }
+    .admin-seat.vip { border-color: #f59e0b; background: #fffbeb; color: #92400e; }
+    .admin-seat.booked { border-color: #ef4444; background: #fee2e2; color: #991b1b; }
+    .screen { height: 42px; border-radius: 0 0 50% 50%; background: linear-gradient(90deg,#111827,#64748b,#111827); color: white; display:flex; align-items:center; justify-content:center; letter-spacing: .2rem; font-weight: 800; margin-bottom: 1.5rem; }
+    @@media print {
+        .sidebar, .navbar, .btn, .no-print { display: none !important; }
+        .card { border: 0 !important; box-shadow: none !important; }
+        .admin-seat { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 no-print">
+    <div>
+        <h4 class="mb-1">Sơ đồ ghế suất chiếu</h4>
+        <div class="text-muted small">Admin xem nhanh trạng thái ghế theo từng suất chiếu</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" asp-route-date="@Model.ShowDate.ToString("yyyy-MM-dd")" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Quay lại lịch</a>
+        <button class="btn btn-outline-dark" onclick="window.print()"><i class="bi bi-printer"></i> In sơ đồ</button>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-5">
+                <div class="text-muted small">Phim</div>
+                <div class="h5 mb-0">@Model.MovieTitle</div>
+            </div>
+            <div class="col-md-2">
+                <div class="text-muted small">Ngày / giờ</div>
+                <div class="fw-bold">@Model.ShowDate.ToString("dd/MM/yyyy") @Model.StartTime</div>
+            </div>
+            <div class="col-md-2">
+                <div class="text-muted small">Phòng</div>
+                <div class="fw-bold">@Model.RoomName</div>
+            </div>
+            <div class="col-md-2">
+                <div class="text-muted small">Trạng thái</div>
+                <span class="badge bg-primary">@(string.IsNullOrWhiteSpace(Model.Status) ? "Scheduled" : Model.Status)</span>
+            </div>
+            <div class="col-md-1 text-md-end">
+                <div class="text-muted small">Mã</div>
+                <div class="fw-bold small">@Model.ShowtimeId</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-muted small">Tổng ghế</div><div class="h4 mb-0">@Model.TotalSeats</div></div></div></div>
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-muted small">Ghế trống</div><div class="h4 mb-0 text-success">@Model.AvailableSeats</div></div></div></div>
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-muted small">Đã bán/đang giữ</div><div class="h4 mb-0 text-danger">@Model.HeldOrBookedSeats</div></div></div></div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <div class="screen">MÀN HÌNH</div>
+        @if (!Model.Seats.Any())
+        {
+            <div class="text-center text-muted py-5">Không có dữ liệu ghế cho suất chiếu này.</div>
+        }
+        else
+        {
+            <div class="seat-map">
+                @foreach (var row in rows)
+                {
+                    <div class="seat-row">
+                        <div class="seat-row-label">@row.Key</div>
+                        @foreach (var seat in row.OrderBy(x => x.Column))
+                        {
+                            var seatClass = seat.IsBooked ? "booked" : string.Equals(seat.SeatType, "VIP", StringComparison.OrdinalIgnoreCase) ? "vip" : string.Empty;
+                            <div class="admin-seat @seatClass" title="@seat.Row@seat.Column - @seat.SeatType - @(seat.IsBooked ? "Đã bán/giữ" : "Trống")">
+                                @seat.Row@seat.Column
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+        <div class="d-flex gap-3 flex-wrap mt-4 small">
+            <span><span class="admin-seat" style="width:24px;height:22px"></span> Trống</span>
+            <span><span class="admin-seat vip" style="width:24px;height:22px"></span> VIP</span>
+            <span><span class="admin-seat booked" style="width:24px;height:22px"></span> Đã bán/đang giữ</span>
+        </div>
+    </div>
+</div>

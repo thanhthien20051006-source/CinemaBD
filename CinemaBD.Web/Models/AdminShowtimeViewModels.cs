@@ -18,6 +18,20 @@ public class AdminMovieOptionViewModel
     public string Title { get; set; } = string.Empty;
 }
 
+public class AdminShowtimeSeatMapViewModel
+{
+    public string ShowtimeId { get; set; } = string.Empty;
+    public string MovieTitle { get; set; } = string.Empty;
+    public string RoomName { get; set; } = string.Empty;
+    public DateTime ShowDate { get; set; }
+    public string StartTime { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public int TotalSeats { get; set; }
+    public int AvailableSeats { get; set; }
+    public int HeldOrBookedSeats { get; set; }
+    public IReadOnlyList<SeatViewModel> Seats { get; set; } = Array.Empty<SeatViewModel>();
+}
+
 public class AdminShowtimeViewModel
 {
     public string Id { get; set; } = string.Empty;

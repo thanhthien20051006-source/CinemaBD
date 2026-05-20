@@ -160,7 +160,7 @@
                                     <div class="small">Trá»‘ng: <b class="text-primary">@s.AvailableSeats</b>/@s.TotalSeats</div>
                                     <div class="small text-muted">Giá»¯ @s.HeldSeats Â· BÃ¡n @s.SoldSeats Â· Check-in @s.CheckedInSeats</div>
                                     <div class="btn-group btn-group-sm w-100 mt-2">
-                                        <a class="btn btn-outline-secondary" href="/booking/seats?showtimeId=@s.Id" target="_blank">Gháº¿</a>
+                                        <a class="btn btn-outline-secondary" asp-action="Seats" asp-route-id="@s.Id" asp-route-date="@s.ShowDate.ToString("yyyy-MM-dd")">Gháº¿</a>
                                         <button class="btn btn-outline-primary" onclick="openShowtimeModal('@s.Id','@s.MovieId','@s.RoomId','@s.ShowDate.ToString("yyyy-MM-dd")','@s.StartTime','@s.TicketPrice','@s.Status')" @(s.CanEdit ? "" : "disabled")>Sá»­a</button>
                                         <button class="btn btn-outline-danger" onclick="deleteShowtime('@s.Id', @s.CanDelete.ToString().ToLowerInvariant())">Há»§y</button>
                                     </div>
@@ -191,7 +191,7 @@
                             <td class="fw-semibold">@s.Id</td><td>@(s.MovieTitle ?? s.MovieId)</td><td>@s.RoomName</td><td>@s.ShowDate.ToString("dd/MM/yyyy")</td><td>@s.StartTime</td><td>@string.Format("{0:N0} Ä‘", s.TicketPrice)</td>
                             <td><div class="small">Trá»‘ng: <b class="text-primary">@s.AvailableSeats</b> / @s.TotalSeats</div><div class="small text-muted">Giá»¯: @s.HeldSeats | BÃ¡n: @s.SoldSeats | Check-in: @s.CheckedInSeats</div></td>
                             <td><span class="badge @badge">@(s.Status ?? "Scheduled")</span></td>
-                            <td class="text-end"><div class="btn-group"><a class="btn btn-sm btn-outline-secondary" href="/booking/seats?showtimeId=@s.Id" target="_blank" title="Xem gháº¿"><i class="bi bi-grid-3x3-gap"></i></a><button type="button" class="btn btn-sm btn-outline-primary" onclick="openShowtimeModal('@s.Id','@s.MovieId','@s.RoomId','@s.ShowDate.ToString("yyyy-MM-dd")','@s.StartTime','@s.TicketPrice','@s.Status')" @(s.CanEdit ? "" : "disabled") title="Sá»­a"><i class="bi bi-pencil-square"></i></button><button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteShowtime('@s.Id', @s.CanDelete.ToString().ToLowerInvariant())" title="XÃ³a/Há»§y"><i class="bi bi-trash"></i></button></div></td>
+                            <td class="text-end"><div class="btn-group"><a class="btn btn-sm btn-outline-secondary" asp-action="Seats" asp-route-id="@s.Id" asp-route-date="@s.ShowDate.ToString("yyyy-MM-dd")" title="Xem gháº¿"><i class="bi bi-grid-3x3-gap"></i></a><button type="button" class="btn btn-sm btn-outline-primary" onclick="openShowtimeModal('@s.Id','@s.MovieId','@s.RoomId','@s.ShowDate.ToString("yyyy-MM-dd")','@s.StartTime','@s.TicketPrice','@s.Status')" @(s.CanEdit ? "" : "disabled") title="Sá»­a"><i class="bi bi-pencil-square"></i></button><button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteShowtime('@s.Id', @s.CanDelete.ToString().ToLowerInvariant())" title="XÃ³a/Há»§y"><i class="bi bi-trash"></i></button></div></td>
                         </tr>
                     }
                     </tbody>
@@ -294,5 +294,6 @@ function setMessage(id, text, success) {
 }
 </script>
 }
+
 
 
