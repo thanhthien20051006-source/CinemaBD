@@ -9,5 +9,10 @@ public record ShowtimeResponse(
     decimal TicketPrice,
     int TotalSeats,
     int AvailableSeats,
-    string? Status
+    string? Status,
+    int HeldSeats = 0,
+    int SoldSeats = 0,
+    int CheckedInSeats = 0,
+    bool CanEdit = true,
+    bool CanDelete = true
 );
