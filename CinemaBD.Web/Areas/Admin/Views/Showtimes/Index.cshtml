@@ -3,12 +3,29 @@
     ViewData["Title"] = "Quản lý lịch chiếu";
     var allMovieIds = string.Join(",", Model.Movies.Select(x => x.Id));
     var allRoomIds = string.Join(",", Model.Rooms.Select(x => x.Id));
+    var calendarRooms = Model.Showtimes
+        .GroupBy(x => new { x.RoomId, x.RoomName })
+        .OrderBy(g => g.Key.RoomName)
+        .ToList();
 }
+
+<style>
+    .showtime-calendar { display: grid; gap: 1rem; }
+    .room-lane { border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden; background: #fff; }
+    .room-lane-header { background: #f8fafc; padding: .75rem 1rem; font-weight: 700; display:flex; justify-content:space-between; align-items:center; }
+    .slot-wrap { display: flex; gap: .75rem; padding: 1rem; overflow-x: auto; }
+    .slot-card { min-width: 220px; border: 1px solid #dbeafe; border-left: 5px solid #2563eb; border-radius: 12px; padding: .75rem; background: #f8fbff; }
+    .slot-card.cancelled { border-color: #fecaca; border-left-color: #dc2626; background:#fff7f7; }
+    .slot-card.expired { border-color: #e5e7eb; border-left-color: #6b7280; background:#f9fafb; }
+    .slot-card.selling { border-color: #bbf7d0; border-left-color: #16a34a; background:#f7fff9; }
+    .slot-time { font-size: 1.1rem; font-weight: 800; }
+    .slot-title { font-weight: 700; min-height: 42px; }
+</style>
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
         <h4 class="mb-1">Quản lý lịch chiếu</h4>
-        <div class="text-muted small">Tạo/sửa/hủy suất chiếu, chống trùng phòng giờ, xem tình trạng ghế</div>
+        <div class="text-muted small">Tạo/sửa/hủy suất chiếu, chống trùng phòng giờ, xem lịch dạng calendar</div>
     </div>
     <div class="d-flex gap-2">
         <button class="btn btn-outline-success" onclick="openGenerateModal()"><i class="bi bi-calendar-plus"></i> Sinh lịch tự động</button>
@@ -44,6 +61,11 @@
     <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-muted small">Ghế trống</div><div class="h4 mb-0 text-primary">@Model.Showtimes.Sum(x => x.AvailableSeats)</div></div></div></div>
 </div>
 
+<ul class="nav nav-tabs mb-3" id="showtimeTabs" role="tablist">
+    <li class="nav-item" role="presentation"><button class="nav-link active" id="calendar-tab" data-bs-toggle="tab" data-bs-target="#calendarPane" type="button" role="tab">Calendar theo phòng</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" id="table-tab" data-bs-toggle="tab" data-bs-target="#tablePane" type="button" role="tab">Danh sách</button></li>
+</ul>
+
 <ul class="nav nav-pills mb-3 flex-wrap gap-1">
     <li class="nav-item"><a class="nav-link @(string.IsNullOrWhiteSpace(Model.RoomId) ? "active" : "")" asp-action="Index" asp-route-date="@Model.SelectedDate.ToString("yyyy-MM-dd")">Tất cả</a></li>
     @foreach (var r in Model.Rooms)
@@ -52,91 +74,110 @@
     }
 </ul>
 
-<div class="card">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>Mã</th><th>Phim</th><th>Phòng</th><th>Ngày</th><th>Giờ</th><th>Giá vé</th><th>Ghế</th><th>Trạng thái</th><th class="text-end">Thao tác</th>
-                </tr>
-            </thead>
-            <tbody>
-            @if (!Model.Showtimes.Any())
-            {
-                <tr><td colspan="9" class="text-center text-muted py-4">Không có suất chiếu</td></tr>
-            }
-            @foreach (var s in Model.Showtimes)
-            {
-                var badge = s.Status == "Cancelled" ? "bg-danger" : s.Status == "Expired" ? "bg-secondary" : s.Status == "Selling" ? "bg-success" : "bg-primary";
-                <tr id="row-@s.Id">
-                    <td class="fw-semibold">@s.Id</td>
-                    <td>@(s.MovieTitle ?? s.MovieId)</td>
-                    <td>@s.RoomName</td>
-                    <td>@s.ShowDate.ToString("dd/MM/yyyy")</td>
-                    <td>@s.StartTime</td>
-                    <td>@string.Format("{0:N0} đ", s.TicketPrice)</td>
-                    <td>
-                        <div class="small">Trống: <b class="text-primary">@s.AvailableSeats</b> / @s.TotalSeats</div>
-                        <div class="small text-muted">Giữ: @s.HeldSeats | Bán: @s.SoldSeats | Check-in: @s.CheckedInSeats</div>
-                    </td>
-                    <td><span class="badge @badge">@(s.Status ?? "Scheduled")</span></td>
-                    <td class="text-end">
-                        <div class="btn-group">
-                            <a class="btn btn-sm btn-outline-secondary" href="/booking/seats?showtimeId=@s.Id" target="_blank" title="Xem ghế"><i class="bi bi-grid-3x3-gap"></i></a>
-                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="openShowtimeModal('@s.Id','@s.MovieId','@s.RoomId','@s.ShowDate.ToString("yyyy-MM-dd")','@s.StartTime','@s.TicketPrice','@s.Status')" @(s.CanEdit ? "" : "disabled") title="Sửa"><i class="bi bi-pencil-square"></i></button>
-                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteShowtime('@s.Id', @s.CanDelete.ToString().ToLowerInvariant())" title="Xóa/Hủy"><i class="bi bi-trash"></i></button>
+<div class="tab-content">
+    <div class="tab-pane fade show active" id="calendarPane" role="tabpanel">
+        @if (!calendarRooms.Any())
+        {
+            <div class="card"><div class="card-body text-center text-muted py-5">Không có lịch chiếu trong ngày này</div></div>
+        }
+        else
+        {
+            <div class="showtime-calendar mb-4">
+                @foreach (var room in calendarRooms)
+                {
+                    <div class="room-lane">
+                        <div class="room-lane-header">
+                            <span><i class="bi bi-door-open"></i> @room.Key.RoomName</span>
+                            <span class="badge bg-light text-dark">@room.Count() suất</span>
                         </div>
-                    </td>
-                </tr>
-            }
-            </tbody>
-        </table>
+                        <div class="slot-wrap">
+                            @foreach (var s in room.OrderBy(x => x.StartTime))
+                            {
+                                var slotClass = s.Status == "Cancelled" ? "cancelled" : s.Status == "Expired" ? "expired" : s.Status == "Selling" ? "selling" : string.Empty;
+                                <div class="slot-card @slotClass">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div class="slot-time">@s.StartTime</div>
+                                        <span class="badge @(s.Status == "Cancelled" ? "bg-danger" : s.Status == "Expired" ? "bg-secondary" : s.Status == "Selling" ? "bg-success" : "bg-primary")">@(s.Status ?? "Scheduled")</span>
+                                    </div>
+                                    <div class="slot-title">@(s.MovieTitle ?? s.MovieId)</div>
+                                    <div class="small text-muted mb-2">@string.Format("{0:N0} đ", s.TicketPrice)</div>
+                                    <div class="small">Trống: <b class="text-primary">@s.AvailableSeats</b>/@s.TotalSeats</div>
+                                    <div class="small text-muted">Giữ @s.HeldSeats · Bán @s.SoldSeats · Check-in @s.CheckedInSeats</div>
+                                    <div class="btn-group btn-group-sm w-100 mt-2">
+                                        <a class="btn btn-outline-secondary" href="/booking/seats?showtimeId=@s.Id" target="_blank">Ghế</a>
+                                        <button class="btn btn-outline-primary" onclick="openShowtimeModal('@s.Id','@s.MovieId','@s.RoomId','@s.ShowDate.ToString("yyyy-MM-dd")','@s.StartTime','@s.TicketPrice','@s.Status')" @(s.CanEdit ? "" : "disabled")>Sửa</button>
+                                        <button class="btn btn-outline-danger" onclick="deleteShowtime('@s.Id', @s.CanDelete.ToString().ToLowerInvariant())">Hủy</button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="tab-pane fade" id="tablePane" role="tabpanel">
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light"><tr><th>Mã</th><th>Phim</th><th>Phòng</th><th>Ngày</th><th>Giờ</th><th>Giá vé</th><th>Ghế</th><th>Trạng thái</th><th class="text-end">Thao tác</th></tr></thead>
+                    <tbody>
+                    @if (!Model.Showtimes.Any())
+                    {
+                        <tr><td colspan="9" class="text-center text-muted py-4">Không có suất chiếu</td></tr>
+                    }
+                    @foreach (var s in Model.Showtimes)
+                    {
+                        var badge = s.Status == "Cancelled" ? "bg-danger" : s.Status == "Expired" ? "bg-secondary" : s.Status == "Selling" ? "bg-success" : "bg-primary";
+                        <tr id="row-@s.Id">
+                            <td class="fw-semibold">@s.Id</td><td>@(s.MovieTitle ?? s.MovieId)</td><td>@s.RoomName</td><td>@s.ShowDate.ToString("dd/MM/yyyy")</td><td>@s.StartTime</td><td>@string.Format("{0:N0} đ", s.TicketPrice)</td>
+                            <td><div class="small">Trống: <b class="text-primary">@s.AvailableSeats</b> / @s.TotalSeats</div><div class="small text-muted">Giữ: @s.HeldSeats | Bán: @s.SoldSeats | Check-in: @s.CheckedInSeats</div></td>
+                            <td><span class="badge @badge">@(s.Status ?? "Scheduled")</span></td>
+                            <td class="text-end"><div class="btn-group"><a class="btn btn-sm btn-outline-secondary" href="/booking/seats?showtimeId=@s.Id" target="_blank" title="Xem ghế"><i class="bi bi-grid-3x3-gap"></i></a><button type="button" class="btn btn-sm btn-outline-primary" onclick="openShowtimeModal('@s.Id','@s.MovieId','@s.RoomId','@s.ShowDate.ToString("yyyy-MM-dd")','@s.StartTime','@s.TicketPrice','@s.Status')" @(s.CanEdit ? "" : "disabled") title="Sửa"><i class="bi bi-pencil-square"></i></button><button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteShowtime('@s.Id', @s.CanDelete.ToString().ToLowerInvariant())" title="Xóa/Hủy"><i class="bi bi-trash"></i></button></div></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
 <div class="modal fade" id="showtimeModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <form id="showtimeForm">
-                @Html.AntiForgeryToken()
-                <div class="modal-header"><h5 class="modal-title" id="modalTitle">Thêm suất chiếu</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-                <div class="modal-body row g-3">
-                    <input type="hidden" name="maSuatChieu" id="maSuatChieu" />
-                    <div class="col-md-6"><label class="form-label">Phim</label><select name="maPhim" id="maPhim" class="form-select" required><option value="">-- Chọn phim --</option>@foreach (var m in Model.Movies){<option value="@m.Id">@m.Title</option>}</select></div>
-                    <div class="col-md-6"><label class="form-label">Phòng</label><select name="maPhong" id="maPhong" class="form-select" required><option value="">-- Chọn phòng --</option>@foreach (var r in Model.Rooms){<option value="@r.Id">@r.Name</option>}</select></div>
-                    <div class="col-md-3"><label class="form-label">Ngày chiếu</label><input type="date" name="ngayChieu" id="ngayChieu" class="form-control" required /></div>
-                    <div class="col-md-3"><label class="form-label">Giờ bắt đầu</label><input type="time" name="gioBatDau" id="gioBatDau" class="form-control" required /></div>
-                    <div class="col-md-3"><label class="form-label">Giá vé</label><input type="number" name="giaVe" id="giaVe" class="form-control" min="1000" step="1000" required /></div>
-                    <div class="col-md-3"><label class="form-label">Trạng thái</label><select name="trangThai" id="trangThai" class="form-select"><option value="Scheduled">Scheduled</option><option value="Selling">Selling</option><option value="Cancelled">Cancelled</option><option value="Expired">Expired</option></select></div>
-                    <div class="col-12"><div class="alert alert-info small mb-0">Hệ thống tự chặn trùng phòng/giờ. Nếu suất đã có vé thì chỉ cập nhật trạng thái.</div></div>
-                    <div class="col-12"><div id="showtimeMessage" class="alert d-none mb-0"></div></div>
-                </div>
-                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button><button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Lưu</button></div>
-            </form>
+    <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content"><form id="showtimeForm">
+        @Html.AntiForgeryToken()
+        <div class="modal-header"><h5 class="modal-title" id="modalTitle">Thêm suất chiếu</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body row g-3">
+            <input type="hidden" name="maSuatChieu" id="maSuatChieu" />
+            <div class="col-md-6"><label class="form-label">Phim</label><select name="maPhim" id="maPhim" class="form-select" required><option value="">-- Chọn phim --</option>@foreach (var m in Model.Movies){<option value="@m.Id">@m.Title</option>}</select></div>
+            <div class="col-md-6"><label class="form-label">Phòng</label><select name="maPhong" id="maPhong" class="form-select" required><option value="">-- Chọn phòng --</option>@foreach (var r in Model.Rooms){<option value="@r.Id">@r.Name</option>}</select></div>
+            <div class="col-md-3"><label class="form-label">Ngày chiếu</label><input type="date" name="ngayChieu" id="ngayChieu" class="form-control" required /></div>
+            <div class="col-md-3"><label class="form-label">Giờ bắt đầu</label><input type="time" name="gioBatDau" id="gioBatDau" class="form-control" required /></div>
+            <div class="col-md-3"><label class="form-label">Giá vé</label><input type="number" name="giaVe" id="giaVe" class="form-control" min="1000" step="1000" required /></div>
+            <div class="col-md-3"><label class="form-label">Trạng thái</label><select name="trangThai" id="trangThai" class="form-select"><option value="Scheduled">Scheduled</option><option value="Selling">Selling</option><option value="Cancelled">Cancelled</option><option value="Expired">Expired</option></select></div>
+            <div class="col-12"><div class="alert alert-info small mb-0">Hệ thống tự chặn trùng phòng/giờ. Nếu suất đã có vé thì chỉ cập nhật trạng thái.</div></div>
+            <div class="col-12"><div id="showtimeMessage" class="alert d-none mb-0"></div></div>
         </div>
-    </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button><button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Lưu</button></div>
+    </form></div></div>
 </div>
 
 <div class="modal fade" id="generateModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <form id="generateForm">
-                @Html.AntiForgeryToken()
-                <div class="modal-header"><h5 class="modal-title">Sinh lịch chiếu tự động</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-                <div class="modal-body row g-3">
-                    <input type="hidden" name="movieIds" value="@allMovieIds" />
-                    <input type="hidden" name="roomIds" value="@allRoomIds" />
-                    <div class="col-md-3"><label class="form-label">Từ ngày</label><input type="date" name="fromDate" class="form-control" value="@Model.SelectedDate.ToString("yyyy-MM-dd")" required /></div>
-                    <div class="col-md-3"><label class="form-label">Đến ngày</label><input type="date" name="toDate" class="form-control" value="@Model.SelectedDate.AddDays(6).ToString("yyyy-MM-dd")" required /></div>
-                    <div class="col-md-3"><label class="form-label">Khung giờ</label><input name="startTimes" class="form-control" value="08:00,14:00,20:00" required /></div>
-                    <div class="col-md-3"><label class="form-label">Giá vé</label><input type="number" name="ticketPrice" class="form-control" value="75000" min="1000" step="1000" required /></div>
-                    <div class="col-12"><div class="alert alert-warning small mb-0">Mặc định sinh cho toàn bộ phim và phòng hiện có. Slot trùng sẽ tự bỏ qua.</div></div>
-                    <div class="col-12"><div id="generateMessage" class="alert d-none mb-0"></div></div>
-                </div>
-                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button><button type="submit" class="btn btn-success"><i class="bi bi-calendar-plus"></i> Sinh lịch</button></div>
-            </form>
+    <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content"><form id="generateForm">
+        @Html.AntiForgeryToken()
+        <div class="modal-header"><h5 class="modal-title">Sinh lịch chiếu tự động</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body row g-3">
+            <input type="hidden" name="movieIds" value="@allMovieIds" /><input type="hidden" name="roomIds" value="@allRoomIds" />
+            <div class="col-md-3"><label class="form-label">Từ ngày</label><input type="date" name="fromDate" class="form-control" value="@Model.SelectedDate.ToString("yyyy-MM-dd")" required /></div>
+            <div class="col-md-3"><label class="form-label">Đến ngày</label><input type="date" name="toDate" class="form-control" value="@Model.SelectedDate.AddDays(6).ToString("yyyy-MM-dd")" required /></div>
+            <div class="col-md-3"><label class="form-label">Khung giờ</label><input name="startTimes" class="form-control" value="08:00,14:00,20:00" required /></div>
+            <div class="col-md-3"><label class="form-label">Giá vé</label><input type="number" name="ticketPrice" class="form-control" value="75000" min="1000" step="1000" required /></div>
+            <div class="col-12"><div class="alert alert-warning small mb-0">Mặc định sinh cho toàn bộ phim và phòng hiện có. Slot trùng sẽ tự bỏ qua.</div></div>
+            <div class="col-12"><div id="generateMessage" class="alert d-none mb-0"></div></div>
         </div>
-    </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button><button type="submit" class="btn btn-success"><i class="bi bi-calendar-plus"></i> Sinh lịch</button></div>
+    </form></div></div>
 </div>
 
 @section scripts {
@@ -161,12 +202,7 @@ function openShowtimeModal(id = '', movieId = '', roomId = '', date = '@Model.Se
     setMessage('showtimeMessage', '', true);
     showtimeModal.show();
 }
-
-function openGenerateModal() {
-    setMessage('generateMessage', '', true);
-    generateModal.show();
-}
-
+function openGenerateModal() { setMessage('generateMessage', '', true); generateModal.show(); }
 async function saveShowtime(e) {
     e.preventDefault();
     const id = document.getElementById('maSuatChieu').value;
@@ -176,7 +212,6 @@ async function saveShowtime(e) {
     setMessage('showtimeMessage', data.message || (data.success ? 'Thành công' : 'Không lưu được'), data.success);
     if (data.success) setTimeout(() => location.reload(), 700);
 }
-
 async function deleteShowtime(id, canDelete) {
     if (!confirm(canDelete ? 'Xóa suất chiếu này?' : 'Suất đã có vé. Hệ thống sẽ chuyển sang trạng thái Cancelled. Tiếp tục?')) return;
     const body = new FormData(); body.append('id', id);
@@ -184,7 +219,6 @@ async function deleteShowtime(id, canDelete) {
     const data = await res.json();
     if (data.success) location.reload(); else alert(data.message || 'Không xử lý được suất chiếu');
 }
-
 async function generateShowtimes(e) {
     e.preventDefault();
     const res = await fetch('/Admin/AdminSuatChieu/GenerateShowtimesAjax', { method: 'POST', body: new FormData(e.target), headers: { 'X-Requested-With': 'XMLHttpRequest' } });
@@ -192,7 +226,6 @@ async function generateShowtimes(e) {
     setMessage('generateMessage', data.message || (data.success ? 'Đã sinh lịch' : 'Không sinh được lịch'), data.success);
     if (data.success) setTimeout(() => location.reload(), 900);
 }
-
 function setMessage(id, text, success) {
     const box = document.getElementById(id);
     if (!text) { box.className = 'alert d-none mb-0'; box.innerText = ''; return; }
