@@ -1,0 +1,201 @@
+/* CinemaBD unified customer theme */
+:root {
+    --cinema-bg: #f5f7fb;
+    --cinema-dark: #0b1020;
+    --cinema-panel: #111827;
+    --cinema-line: rgba(148, 163, 184, .22);
+    --cinema-red: #e50914;
+    --cinema-orange: #ff6b16;
+    --cinema-yellow: #facc15;
+    --cinema-green: #16a34a;
+    --cinema-text: #f8fafc;
+    --cinema-muted: #94a3b8;
+    --page-max: 100%;
+}
+
+html, body {
+    font-family: "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+}
+body { background: var(--cinema-bg); color: #111827; }
+h1, h2, h3, h4, h5, h6,
+.navbar, .btn, .badge, .form-label,
+.cinema-eyebrow, .cinema-primary-btn, .cinema-card-btn, .btnSelectCombo {
+    font-family: "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    letter-spacing: -.01em;
+}
+.form-control, .form-select, .input-group-text {
+    font-family: inherit;
+}
+.app-main { padding-top: 82px; }
+.navbar { min-height: 82px; }
+.navbar > .container { max-width: 100%; padding-left: 32px; padding-right: 32px; }
+.app-main > .container,
+.app-main > .container-sm,
+.app-main > .container-md,
+.app-main > .container-lg,
+.app-main > .container-xl,
+.app-main > .container-xxl {
+    max-width: 100%;
+    padding-left: 32px;
+    padding-right: 32px;
+}
+
+.cinema-page {
+    background: radial-gradient(circle at top, rgba(229, 9, 20, .12), transparent 32%), var(--cinema-dark);
+    color: var(--cinema-text);
+    margin: 0 auto;
+    max-width: var(--page-max);
+    min-height: calc(100vh - 82px);
+    overflow: hidden;
+}
+
+.cinema-hero { height: 560px; overflow: hidden; position: relative; }
+.cinema-hero-small { height: auto; margin: 0 12px 0; min-height: 220px; border-radius: 0 0 24px 24px; }
+.cinema-hero-carousel, .cinema-hero-img { height: 100%; width: 100%; }
+.cinema-hero-img { filter: brightness(.48); object-fit: cover; }
+.cinema-hero::after {
+    background: linear-gradient(90deg, rgba(11,16,32,.84), rgba(11,16,32,.45), rgba(11,16,32,.18));
+    content: ""; inset: 0; position: absolute; pointer-events: none;
+}
+.cinema-hero-bg {
+    background: linear-gradient(135deg, rgba(127,29,29,.96), rgba(15,23,42,.96)), url('/legacy/Content/img/banner/godzilla&kong.jpg') center/cover;
+    inset: 0; position: absolute;
+}
+.cinema-hero-content {
+    left: clamp(24px, 6vw, 92px);
+    max-width: 680px;
+    position: absolute;
+    top: 50%; transform: translateY(-50%);
+    z-index: 2;
+}
+.cinema-hero-small .cinema-hero-content { top: 52%; }
+.cinema-eyebrow {
+    background: rgba(250,204,21,.14);
+    border: 1px solid rgba(250,204,21,.45);
+    border-radius: 999px;
+    color: var(--cinema-yellow);
+    display: inline-flex;
+    gap: 7px;
+    font-weight: 900;
+    letter-spacing: .08em;
+    margin-bottom: 16px;
+    padding: 8px 14px;
+    text-transform: uppercase;
+}
+.cinema-hero h1 { font-size: clamp(34px, 4.7vw, 62px); font-weight: 950; line-height: 1.02; margin-bottom: 16px; }
+.cinema-hero p { color: #dbe4f0; font-size: 18px; margin-bottom: 26px; }
+.cinema-primary-btn, .cinema-card-btn, .btnSelectCombo {
+    align-items: center;
+    background: linear-gradient(135deg, var(--cinema-red), var(--cinema-orange));
+    border: 0;
+    border-radius: 999px;
+    color: #fff;
+    display: inline-flex;
+    font-weight: 850;
+    gap: 8px;
+    padding: 12px 20px;
+    text-decoration: none;
+}
+.cinema-primary-btn:hover, .cinema-card-btn:hover { color: #fff; filter: brightness(1.08); }
+.cinema-seat-ticket {
+    background: var(--cinema-yellow);
+    border-radius: 18px;
+    color: #111827;
+    min-width: 150px;
+    padding: 20px;
+    position: absolute;
+    right: clamp(26px, 5vw, 70px);
+    text-align: center;
+    top: 50%; transform: translateY(-50%) rotate(2deg);
+    z-index: 3;
+}
+.cinema-seat-ticket span { display: block; font-size: 13px; font-weight: 900; text-transform: uppercase; }
+.cinema-seat-ticket strong { font-size: 24px; }
+
+.cinema-section { padding: 52px 12px; }
+.cinema-section-heading { align-items: end; display: flex; justify-content: space-between; margin-bottom: 26px; }
+.cinema-section-heading.compact { align-items: center; }
+.cinema-section-heading span { color: var(--cinema-yellow); font-weight: 950; letter-spacing: .12em; text-transform: uppercase; }
+.cinema-section-heading h2 { color: #fff; font-size: 34px; font-weight: 950; margin: 4px 0 0; }
+.cinema-section-heading small { color: #cbd5e1; }
+.cinema-movie-grid { display: grid; gap: 24px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.cinema-movie-card, .combo-card, .cinema-panel, .cinema-summary {
+    background: var(--cinema-panel);
+    border: 1px solid var(--cinema-line);
+    border-radius: 20px;
+    box-shadow: 0 18px 42px rgba(0,0,0,.24);
+}
+.cinema-movie-card { overflow: hidden; transition: .22s ease; }
+.cinema-movie-card:hover, .combo-card:hover { border-color: rgba(250,204,21,.68); transform: translateY(-5px); }
+.cinema-poster-link { display: block; height: 400px; overflow: hidden; position: relative; }
+.cinema-poster { background: #172033; height: 100%; object-fit: cover; width: 100%; }
+.cinema-status { background: var(--cinema-red); border-radius: 999px; color: #fff; font-size: 13px; font-weight: 900; left: 14px; padding: 7px 12px; position: absolute; top: 14px; }
+.cinema-status-upcoming { background: var(--cinema-yellow); color: #111827; }
+.cinema-movie-info { padding: 18px; }
+.cinema-movie-info h3 { color: #fff; font-size: 18px; font-weight: 900; min-height: 44px; }
+.cinema-movie-info p { color: var(--cinema-muted); min-height: 24px; }
+.cinema-card-btn { justify-content: center; width: 100%; }
+.cinema-card-btn-muted { background: #1f2937; border: 1px solid rgba(250,204,21,.45); }
+.cinema-empty { border: 1px dashed rgba(148,163,184,.38); border-radius: 16px; color: #cbd5e1; padding: 26px; text-align: center; }
+.cinema-pagination { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 28px; }
+.cinema-pagination a { border: 1px solid rgba(250,204,21,.4); border-radius: 999px; color: #fff; font-weight: 800; padding: 9px 16px; text-decoration: none; }
+.cinema-pagination a.active, .cinema-pagination a:hover { background: var(--cinema-yellow); color: #111827; }
+
+.cinema-workspace { display: grid; gap: 24px; grid-template-columns: minmax(0, 1fr) 420px; padding: 24px 12px 52px; }
+.cinema-work-main { display: grid; gap: 24px; }
+.cinema-panel, .cinema-summary { padding: 24px; }
+.combo-grid { display: grid; gap: 18px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.combo-card { overflow: hidden; transition: .22s ease; }
+.combo-card.selected { border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,.18); }
+.combo-img-wrap { height: 178px; overflow: hidden; position: relative; }
+.combo-img-wrap img { height: 100%; object-fit: cover; width: 100%; }
+.price-badge { background: var(--cinema-yellow); border-radius: 999px; bottom: 12px; color: #111827; font-weight: 950; padding: 8px 12px; position: absolute; right: 12px; }
+.combo-body { padding: 16px; }
+.combo-body h3 { color: #fff; font-size: 17px; font-weight: 900; min-height: 42px; }
+.combo-body p { color: var(--cinema-muted); font-size: 14px; min-height: 42px; }
+.btnSelectCombo { justify-content: center; width: 100%; }
+.combo-card.selected .btnSelectCombo { background: linear-gradient(135deg, #16a34a, #22c55e); }
+.cinema-summary { align-self: start; position: sticky; top: 100px; }
+.summary-header { align-items: center; border-bottom: 1px solid var(--cinema-line); display: flex; gap: 14px; margin-bottom: 18px; padding-bottom: 18px; }
+.summary-header i { color: var(--cinema-yellow); font-size: 34px; }
+.summary-header h3 { color: #fff; font-weight: 950; margin: 0; }
+.summary-header p { color: var(--cinema-muted); margin: 0; }
+.summary-row, .summary-total { align-items: center; display: flex; gap: 14px; justify-content: space-between; padding: 14px 0; }
+.summary-row { border-bottom: 1px solid rgba(148,163,184,.14); color: #dbe4f0; }
+.summary-row strong { color: #fff; text-align: right; }
+.seat-pill { background: var(--cinema-green); border-radius: 9px; color: #fff; display: inline-block; margin: 2px; padding: 5px 9px; }
+.summary-total strong { color: var(--cinema-yellow); font-size: 28px; }
+.summary-back { color: #dbe4f0; display: block; margin-top: 14px; text-align: center; text-decoration: none; }
+.summary-back:hover { color: var(--cinema-yellow); }
+.selected-item { align-items: center; background: rgba(255,255,255,.04); border-radius: 16px; display: grid; gap: 12px; grid-template-columns: 74px 1fr 110px 120px 42px; margin-bottom: 12px; padding: 12px; }
+.selected-item img { border-radius: 12px; height: 64px; object-fit: cover; width: 74px; }
+.selected-info span { color: var(--cinema-muted); display: block; font-size: 13px; }
+.qty-box { display: flex; }
+.qty-box button, .remove-btn { background: #1f2937; border: 1px solid rgba(148,163,184,.3); color: #fff; }
+.qty-box button { height: 34px; width: 34px; }
+.qty-box input { background: #0f172a; border: 1px solid rgba(148,163,184,.3); color: #fff; height: 34px; text-align: center; width: 42px; }
+.line-price { color: var(--cinema-yellow); text-align: right; }
+.remove-btn { border-radius: 10px; height: 38px; }
+
+@media (max-width: 1200px) {
+    .cinema-movie-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cinema-workspace { grid-template-columns: 1fr; }
+    .cinema-summary { position: static; }
+}
+@media (max-width: 768px) {
+    .app-main { padding-top: 76px; }
+    .cinema-page { max-width: 100%; }
+    .cinema-hero { height: 480px; }
+    .cinema-hero-small { min-height: 360px; }
+    .cinema-hero-content { left: 22px; right: 22px; }
+    .cinema-seat-ticket { bottom: 24px; right: 24px; top: auto; transform: rotate(2deg); }
+    .cinema-section-heading { align-items: start; flex-direction: column; gap: 6px; }
+    .cinema-movie-grid, .combo-grid { grid-template-columns: 1fr; }
+    .cinema-poster-link { height: 360px; }
+    .selected-item { grid-template-columns: 64px 1fr; }
+    .qty-box, .line-price, .remove-btn { grid-column: 2; }
+}

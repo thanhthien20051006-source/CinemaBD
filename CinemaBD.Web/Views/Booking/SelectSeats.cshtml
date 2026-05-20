@@ -1,0 +1,168 @@
+@model CinemaBD.Web.Models.SeatSelectionPageViewModel
+@{
+    ViewData["Title"] = "Chọn ghế";
+    var seats = Model.Seats
+        .OrderBy(x => x.Row)
+        .ThenBy(x => x.Column)
+        .ToList();
+}
+
+<div class="container mt-4">
+    <h4 class="text-danger mb-3"><i class="bi bi-grid-3x3-gap"></i> Chọn ghế</h4>
+
+    <div class="alert alert-info py-2 mb-3">
+        <i class="bi bi-broadcast"></i> Chọn ghế realtime: ghế người khác đang giữ sẽ tự khóa trên màn hình của bạn.
+        Sau khi bấm tiếp tục, hệ thống giữ ghế <strong>5 phút</strong> để thanh toán.
+    </div>
+
+    <div class="card p-3 shadow-sm mb-3">
+        @if (seats.Any())
+        {
+            <div class="cinema-screen">MÀN HÌNH</div>
+
+            <div class="cinema-seat-map">
+                @foreach (var rowGroup in seats.GroupBy(x => x.Row).OrderBy(x => x.Key))
+                {
+                    <div class="cinema-seat-row">
+                        <div class="cinema-row-label">Hàng @rowGroup.Key</div>
+                        <div class="cinema-row-seats">
+                            @foreach (var seat in rowGroup.OrderBy(x => x.Column))
+                            {
+                                var seatCode = $"{seat.Row}{seat.Column}";
+                                var isVip = string.Equals(seat.SeatType, "VIP", StringComparison.OrdinalIgnoreCase);
+                                var css = $"cinema-seat {(isVip ? "cinema-seat-vip" : "cinema-seat-normal")} {(seat.IsBooked ? "cinema-seat-booked" : "")}";
+                                <button type="button"
+                                        class="@css"
+                                        data-id="@seat.Id"
+                                        data-code="@seatCode"
+                                        data-price="@seat.Price"
+                                        data-seat-type="@seat.SeatType"
+                                        title="@($"{seatCode} - {seat.SeatType} - {seat.Price:N0}đ")"
+                                        @(seat.IsBooked ? "disabled" : null)>
+                                    @seatCode
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="cinema-seat-legend">
+                <span class="cinema-legend-pill"><span class="cinema-legend-dot cinema-legend-normal"></span> Ghế thường</span>
+                <span class="cinema-legend-pill"><span class="cinema-legend-dot cinema-legend-vip"></span> Ghế VIP</span>
+                <span class="cinema-legend-pill"><span class="cinema-legend-dot cinema-legend-selected"></span> Đang chọn</span>
+                <span class="cinema-legend-pill"><span class="cinema-legend-dot cinema-legend-booked"></span> Đã đặt/đang giữ</span>
+            </div>
+        }
+        else
+        {
+            <p class="text-muted text-center mb-0">Không có dữ liệu ghế.</p>
+        }
+    </div>
+
+    <div class="card p-3 shadow-sm">
+        <h5>Thông tin chọn ghế</h5>
+        <p class="mb-1">Ghế đã chọn: <strong id="selectedSeatsText" class="text-primary">Chưa chọn</strong></p>
+        <p class="mb-3">Tạm tính: <strong id="selectedTotalText" class="text-danger">0 đ</strong></p>
+
+        <form id="toComboForm" method="get" asp-controller="Booking" asp-action="SelectCombo">
+            <input type="hidden" name="showtimeId" value="@Model.ShowtimeId" />
+            <input type="hidden" id="seatsInput" name="seats" value="" />
+            <button type="submit" id="btnContinue" class="btn btn-danger" disabled>
+                Tiếp tục chọn combo
+            </button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+<script>
+    (function(){
+        const selected = new Map();
+        const seatButtons = document.querySelectorAll('.cinema-seat:not(.cinema-seat-booked)');
+        const seatsInput = document.getElementById('seatsInput');
+        const selectedSeatsText = document.getElementById('selectedSeatsText');
+        const selectedTotalText = document.getElementById('selectedTotalText');
+        const btnContinue = document.getElementById('btnContinue');
+        const showtimeId = '@Model.ShowtimeId';
+        let connection = null;
+
+        function render(){
+            const ids = Array.from(selected.values()).map(x => x.id);
+            const labels = Array.from(selected.values()).map(x => x.code);
+            const total = Array.from(selected.values()).reduce((s, x) => s + x.price, 0);
+
+            seatsInput.value = ids.join(',');
+            selectedSeatsText.textContent = labels.length ? labels.join(', ') : 'Chưa chọn';
+            selectedTotalText.textContent = total.toLocaleString('vi-VN') + ' đ';
+            btnContinue.disabled = ids.length === 0;
+        }
+
+        function setHeldByOther(seatId, held) {
+            const btn = document.querySelector(`.cinema-seat[data-id="${CSS.escape(seatId)}"]`);
+            if (!btn || btn.classList.contains('cinema-seat-booked')) return;
+
+            if (held) {
+                selected.delete(seatId);
+                btn.classList.remove('cinema-seat-selected');
+                btn.classList.add('cinema-seat-booked');
+                btn.disabled = true;
+                btn.title = `${btn.dataset.code} - đang được người khác giữ`;
+            } else {
+                btn.classList.remove('cinema-seat-booked');
+                btn.disabled = false;
+                btn.title = `${btn.dataset.code} - ${btn.dataset.seatType} - ${Number(btn.dataset.price || 0).toLocaleString('vi-VN')}đ`;
+            }
+            render();
+        }
+
+        seatButtons.forEach(btn => {
+            btn.addEventListener('click', async function(){
+                const id = this.dataset.id;
+                const code = this.dataset.code;
+                const price = parseFloat(this.dataset.price || '0');
+
+                if (selected.has(id)) {
+                    selected.delete(id);
+                    this.classList.remove('cinema-seat-selected');
+                    if (connection) await connection.invoke('ReleaseSeat', showtimeId, id).catch(() => {});
+                } else {
+                    selected.set(id, { id, code, price });
+                    this.classList.add('cinema-seat-selected');
+                    if (connection) await connection.invoke('HoldSeat', showtimeId, id, code).catch(() => {});
+                }
+                render();
+            });
+        });
+
+        document.getElementById('toComboForm').addEventListener('submit', async function(){
+            const ids = Array.from(selected.values()).map(x => x.id);
+            if (connection && ids.length) await connection.invoke('ConfirmSeats', showtimeId, ids).catch(() => {});
+        });
+
+        connection = new signalR.HubConnectionBuilder().withUrl('/hubs/seats').withAutomaticReconnect().build();
+        connection.on('SeatHeld', (seatId) => setHeldByOther(seatId, true));
+        connection.on('SeatReleased', (seatId) => setHeldByOther(seatId, false));
+        connection.on('SeatHoldFailed', (seatId, message) => {
+            selected.delete(seatId);
+            const btn = document.querySelector(`.cinema-seat[data-id="${CSS.escape(seatId)}"]`);
+            if (btn) btn.classList.remove('cinema-seat-selected');
+            render();
+            alert(message || 'Không giữ được ghế. Vui lòng chọn ghế khác.');
+        });
+        connection.on('SeatHoldConfirmed', (seatId) => {
+            const btn = document.querySelector(`.cinema-seat[data-id="${CSS.escape(seatId)}"]`);
+            if (btn) btn.title = `${btn.dataset.code} - đã giữ 5 phút cho bạn`;
+        });
+        connection.on('SeatsConfirmed', (seatIds) => (seatIds || []).forEach(id => setHeldByOther(id, true)));
+        connection.start().then(() => connection.invoke('JoinShowtime', showtimeId)).catch(() => {});
+        window.addEventListener('beforeunload', () => {
+            if (!connection) return;
+            Array.from(selected.keys()).forEach(id => connection.invoke('ReleaseSeat', showtimeId, id).catch(() => {}));
+        });
+    })();
+</script>
+
+@await Html.PartialAsync("_SeatMapStyles")
+}

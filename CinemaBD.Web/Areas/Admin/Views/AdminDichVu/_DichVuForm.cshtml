@@ -1,0 +1,33 @@
+﻿@model CinemaBD.Web.Models.AdminComboEditViewModel
+@{
+    bool isEdit = !string.IsNullOrWhiteSpace(Model.Id);
+}
+<form asp-area="Admin" asp-controller="AdminDichVu" asp-action="Save" method="post" id="formDichVu">
+    @Html.AntiForgeryToken()
+    <div class="mb-3">
+        <label class="form-label">Mã combo</label>
+        <input asp-for="Id" class="form-control" readonly="@isEdit" placeholder="Nhập mã combo, ví dụ: CB01" required />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Tên dịch vụ</label>
+        <input asp-for="Name" class="form-control" placeholder="Nhập tên dịch vụ" required />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Giá tiền (VND)</label>
+        <input asp-for="Price" class="form-control" type="number" min="0" step="1000" required />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Mô tả</label>
+        <textarea asp-for="Description" class="form-control" rows="3" placeholder="Mô tả ngắn về combo"></textarea>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Hình ảnh / URL / tên file</label>
+        <input asp-for="ImageUrl" class="form-control" placeholder="vd: combo1.jpg hoặc https://..." />
+        <small class="text-muted">Nếu nhập tên file, hệ thống hiển thị theo /Content/img/&lt;tên file&gt;.</small>
+    </div>
+    <div class="text-end">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+        <button type="submit" class="btn btn-primary">Lưu</button>
+    </div>
+</form>
+

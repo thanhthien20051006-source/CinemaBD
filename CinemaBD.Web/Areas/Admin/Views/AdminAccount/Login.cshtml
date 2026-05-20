@@ -1,0 +1,7 @@
+﻿@model CinemaBD.Web.Models.LoginViewModel
+@{
+    ViewData["Title"] = "Đăng nhập";
+}
+
+@await Html.PartialAsync("~/Views/Account/Login.cshtml", Model ?? new CinemaBD.Web.Models.LoginViewModel())
+

@@ -1,0 +1,63 @@
+﻿@model IReadOnlyList<CinemaBD.Web.Models.AdminInvoiceListItemViewModel>
+@{
+    ViewData["Title"] = "Quản lý hóa đơn";
+    var i = 1;
+}
+
+<div class="card sys-card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">
+        <h6 class="card-title mb-0"><i class="bi bi-file-earmark-text"></i> Quản lý hóa đơn</h6>
+        <button class="btn btn-success btn-sm" disabled>Thêm mới hóa đơn</button>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                <tr>
+                    <th style="width:60px">#</th>
+                    <th>Mã hóa đơn</th>
+                    <th>Tên khách hàng</th>
+                    <th>Tên nhân viên</th>
+                    <th>Phim</th>
+                    <th>Ngày chiếu</th>
+                    <th>Giờ bắt đầu</th>
+                    <th>Tổng tiền</th>
+                    <th>Trạng thái</th>
+                    <th style="width:190px">Thao tác</th>
+                </tr>
+                </thead>
+                <tbody>
+                @if (Model.Any())
+                {
+                    foreach (var hd in Model)
+                    {
+                        var status = (hd.Status ?? "").Trim();
+                        var badgeClass = status is "Paid" or "Đã thanh toán" or "Da thanh toan" ? "bg-success" : status is "Cancelled" or "Đã hủy" or "Da huy" ? "bg-danger" : "bg-secondary";
+                        <tr>
+                            <td>@i</td>
+                            <td>@hd.InvoiceId</td>
+                            <td>@(hd.CustomerName ?? "Không rõ")</td>
+                            <td>@(hd.EmployeeName ?? "Không có")</td>
+                            <td>@(hd.MovieTitle ?? "Không rõ")</td>
+                            <td>@(hd.ShowDate.HasValue ? hd.ShowDate.Value.ToString("dd/MM/yyyy") : "")</td>
+                            <td>@(hd.StartTime.HasValue ? hd.StartTime.Value.ToString(@"hh\:mm\:ss") : "")</td>
+                            <td>@string.Format("{0:N0} đ", hd.TotalAmount)</td>
+                            <td><span class="badge @badgeClass">@(string.IsNullOrWhiteSpace(hd.Status) ? "Không rõ" : hd.Status)</span></td>
+                            <td>
+                                <a asp-area="Admin" asp-controller="AdminHoaDon" asp-action="Details" asp-route-id="@hd.InvoiceId" class="btn btn-info btn-sm"><i class="bi bi-info-circle"></i> Chi tiết</a>
+                                <a asp-area="Admin" asp-controller="AdminHoaDon" asp-action="PrintTickets" asp-route-id="@hd.InvoiceId" class="btn btn-primary btn-sm"><i class="bi bi-printer"></i> In vé</a>
+                            </td>
+                        </tr>
+                        i++;
+                    }
+                }
+                else
+                {
+                    <tr><td colspan="10" class="text-center text-muted">Chưa có hóa đơn nào.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+

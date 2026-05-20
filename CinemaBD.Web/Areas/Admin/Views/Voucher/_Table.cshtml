@@ -1,0 +1,69 @@
+@model IReadOnlyList<CinemaBD.Web.Models.AdminVoucherViewModel>
+
+<table class="table table-hover align-middle">
+    <thead>
+        <tr>
+            <th>Mã</th>
+            <th>Khách hàng</th>
+            <th>Code</th>
+            <th>Giảm</th>
+            <th>Điều kiện</th>
+            <th>Hết hạn</th>
+            <th>Trạng thái</th>
+            <th class="text-end">Thao tác</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td>@item.Id</td>
+            <td>
+                @if (item.IsGlobal)
+                {
+                    <span class="badge bg-warning text-dark">Tất cả khách hàng</span>
+                }
+                else
+                {
+                    <span>@item.CustomerName</span> <span class="text-muted small">(@item.CustomerId)</span>
+                }
+            </td>
+            <td><span class="badge bg-primary">@item.Code</span></td>
+            <td>
+                <div class="fw-bold">
+                    @(item.DiscountType == "Percent" ? $"{item.DiscountValue:0.##}%" : $"{item.DiscountValue:N0} đ")
+                </div>
+                <small class="text-muted">@item.Description</small>
+            </td>
+            <td>
+                <div>Đơn tối thiểu: @item.MinOrderAmount.ToString("N0") đ</div>
+                <div>Tối đa: @(item.MaxDiscountAmount > 0 ? item.MaxDiscountAmount.ToString("N0") + " đ" : "Không giới hạn")</div>
+            </td>
+            <td>@item.ExpiredAt.ToString("dd/MM/yyyy")</td>
+            <td>
+                @if (item.IsUsed)
+                {
+                    <span class="badge bg-dark">Đã dùng</span>
+                    <div class="small text-muted">@item.UsedTransactionRef</div>
+                }
+                else if (item.IsExpired)
+                {
+                    <span class="badge bg-secondary">Hết hạn</span>
+                }
+                else
+                {
+                    <span class="badge bg-success">Đang hoạt động</span>
+                }
+            </td>
+            <td class="text-end">
+                <button class="btn btn-sm btn-outline-primary btn-edit-voucher" data-id="@item.Id">Sửa</button>
+                <button class="btn btn-sm btn-outline-danger btn-delete-voucher" data-id="@item.Id">Xóa</button>
+            </td>
+        </tr>
+    }
+    @if (!Model.Any())
+    {
+        <tr><td colspan="8" class="text-center text-muted">Chưa có voucher</td></tr>
+    }
+    </tbody>
+</table>

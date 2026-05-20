@@ -1,0 +1,14 @@
+﻿@model CinemaBD.Web.Models.AdminArticleViewModel
+@{ ViewData["Title"] = Model.Id > 0 ? "Sửa bài viết" : "Thêm bài viết"; }
+<h3>@ViewData["Title"]</h3>
+<form class="card mt-3" asp-area="Admin" asp-controller="AdminGocDienAnh" asp-action="Save" method="post">
+@Html.AntiForgeryToken()<input type="hidden" asp-for="Id" />
+<div class="card-body row g-3">
+<div class="col-md-8"><label class="form-label">Tiêu đề</label><input asp-for="Title" class="form-control" required /></div>
+<div class="col-md-4"><label class="form-label">Ảnh URL</label><input asp-for="ImageUrl" class="form-control" /></div>
+<div class="col-md-12"><label class="form-label">Mô tả</label><textarea asp-for="Summary" class="form-control" rows="3"></textarea></div>
+<div class="col-md-12"><label class="form-label">Nội dung</label><textarea asp-for="Content" class="form-control" rows="8"></textarea></div>
+</div>
+<div class="card-footer text-end"><a class="btn btn-secondary" asp-area="Admin" asp-controller="AdminGocDienAnh" asp-action="Index">Hủy</a><button class="btn btn-primary">Lưu</button></div>
+</form>
+

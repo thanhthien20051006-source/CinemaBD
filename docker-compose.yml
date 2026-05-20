@@ -1,0 +1,83 @@
+services:
+
+  # ─── SQL Server ────────────────────────────────────────────────────────────
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: cinemabd_sqlserver
+    environment:
+      SA_PASSWORD: "10062005qweR?"
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Express"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost",
+             "-U", "sa", "-P", "10062005qweR?", "-Q", "SELECT 1", "-No"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ─── API ───────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: CinemaBD.Api/Dockerfile
+    container_name: cinemabd_api
+    ports:
+      - "5188:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: >
+        Server=sqlserver,1433;Database=CinemaBD;
+        User Id=sa;Password=10062005qweR?;
+        TrustServerCertificate=True;MultipleActiveResultSets=True
+      Jwt__Key: "DOCKER_JWT_SECRET_CHANGE_IN_PROD_32CHARS"
+      Jwt__Issuer: "CinemaBD"
+      Jwt__Audience: "CinemaBD.Client"
+      VnPay__BaseUrl: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
+      VnPay__ReturnUrl: "http://localhost:7188/booking/payment-return"
+      VnPay__TmnCode: "CHANGE_ME_VNPAY_TMN_CODE"
+      VnPay__HashSecret: "CHANGE_ME_VNPAY_HASH_SECRET"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: on-failure
+
+  # ─── Web ───────────────────────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: CinemaBD.Web/Dockerfile
+    container_name: cinemabd_web
+    ports:
+      - "7188:8090"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ApiSettings__BaseUrl: "http://api:8080/"
+      ConnectionStrings__DefaultConnection: "Data Source=/app/cinemabd.web.db"
+      PaymentSettings__Url: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
+      PaymentSettings__ReturnUrl: "http://localhost:7188/booking/payment-return"
+      PaymentSettings__TmnCode: "CHANGE_ME_VNPAY_TMN_CODE"
+      PaymentSettings__HashSecret: "CHANGE_ME_VNPAY_HASH_SECRET"
+      GoogleAuth__ClientId: "CHANGE_ME_GOOGLE_CLIENT_ID"
+      GoogleAuth__ClientSecret: "CHANGE_ME_GOOGLE_CLIENT_SECRET"
+      EmailSettings__SmtpHost: "smtp.gmail.com"
+      EmailSettings__SmtpPort: "587"
+      EmailSettings__EnableSsl: "true"
+      EmailSettings__FromName: "CinemaBD"
+      EmailSettings__FromEmail: "change-me@example.com"
+      EmailSettings__FromPassword: "CHANGE_ME_SMTP_PASSWORD"
+      EmailSettings__SMTPAccount: "change-me@example.com"
+      EmailSettings__SMTPPassword: "CHANGE_ME_SMTP_PASSWORD"
+    volumes:
+      - web_dataprotection_keys:/app/DataProtectionKeys
+    depends_on:
+      - api
+    restart: on-failure
+
+volumes:
+  sqlserver_data:
+  web_dataprotection_keys:

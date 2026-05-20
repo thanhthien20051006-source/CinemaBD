@@ -1,0 +1,164 @@
+﻿@model CinemaBD.Web.Models.AdminCustomerPageViewModel
+@{
+    ViewData["Title"] = "Khách hàng";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h4 class="mb-1">Quản lý khách hàng</h4>
+        <div class="text-muted small">Tìm kiếm, thêm/sửa/xóa khách hàng</div>
+    </div>
+    <button class="btn btn-primary" onclick="openCustomerModal()"><i class="bi bi-plus-circle"></i> Thêm khách hàng</button>
+</div>
+
+<form method="get" class="card mb-3">
+    <div class="card-body row g-2 align-items-end">
+        <div class="col-md-5">
+            <label class="form-label">Tìm kiếm</label>
+            <input name="search" class="form-control" value="@Model.Search" placeholder="Mã, họ tên, tài khoản, email, SĐT..." />
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-outline-primary w-100"><i class="bi bi-search"></i> Tìm</button>
+        </div>
+        <div class="col-md-2">
+            <a asp-action="Index" class="btn btn-outline-secondary w-100">Xóa lọc</a>
+        </div>
+    </div>
+</form>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr><th>Mã</th><th>Họ tên</th><th>Tài khoản</th><th>Email</th><th>SĐT</th><th>Ngày sinh</th><th class="text-end">Thao tác</th></tr>
+            </thead>
+            <tbody>
+            @if (!Model.Customers.Any())
+            {
+                <tr><td colspan="7" class="text-center text-muted py-4">Không có khách hàng</td></tr>
+            }
+            @foreach (var u in Model.Customers)
+            {
+                <tr id="row-@u.Id">
+                    <td class="fw-semibold">@u.Id</td>
+                    <td>@u.FullName</td>
+                    <td>@u.Username</td>
+                    <td>@u.Email</td>
+                    <td>@u.PhoneNumber</td>
+                    <td>@(u.BirthDate?.ToString("dd/MM/yyyy") ?? "-")</td>
+                    <td class="text-end">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="editCustomer('@u.Id')"><i class="bi bi-pencil-square"></i></button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteCustomer('@u.Id')"><i class="bi bi-trash"></i></button>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="customerModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <form id="customerForm">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">Thêm khách hàng</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body row g-3">
+                    <input type="hidden" name="Id" id="Id" />
+                    <div class="col-md-6">
+                        <label class="form-label">Họ tên</label>
+                        <input name="FullName" id="FullName" class="form-control" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Tài khoản</label>
+                        <input name="Username" id="Username" class="form-control" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Email</label>
+                        <input name="Email" id="Email" type="email" class="form-control" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Số điện thoại</label>
+                        <input name="PhoneNumber" id="PhoneNumber" class="form-control" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Ngày sinh</label>
+                        <input name="BirthDate" id="BirthDate" type="date" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Mật khẩu <span class="text-muted small">(để trống khi sửa nếu không đổi)</span></label>
+                        <input name="Password" id="Password" type="password" class="form-control" />
+                    </div>
+                    <div class="col-12"><div id="customerMessage" class="alert d-none mb-0"></div></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+<script>
+let customerModal;
+document.addEventListener('DOMContentLoaded', () => {
+    customerModal = new bootstrap.Modal(document.getElementById('customerModal'));
+    document.getElementById('customerForm').addEventListener('submit', saveCustomer);
+});
+
+function openCustomerModal() {
+    document.getElementById('modalTitle').innerText = 'Thêm khách hàng';
+    document.getElementById('customerForm').reset();
+    document.getElementById('Id').value = '';
+    setCustomerMessage('', true);
+    customerModal.show();
+}
+
+async function editCustomer(id) {
+    const res = await fetch('/Admin/Users/Get/' + encodeURIComponent(id), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    if (!res.ok) { alert('Không lấy được khách hàng'); return; }
+    const u = await res.json();
+    document.getElementById('modalTitle').innerText = 'Cập nhật khách hàng';
+    document.getElementById('Id').value = u.id || '';
+    document.getElementById('FullName').value = u.fullName || '';
+    document.getElementById('Username').value = u.username || '';
+    document.getElementById('Email').value = u.email || '';
+    document.getElementById('PhoneNumber').value = u.phoneNumber || '';
+    document.getElementById('BirthDate').value = u.birthDate ? String(u.birthDate).substring(0,10) : '';
+    document.getElementById('Password').value = '';
+    setCustomerMessage('', true);
+    customerModal.show();
+}
+
+async function saveCustomer(e) {
+    e.preventDefault();
+    const res = await fetch('/Admin/Users/Save', { method: 'POST', body: new FormData(e.target), headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    const data = await res.json();
+    setCustomerMessage(data.message || (data.success ? 'Thành công' : 'Không lưu được'), data.success);
+    if (data.success) setTimeout(() => location.reload(), 600);
+}
+
+async function deleteCustomer(id) {
+    if (!confirm('Xóa khách hàng này?')) return;
+    const body = new FormData();
+    body.append('id', id);
+    const res = await fetch('/Admin/Users/DeleteAjax', { method: 'POST', body, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    const data = await res.json();
+    if (data.success) document.getElementById('row-' + id)?.remove();
+    else alert(data.message || 'Không xóa được khách hàng');
+}
+
+function setCustomerMessage(text, success) {
+    const box = document.getElementById('customerMessage');
+    if (!text) { box.className = 'alert d-none mb-0'; box.innerText = ''; return; }
+    box.className = 'alert mb-0 ' + (success ? 'alert-success' : 'alert-danger');
+    box.innerText = text;
+}
+</script>
+}
+

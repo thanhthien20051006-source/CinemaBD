@@ -1,0 +1,117 @@
+﻿@model IEnumerable<CinemaBD.Web.Models.AdminGenreViewModel>
+@{
+    ViewData["Title"] = "Thể loại";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>Quản lý thể loại phim</h4>
+    <button class="btn btn-primary" onclick="openGenreModal()"><i class="bi bi-plus-circle"></i> Thêm thể loại</button>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr><th style="width: 80px;">ID</th><th>Tên thể loại</th><th>Mô tả</th><th class="text-end" style="width: 120px;">Thao tác</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr id="row-@item.Id">
+                        <td>@item.Id</td>
+                        <td class="fw-bold">@item.Name</td>
+                        <td>@item.Description</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-primary" onclick="editGenre(@item.Id)"><i class="bi bi-pencil-square"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteGenre(@item.Id)"><i class="bi bi-trash"></i></button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="genreModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="genreForm">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">Thể loại</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body row g-3">
+                    <input type="hidden" name="Id" id="Id" />
+                    <div class="col-12">
+                        <label class="form-label">Tên thể loại</label>
+                        <input name="Name" id="Name" class="form-control" required />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Mô tả</label>
+                        <textarea name="Description" id="Description" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="col-12"><div id="genreMessage" class="alert d-none mb-0"></div></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+<script>
+let genreModal;
+document.addEventListener('DOMContentLoaded', () => {
+    genreModal = new bootstrap.Modal(document.getElementById('genreModal'));
+    document.getElementById('genreForm').addEventListener('submit', saveGenre);
+});
+
+function openGenreModal() {
+    document.getElementById('modalTitle').innerText = 'Thêm thể loại';
+    document.getElementById('genreForm').reset();
+    document.getElementById('Id').value = '0';
+    setGenreMessage('', true);
+    genreModal.show();
+}
+
+async function editGenre(id) {
+    const res = await fetch('/Admin/TheLoai/Get/' + id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    if (!res.ok) { alert('Lỗi'); return; }
+    const d = await res.json();
+    document.getElementById('modalTitle').innerText = 'Cập nhật thể loại';
+    document.getElementById('Id').value = d.id;
+    document.getElementById('Name').value = d.name;
+    document.getElementById('Description').value = d.description || '';
+    setGenreMessage('', true);
+    genreModal.show();
+}
+
+async function saveGenre(e) {
+    e.preventDefault();
+    const res = await fetch('/Admin/TheLoai/SaveAjax', { method: 'POST', body: new FormData(e.target), headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    const data = await res.json();
+    setGenreMessage(data.message, data.success);
+    if (data.success) setTimeout(() => location.reload(), 600);
+}
+
+async function deleteGenre(id) {
+    if (!confirm('Xóa thể loại này?')) return;
+    const res = await fetch('/Admin/TheLoai/DeleteAjax/' + id, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    const data = await res.json();
+    if (data.success) document.getElementById('row-' + id).remove();
+    else alert(data.message);
+}
+
+function setGenreMessage(t, s) {
+    const b = document.getElementById('genreMessage');
+    if (!t) { b.className = 'alert d-none mb-0'; return; }
+    b.className = 'alert mb-0 ' + (s ? 'alert-success' : 'alert-danger');
+    b.innerText = t;
+}
+</script>
+}
+

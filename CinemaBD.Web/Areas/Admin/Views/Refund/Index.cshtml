@@ -1,0 +1,105 @@
+@model CinemaBD.Web.Models.AdminRefundPageViewModel
+@{
+    ViewData["Title"] = "Duyệt hủy vé / hoàn tiền";
+    Layout = "~/Areas/Admin/Views/Shared/_AdminLayout.cshtml";
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+            <h3 class="fw-bold mb-1">Duyệt hủy vé / hoàn tiền</h3>
+            <div class="text-muted">Quản lý yêu cầu hủy vé từ khách hàng</div>
+        </div>
+        <form method="get" class="d-flex gap-2">
+            <select name="status" class="form-select" onchange="this.form.submit()">
+                <option value="">Tất cả</option>
+                <option value="Pending" selected="@(Model.Status == "Pending")">Chờ duyệt</option>
+                <option value="Approved" selected="@(Model.Status == "Approved")">Đã duyệt</option>
+                <option value="Rejected" selected="@(Model.Status == "Rejected")">Đã từ chối</option>
+            </select>
+        </form>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Hóa đơn / Vé</th>
+                        <th>Khách hàng</th>
+                        <th>Lý do</th>
+                        <th>Tiền hoàn</th>
+                        <th>Ngày yêu cầu</th>
+                        <th>Trạng thái</th>
+                        <th style="width:280px">Xử lý</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var item in Model.Refunds)
+                {
+                    <tr>
+                        <td>@item.Id</td>
+                        <td>
+                            <div class="fw-bold">@item.InvoiceId</div>
+                            @if (!string.IsNullOrWhiteSpace(item.TicketId))
+                            {
+                                <div class="small text-muted">Vé: @item.TicketId</div>
+                            }
+                        </td>
+                        <td>@item.CustomerId</td>
+                        <td>
+                            <div>@item.Reason</div>
+                            @if (!string.IsNullOrWhiteSpace(item.AdminNote))
+                            {
+                                <div class="small text-muted">Admin: @item.AdminNote</div>
+                            }
+                        </td>
+                        <td class="fw-bold text-danger">@item.RefundAmount.ToString("N0") đ</td>
+                        <td>@item.RequestedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>
+                            @if (item.Status == "Pending")
+                            {
+                                <span class="badge bg-warning text-dark">Chờ duyệt</span>
+                            }
+                            else if (item.Status == "Approved")
+                            {
+                                <span class="badge bg-success">Đã duyệt</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">@item.Status</span>
+                            }
+                        </td>
+                        <td>
+                            @if (item.Status == "Pending")
+                            {
+                                <form asp-area="Admin" asp-controller="Refund" asp-action="Approve" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <input type="hidden" name="adminNote" value="Đã duyệt hoàn tiền" />
+                                    <button class="btn btn-sm btn-success" onclick="return confirm('Duyệt hoàn tiền yêu cầu này?')">Duyệt</button>
+                                </form>
+                                <form asp-area="Admin" asp-controller="Refund" asp-action="Reject" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <input type="hidden" name="adminNote" value="Không đủ điều kiện hoàn tiền" />
+                                    <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Từ chối yêu cầu này?')">Từ chối</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">Đã xử lý</span>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Refunds.Any())
+                {
+                    <tr><td colspan="8" class="text-center text-muted py-4">Chưa có yêu cầu hủy vé / hoàn tiền.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

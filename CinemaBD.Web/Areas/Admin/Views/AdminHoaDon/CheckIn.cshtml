@@ -1,0 +1,122 @@
+@model CinemaBD.Web.Models.AdminCheckInResultViewModel
+@{
+    ViewData["Title"] = "QR Check-in";
+    var scannedText = ViewBag.ScannedText as string ?? string.Empty;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3><i class="bi bi-qr-code-scan"></i> QR scanner check-in</h3>
+    <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="AdminHoaDon" asp-action="Index">Danh sách hóa đơn</a>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-header fw-bold">Nhập / quét mã QR</div>
+            <div class="card-body">
+                <form method="post" asp-area="Admin" asp-controller="AdminHoaDon" asp-action="CheckIn">
+                    @Html.AntiForgeryToken()
+                    <label class="form-label">Nội dung QR / mã vé</label>
+                    <textarea id="qrText" name="qrText" class="form-control font-monospace" rows="5" autofocus placeholder="CinemaBD|CHECKIN|TXN...|HD...|VE...">@scannedText</textarea>
+                    <div class="form-text">Ưu tiên QR theo từng vé. Có thể nhập trực tiếp mã vé VE... để check-in.</div>
+                    <button class="btn btn-danger mt-3 w-100" type="submit">
+                        <i class="bi bi-check2-circle"></i> Check-in vé
+                    </button>
+                </form>
+                <hr />
+                <button type="button" id="btnStartCamera" class="btn btn-outline-primary w-100">
+                    <i class="bi bi-camera-video"></i> Quét bằng camera
+                </button>
+                <div id="reader" class="mt-3" style="display:none; max-width:420px;"></div>
+                <div class="small text-muted mt-2">Nếu trình duyệt hỏi quyền camera, chọn Allow.</div>
+                <div id="scanStatus" class="small text-muted mt-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header fw-bold">Kết quả kiểm tra</div>
+            <div class="card-body">
+                @if (ViewBag.Error != null)
+                {
+                    <div class="alert alert-warning">@ViewBag.Error</div>
+                }
+                else if (Model != null)
+                {
+                    <div class="alert @(Model.Success ? "alert-success" : "alert-danger") fs-5 fw-bold">
+                        @(Model.Success ? "✅" : "⚠️") @Model.Message
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-6"><b>Mã hóa đơn:</b> @Model.InvoiceId</div>
+                        <div class="col-md-6"><b>Mã giao dịch:</b> @Model.TransactionRef</div>
+                        <div class="col-md-6"><b>Mã vé:</b> @Model.TicketId</div>
+                        <div class="col-md-6"><b>Ghế:</b> @Model.SeatId</div>
+                        <div class="col-md-6"><b>Khách hàng:</b> @Model.CustomerName</div>
+                        <div class="col-md-6"><b>Trạng thái:</b> @Model.Status</div>
+                        <div class="col-md-6"><b>Phim:</b> @(Model.MovieTitle ?? "Không rõ")</div>
+                        <div class="col-md-6"><b>Suất chiếu:</b> @(Model.ShowDate.HasValue ? Model.ShowDate.Value.ToString("dd/MM/yyyy") : "") @(Model.StartTime.HasValue ? Model.StartTime.Value.ToString(@"hh\:mm") : "")</div>
+                        <div class="col-md-6"><b>Tổng tiền:</b> @string.Format("{0:N0} đ", Model.TotalAmount)</div>
+                        <div class="col-md-6"><b>Check-in:</b> @(Model.IsCheckedIn ? "Đã check-in" : "Chưa check-in")</div>
+                        @if (Model.CheckedInAt.HasValue)
+                        {
+                            <div class="col-md-6"><b>Thời gian check-in:</b> @Model.CheckedInAt.Value.ToString("dd/MM/yyyy HH:mm")</div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-info mb-0">Quét mã QR để kiểm tra vé và đánh dấu check-in.</div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script>
+(function () {
+    const btn = document.getElementById('btnStartCamera');
+    const reader = document.getElementById('reader');
+    const input = document.getElementById('qrText');
+    const status = document.getElementById('scanStatus');
+    let scanner = null;
+    let submitted = false;
+
+    function setStatus(text, isError) {
+        if (!status) return;
+        status.textContent = text || '';
+        status.className = 'small mt-2 ' + (isError ? 'text-danger' : 'text-muted');
+    }
+
+    btn?.addEventListener('click', async function () {
+        reader.style.display = 'block';
+        if (!scanner) scanner = new Html5Qrcode('reader');
+        try {
+            await scanner.start(
+                { facingMode: 'environment' },
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                async text => {
+                    if (submitted) return;
+                    submitted = true;
+                    input.value = (text || '').trim();
+                    setStatus('Đã quét: ' + input.value, false);
+                    await scanner.stop();
+                    input.form.requestSubmit();
+                },
+                errorMessage => {
+                    setStatus('Đang dò QR...', false);
+                }
+            );
+            btn.disabled = true;
+            btn.textContent = 'Đang quét...';
+        } catch (e) {
+            setStatus('Không mở được camera hoặc QR quá mờ. Hãy nhập mã QR thủ công.', true);
+            alert('Không mở được camera hoặc QR quá mờ. Hãy nhập mã QR thủ công.');
+        }
+    });
+})();
+</script>
+}

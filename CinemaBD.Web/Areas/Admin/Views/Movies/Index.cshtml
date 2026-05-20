@@ -1,0 +1,252 @@
+﻿@model IEnumerable<CinemaBD.Web.Domain.Movie>
+@{
+    ViewData["Title"] = "Quản lý phim";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h4 class="mb-1">Quản lý phim</h4>
+        <div class="text-muted small">Thêm, sửa, xóa phim bằng Ajax</div>
+    </div>
+    <button class="btn btn-primary" onclick="openMovieModal()"><i class="bi bi-plus-circle"></i> Thêm phim mới</button>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-8">
+                <input name="search" class="form-control" placeholder="Tìm theo tên phim, thể loại, đạo diễn..." value="@Context.Request.Query["search"]" />
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-primary w-100"><i class="bi bi-search"></i> Tìm</button>
+            </div>
+            <div class="col-md-2">
+                <a asp-action="Index" class="btn btn-outline-secondary w-100">Xóa lọc</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 100px;">Poster</th>
+                    <th>Thông tin phim</th>
+                    <th>Đạo diễn / QG</th>
+                    <th>Ngày chiếu</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end" style="width: 120px;">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Any())
+                {
+                    <tr><td colspan="6" class="text-center text-muted py-5">Không tìm thấy phim nào</td></tr>
+                }
+                @foreach (var p in Model)
+                {
+                    <tr id="row-@p.Id">
+                        <td>
+                            <img src="@p.PosterUrl" class="rounded" style="width: 70px; height: 100px; object-fit: cover;" onerror="this.src='https://placehold.co/70x100?text=No+Poster'" />
+                        </td>
+                        <td>
+                            <div class="fw-bold fs-6">@p.Title</div>
+                            <div class="text-muted small">Mã: @p.Id | @p.Genre | @p.DurationMinutes phút</div>
+                            <div class="badge bg-info text-dark mt-1">@p.AgeRestriction+</div>
+                        </td>
+                        <td>
+                            <div>@p.Director</div>
+                            <small class="text-muted">@p.Country</small>
+                        </td>
+                        <td>
+                            <div class="small">Khởi chiếu: @(p.ReleaseDate?.ToString("dd/MM/yyyy") ?? "-")</div>
+                            <div class="small text-muted">Kết thúc: @(p.EndDate?.ToString("dd/MM/yyyy") ?? "-")</div>
+                        </td>
+                        <td>
+                            <span class="badge @(p.Status == "Đang chiếu" ? "bg-success" : "bg-warning")">@p.Status</span>
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-primary" onclick="editMovie('@p.Id')" title="Sửa"><i class="bi bi-pencil-square"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteMovie('@p.Id')" title="Xóa"><i class="bi bi-trash"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Movie Modal -->
+<div class="modal fade" id="movieModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <form id="movieForm">
+                @Html.AntiForgeryToken()
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold" id="modalTitle">Thêm phim mới</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="Id" id="Id" />
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Tiêu đề phim</label>
+                            <input name="Title" id="Title" class="form-control" required placeholder="Ví dụ: Avengers: Endgame" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Thể loại</label>
+                            <input name="Genre" id="Genre" class="form-control" placeholder="Hành động, Viễn tưởng..." />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Thời lượng (phút)</label>
+                            <input name="DurationMinutes" id="DurationMinutes" type="number" class="form-control" value="120" />
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Đạo diễn</label>
+                            <input name="Director" id="Director" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Quốc gia</label>
+                            <input name="Country" id="Country" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Giới hạn tuổi</label>
+                            <select name="AgeRestriction" id="AgeRestriction" class="form-select">
+                                <option value="0">P - Mọi lứa tuổi</option>
+                                <option value="13">C13 - Trên 13 tuổi</option>
+                                <option value="16">C16 - Trên 16 tuổi</option>
+                                <option value="18">C18 - Trên 18 tuổi</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Ngày khởi chiếu</label>
+                            <input name="ReleaseDate" id="ReleaseDate" type="date" class="form-control" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Ngày kết thúc</label>
+                            <input name="EndDate" id="EndDate" type="date" class="form-control" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Link Poster (URL)</label>
+                            <input name="PosterUrl" id="PosterUrl" class="form-control" placeholder="https://..." />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Link Trailer (Youtube URL)</label>
+                            <input name="TrailerUrl" id="TrailerUrl" class="form-control" placeholder="https://youtube.com/..." />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Trạng thái</label>
+                            <select name="Status" id="Status" class="form-select">
+                                <option value="Đang chiếu">Đang chiếu</option>
+                                <option value="Sắp chiếu">Sắp chiếu</option>
+                                <option value="Ngưng chiếu">Ngưng chiếu</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Diễn viên</label>
+                            <input name="Cast" id="Cast" class="form-control" placeholder="Diễn viên A, Diễn viên B..." />
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Mô tả phim</label>
+                            <textarea name="Description" id="Description" class="form-control" rows="4"></textarea>
+                        </div>
+                        
+                        <div class="col-12">
+                            <div id="movieMessage" class="alert d-none mb-0"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary px-4"><i class="bi bi-save"></i> Lưu phim</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+<script>
+let movieModal;
+document.addEventListener('DOMContentLoaded', () => {
+    movieModal = new bootstrap.Modal(document.getElementById('movieModal'));
+    document.getElementById('movieForm').addEventListener('submit', saveMovie);
+});
+
+function openMovieModal() {
+    document.getElementById('modalTitle').innerText = 'Thêm phim mới';
+    document.getElementById('movieForm').reset();
+    document.getElementById('Id').value = '';
+    setMovieMessage('', true);
+    movieModal.show();
+}
+
+async function editMovie(id) {
+    const res = await fetch('/Admin/Movies/Get/' + encodeURIComponent(id), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    if (!res.ok) { alert('Không lấy được thông tin phim'); return; }
+    const p = await res.json();
+    
+    document.getElementById('modalTitle').innerText = 'Cập nhật phim';
+    document.getElementById('Id').value = p.id || '';
+    document.getElementById('Title').value = p.title || '';
+    document.getElementById('Genre').value = p.genre || '';
+    document.getElementById('DurationMinutes').value = p.durationMinutes || 120;
+    document.getElementById('Director').value = p.director || '';
+    document.getElementById('Country').value = p.country || '';
+    document.getElementById('AgeRestriction').value = p.ageRestriction || 0;
+    document.getElementById('ReleaseDate').value = p.releaseDate ? p.releaseDate.substring(0,10) : '';
+    document.getElementById('EndDate').value = p.endDate ? p.endDate.substring(0,10) : '';
+    document.getElementById('PosterUrl').value = p.posterUrl || '';
+    document.getElementById('TrailerUrl').value = p.trailerUrl || '';
+    document.getElementById('Status').value = p.status || 'Đang chiếu';
+    document.getElementById('Cast').value = p.cast || '';
+    document.getElementById('Description').value = p.description || '';
+    
+    setMovieMessage('', true);
+    movieModal.show();
+}
+
+async function saveMovie(e) {
+    e.preventDefault();
+    const res = await fetch('/Admin/Movies/SaveAjax', { 
+        method: 'POST', 
+        body: new FormData(e.target), 
+        headers: { 'X-Requested-With': 'XMLHttpRequest' } 
+    });
+    const data = await res.json();
+    setMovieMessage(data.message || (data.success ? 'Thành công' : 'Không lưu được'), data.success);
+    if (data.success) setTimeout(() => location.reload(), 600);
+}
+
+async function deleteMovie(id) {
+    if (!confirm('Bạn có chắc muốn xóa phim này?')) return;
+    const body = new FormData();
+    body.append('id', id);
+    const res = await fetch('/Admin/Movies/DeleteAjax', { 
+        method: 'POST', 
+        body, 
+        headers: { 'X-Requested-With': 'XMLHttpRequest' } 
+    });
+    const data = await res.json();
+    if (data.success) document.getElementById('row-' + id)?.remove();
+    else alert(data.message || 'Không xóa được phim');
+}
+
+function setMovieMessage(text, success) {
+    const box = document.getElementById('movieMessage');
+    if (!text) { box.className = 'alert d-none mb-0'; box.innerText = ''; return; }
+    box.className = 'alert mb-0 ' + (success ? 'alert-success' : 'alert-danger');
+    box.innerText = text;
+}
+</script>
+}
+

@@ -1,0 +1,116 @@
+﻿@model HomeIndexViewModel
+@{
+    ViewData["Title"] = "Trang Chủ";
+}
+
+<div class="cinema-page cinema-home">
+    <section class="cinema-hero">
+        <div id="bannerCarousel" class="carousel slide cinema-hero-carousel" data-bs-ride="carousel">
+            <div class="carousel-inner">
+                <div class="carousel-item active"><img src="~/legacy/Content/img/banner/camxuc.jpg" class="cinema-hero-img" alt="cảm xúc" /></div>
+                <div class="carousel-item"><img src="~/legacy/Content/img/banner/kynguyenhatnhan.jpg" class="cinema-hero-img" alt="kỷ nguyên hạt nhân" /></div>
+                <div class="carousel-item"><img src="~/legacy/Content/img/banner/godzilla&kong.jpg" class="cinema-hero-img" alt="godzilla và kong" /></div>
+                <div class="carousel-item"><img src="~/legacy/Content/img/banner/tuchientrenkhong.jpg" class="cinema-hero-img" alt="tử chiến trên không" /></div>
+            </div>
+            <button class="carousel-control-prev" type="button" data-bs-target="#bannerCarousel" data-bs-slide="prev"><span class="carousel-control-prev-icon"></span></button>
+            <button class="carousel-control-next" type="button" data-bs-target="#bannerCarousel" data-bs-slide="next"><span class="carousel-control-next-icon"></span></button>
+        </div>
+
+        <div class="cinema-hero-content">
+            <span class="cinema-eyebrow"><i class="bi bi-film"></i> CinemaBD</span>
+            <h1>Đặt vé phim nhanh, chọn ghế đẹp ngay hôm nay</h1>
+            <p>Giao diện chuẩn rộng theo trình duyệt, poster đồng bộ, mỗi trang hiển thị 4 phim.</p>
+            <a href="#now-showing" class="cinema-primary-btn">Xem phim đang chiếu <i class="bi bi-arrow-down-circle"></i></a>
+        </div>
+    </section>
+
+    <section id="now-showing" class="cinema-section">
+        <div class="cinema-section-heading">
+            <div><span>Now Showing</span><h2>Phim Đang Chiếu</h2></div>
+            <small>Trang @Model.ShowingPage / @Model.ShowingTotalPages</small>
+        </div>
+
+        @if (Model.ShowingMovies.Any())
+        {
+            <div class="cinema-movie-grid">
+                @foreach (var movie in Model.ShowingMovies)
+                {
+                    var poster = string.IsNullOrWhiteSpace(movie.PosterUrl)
+                        ? Url.Content("~/legacy/Content/img/Posters/avatar3.jpg")
+                        : (movie.PosterUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                            ? movie.PosterUrl
+                            : Url.Content("~/legacy/Content/img/Posters/" + movie.PosterUrl.TrimStart('/')));
+
+                    <article class="cinema-movie-card">
+                        <a asp-controller="Home" asp-action="Details" asp-route-id="@movie.Id" class="cinema-poster-link">
+                            <img src="@poster" alt="@movie.Title" class="cinema-poster" onerror="this.src='https://placehold.co/500x750?text=No+Poster'" />
+                            <span class="cinema-status">Đang chiếu</span>
+                        </a>
+                        <div class="cinema-movie-info">
+                            <h3>@movie.Title</h3>
+                            <p>@(string.IsNullOrWhiteSpace(movie.Genre) ? "Phim chiếu rạp" : movie.Genre)</p>
+                            <a asp-controller="Home" asp-action="Details" asp-route-id="@movie.Id" class="cinema-card-btn">Đặt vé <i class="bi bi-ticket-perforated"></i></a>
+                        </div>
+                    </article>
+                }
+            </div>
+
+            <nav class="cinema-pagination" aria-label="Phân trang phim đang chiếu">
+                @for (var i = 1; i <= Model.ShowingTotalPages; i++)
+                {
+                    <a asp-controller="Home" asp-action="Index" asp-route-showingPage="@i" asp-route-upcomingPage="@Model.UpcomingPage" asp-fragment="now-showing" class="@(i == Model.ShowingPage ? "active" : "")">Trang @i</a>
+                }
+            </nav>
+        }
+        else
+        {
+            <div class="cinema-empty">Chưa có dữ liệu phim đang chiếu.</div>
+        }
+    </section>
+
+    <section class="cinema-section" id="coming-soon">
+        <div class="cinema-section-heading">
+            <div><span>Coming Soon</span><h2>Phim Sắp Chiếu</h2></div>
+            <small>Trang @Model.UpcomingPage / @Model.UpcomingTotalPages</small>
+        </div>
+
+        @if (Model.UpcomingMovies.Any())
+        {
+            <div class="cinema-movie-grid">
+                @foreach (var movie in Model.UpcomingMovies)
+                {
+                    var poster = string.IsNullOrWhiteSpace(movie.PosterUrl)
+                        ? Url.Content("~/legacy/Content/img/Posters/avatar3.jpg")
+                        : (movie.PosterUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                            ? movie.PosterUrl
+                            : Url.Content("~/legacy/Content/img/Posters/" + movie.PosterUrl.TrimStart('/')));
+
+                    <article class="cinema-movie-card">
+                        <a asp-controller="Home" asp-action="Details" asp-route-id="@movie.Id" class="cinema-poster-link">
+                            <img src="@poster" alt="@movie.Title" class="cinema-poster" onerror="this.src='https://placehold.co/500x750?text=No+Poster'" />
+                            <span class="cinema-status cinema-status-upcoming">Sắp chiếu</span>
+                        </a>
+                        <div class="cinema-movie-info">
+                            <h3>@movie.Title</h3>
+                            <p>@(string.IsNullOrWhiteSpace(movie.Genre) ? "Sắp ra mắt" : movie.Genre)</p>
+                            <a asp-controller="Home" asp-action="Details" asp-route-id="@movie.Id" class="cinema-card-btn cinema-card-btn-muted">Xem chi tiết <i class="bi bi-arrow-right-circle"></i></a>
+                        </div>
+                    </article>
+                }
+            </div>
+
+            <nav class="cinema-pagination" aria-label="Phân trang phim sắp chiếu">
+                @for (var i = 1; i <= Model.UpcomingTotalPages; i++)
+                {
+                    <a asp-controller="Home" asp-action="Index" asp-route-showingPage="@Model.ShowingPage" asp-route-upcomingPage="@i" asp-fragment="coming-soon" class="@(i == Model.UpcomingPage ? "active" : "")">Trang @i</a>
+                }
+            </nav>
+        }
+        else
+        {
+            <div class="cinema-empty">Chưa có dữ liệu phim sắp chiếu.</div>
+        }
+    </section>
+</div>
+
+

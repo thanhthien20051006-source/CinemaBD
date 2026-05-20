@@ -1,0 +1,102 @@
+@model CinemaBD.Web.Models.AdminSeatPageViewModel
+@{
+    ViewData["Title"] = "Sơ đồ ghế";
+
+    string SeatLabel(string id) => id.Contains('-') ? id.Split('-').Last() : id;
+    string SeatRow(CinemaBD.Web.Models.AdminSeatViewModel seat)
+    {
+        if (!string.IsNullOrWhiteSpace(seat.Row)) return seat.Row;
+        var label = SeatLabel(seat.Id);
+        return string.IsNullOrWhiteSpace(label) ? "?" : label[..1];
+    }
+
+    int SeatNo(CinemaBD.Web.Models.AdminSeatViewModel seat)
+    {
+        if (int.TryParse(seat.Column, out var c)) return c;
+        var label = SeatLabel(seat.Id);
+        var digits = new string(label.Skip(1).Where(char.IsDigit).ToArray());
+        return int.TryParse(digits, out var n) ? n : 0;
+    }
+}
+
+<div class="card sys-card mt-3">
+    <div class="card-header border-0 pb-0">
+        <ul class="nav nav-tabs card-header-tabs">
+            <li class="nav-item"><a class="nav-link" asp-area="Admin" asp-controller="AdminGhe" asp-action="Index" asp-route-maPhong="@Model.RoomId">Danh sách ghế</a></li>
+            <li class="nav-item"><a class="nav-link active" asp-area="Admin" asp-controller="AdminGhe" asp-action="SoDo" asp-route-maPhong="@Model.RoomId">Sơ đồ ghế</a></li>
+        </ul>
+    </div>
+    <div class="card-body">
+        <form method="get" asp-area="Admin" asp-controller="AdminGhe" asp-action="SoDo" class="row g-2 mb-4">
+            <div class="col-md-4">
+                <select name="maPhong" class="form-select" onchange="this.form.submit()">
+                    @foreach (var room in Model.Rooms)
+                    {
+                        <option value="@room.Id" selected="@(room.Id == Model.RoomId)">@room.Name</option>
+                    }
+                </select>
+            </div>
+        </form>
+
+        @if (Model.Seats.Any())
+        {
+            <div class="cinema-screen">MÀN HÌNH</div>
+
+            <div class="cinema-seat-map">
+                @foreach (var rowGroup in Model.Seats.GroupBy(SeatRow).OrderBy(g => g.Key))
+                {
+                    <div class="cinema-seat-row">
+                        <div class="cinema-row-label">Hàng @rowGroup.Key</div>
+                        <div class="cinema-row-seats">
+                            @foreach (var seat in rowGroup.OrderBy(SeatNo))
+                            {
+                                var isVip = string.Equals(seat.SeatType, "VIP", StringComparison.OrdinalIgnoreCase);
+                                var css = $"cinema-seat {(isVip ? "cinema-seat-vip" : "cinema-seat-normal")} {(seat.IsBooked ? "cinema-seat-maintenance" : "")}";
+                                <button type="button"
+                                        class="@css"
+                                        data-maghe="@seat.Id"
+                                        title="@($"{SeatLabel(seat.Id)} - {seat.SeatType} - {seat.StatusText}")">
+                                    @SeatLabel(seat.Id)
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="cinema-seat-legend">
+                <span class="cinema-legend-pill"><span class="cinema-legend-dot cinema-legend-normal"></span> Ghế thường</span>
+                <span class="cinema-legend-pill"><span class="cinema-legend-dot cinema-legend-vip"></span> Ghế VIP</span>
+                <span class="cinema-legend-pill"><span class="cinema-legend-dot cinema-legend-maintenance"></span> Bảo trì</span>
+            </div>
+            <div class="text-center text-muted small mt-2">Bấm vào ghế để bật/tắt trạng thái bảo trì.</div>
+        }
+        else
+        {
+            <div class="text-center text-muted">Chưa có dữ liệu ghế để hiển thị sơ đồ.</div>
+        }
+    </div>
+</div>
+
+@section styles {
+    @await Html.PartialAsync("_SeatMapStyles")
+}
+
+@section scripts {
+<script>
+$(function () {
+    $('.cinema-seat').click(function () {
+        const btn = $(this);
+        $.ajax({
+            url: '@Url.Action("ToggleTrangThaiAjax", "AdminGhe", new { area = "Admin" })',
+            type: 'POST',
+            data: { maGhe: btn.data('maghe') },
+            success: function (res) {
+                if (!res.success) return alert(res.message || 'Không đổi được trạng thái');
+                btn.toggleClass('cinema-seat-maintenance');
+            }
+        });
+    });
+});
+</script>
+}

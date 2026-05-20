@@ -1,0 +1,25 @@
+﻿@model IEnumerable<CinemaBD.Web.Domain.Combo>
+@{ ViewData["Title"] = "Quản lý combo"; }
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>Quản lý combo</h4>
+    <a asp-action="Create" class="btn btn-primary">+ Thêm combo</a>
+</div>
+<table class="table table-bordered table-striped">
+    <thead><tr><th>Mã</th><th>Tên</th><th>Giá</th><th>Mô tả</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var c in Model)
+    {
+        <tr>
+            <td>@c.Id</td><td>@c.Name</td><td>@string.Format("{0:N0}", c.Price)</td><td>@c.Description</td>
+            <td>
+                <form asp-action="Delete" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@c.Id" />
+                    <button class="btn btn-sm btn-danger" onclick="return confirm('Xóa combo này?')">Xóa</button>
+                </form>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>
+

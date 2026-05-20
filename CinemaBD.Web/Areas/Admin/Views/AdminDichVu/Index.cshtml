@@ -1,0 +1,52 @@
+﻿@model IReadOnlyList<CinemaBD.Web.Models.AdminComboEditViewModel>
+@{
+    ViewData["Title"] = "Quản lý dịch vụ";
+}
+
+<div class="card sys-card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="card-title mb-0">Danh sách dịch vụ</h6>
+        <button id="btnAddDichVu" class="btn btn-primary btn-sm"><i class="bi bi-plus-square"></i> Thêm dịch vụ</button>
+    </div>
+    <div class="card-body table-responsive">
+        <table class="table table-hover align-middle" id="tblDichVu">
+            <thead>
+            <tr><th style="width:60px">#</th><th>Mã combo</th><th>Tên dịch vụ</th><th style="width:140px">Giá tiền</th><th>Mô tả</th><th style="width:150px">Hình ảnh</th><th style="width:150px">Thao tác</th></tr>
+            </thead>
+            <partial name="~/Areas/Admin/Views/AdminDichVu/_DichVuTable.cshtml" model="Model" />
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="dichVuModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">Dịch vụ</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+        <div class="modal-body" id="dichVuModalBody"></div>
+    </div></div>
+</div>
+
+@section scripts {
+<script>
+$(function () {
+    $('#btnAddDichVu').on('click', function () {
+        $.get('@Url.Action("Form", "AdminDichVu", new { area = "Admin" })', function (html) {
+            $('#dichVuModalBody').html(html); $('#dichVuModal').modal('show');
+        });
+    });
+    $('#tblDichVu').on('click', '.btn-edit-dv', function () {
+        $.get('@Url.Action("Form", "AdminDichVu", new { area = "Admin" })', { id: $(this).data('id') }, function (html) {
+            $('#dichVuModalBody').html(html); $('#dichVuModal').modal('show');
+        });
+    });
+    $('#dichVuModal').on('submit', '#formDichVu', function (e) {
+        e.preventDefault(); const form = $(this);
+        $.ajax({ url: form.attr('action'), type: 'POST', data: form.serialize(), success: function (tbodyHtml) { $('#tblDichVu').find('tbody').replaceWith(tbodyHtml); $('#dichVuModal').modal('hide'); }, error: function (xhr) { alert(xhr.responseText || 'Có lỗi khi lưu dịch vụ.'); } });
+    });
+    $('#tblDichVu').on('click', '.btn-delete-dv', function () {
+        if (!confirm('Bạn chắc chắn muốn xóa dịch vụ này?')) return;
+        $.ajax({ url: '@Url.Action("Delete", "AdminDichVu", new { area = "Admin" })', type: 'POST', data: { id: $(this).data('id') }, success: function (tbodyHtml) { $('#tblDichVu').find('tbody').replaceWith(tbodyHtml); }, error: function () { alert('Không xóa được dịch vụ.'); } });
+    });
+});
+</script>
+}
+

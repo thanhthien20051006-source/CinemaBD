@@ -1,0 +1,137 @@
+﻿@model IEnumerable<CinemaBD.Web.Models.AdminEventViewModel>
+@{
+    ViewData["Title"] = "Sự kiện";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>Quản lý sự kiện / Ưu đãi</h4>
+    <button class="btn btn-primary" onclick="openEventModal()"><i class="bi bi-plus-circle"></i> Thêm sự kiện</button>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr><th style="width: 100px;">Ảnh</th><th>Tiêu đề</th><th>Thời gian</th><th class="text-end" style="width: 120px;">Thao tác</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr id="row-@item.Id">
+                        <td><img src="@item.ImageUrl" class="rounded" style="width: 80px; height: 50px; object-fit: cover;" onerror="this.src='https://placehold.co/80x50?text=No+Image'" /></td>
+                        <td class="fw-bold">@item.Title</td>
+                        <td class="small">
+                            <div>Bắt đầu: @(item.StartDate?.ToString("dd/MM/yyyy") ?? "-")</div>
+                            <div>Kết thúc: @(item.EndDate?.ToString("dd/MM/yyyy") ?? "-")</div>
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-primary" onclick="editEvent(@item.Id)"><i class="bi bi-pencil-square"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteEvent(@item.Id)"><i class="bi bi-trash"></i></button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="eventModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <form id="eventForm">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">Sự kiện</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body row g-3">
+                    <input type="hidden" name="Id" id="Id" />
+                    <div class="col-12">
+                        <label class="form-label">Tiêu đề sự kiện</label>
+                        <input name="Title" id="Title" class="form-control" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Ngày bắt đầu</label>
+                        <input name="StartDate" id="StartDate" type="date" class="form-control" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Ngày kết thúc</label>
+                        <input name="EndDate" id="EndDate" type="date" class="form-control" required />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Link ảnh (URL)</label>
+                        <input name="ImageUrl" id="ImageUrl" class="form-control" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Mô tả chi tiết</label>
+                        <textarea name="Description" id="Description" class="form-control" rows="5"></textarea>
+                    </div>
+                    <div class="col-12"><div id="eventMessage" class="alert d-none mb-0"></div></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+<script>
+let eventModal;
+document.addEventListener('DOMContentLoaded', () => {
+    eventModal = new bootstrap.Modal(document.getElementById('eventModal'));
+    document.getElementById('eventForm').addEventListener('submit', saveEvent);
+});
+
+function openEventModal() {
+    document.getElementById('modalTitle').innerText = 'Thêm sự kiện';
+    document.getElementById('eventForm').reset();
+    document.getElementById('Id').value = '0';
+    document.getElementById('StartDate').value = new Date().toISOString().substring(0,10);
+    document.getElementById('EndDate').value = new Date().toISOString().substring(0,10);
+    setEventMessage('', true);
+    eventModal.show();
+}
+
+async function editEvent(id) {
+    const res = await fetch('/Admin/AdminSuKien/Get/' + id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    if (!res.ok) { alert('Lỗi'); return; }
+    const d = await res.json();
+    document.getElementById('modalTitle').innerText = 'Cập nhật sự kiện';
+    document.getElementById('Id').value = d.id;
+    document.getElementById('Title').value = d.title;
+    document.getElementById('StartDate').value = d.startDate ? d.startDate.substring(0,10) : '';
+    document.getElementById('EndDate').value = d.endDate ? d.endDate.substring(0,10) : '';
+    document.getElementById('ImageUrl').value = d.imageUrl || '';
+    document.getElementById('Description').value = d.description || '';
+    setEventMessage('', true);
+    eventModal.show();
+}
+
+async function saveEvent(e) {
+    e.preventDefault();
+    const res = await fetch('/Admin/AdminSuKien/SaveAjax', { method: 'POST', body: new FormData(e.target), headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    const data = await res.json();
+    setEventMessage(data.message, data.success);
+    if (data.success) setTimeout(() => location.reload(), 600);
+}
+
+async function deleteEvent(id) {
+    if (!confirm('Xóa sự kiện này?')) return;
+    const res = await fetch('/Admin/AdminSuKien/DeleteAjax/' + id, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    const data = await res.json();
+    if (data.success) document.getElementById('row-' + id).remove();
+    else alert(data.message);
+}
+
+function setEventMessage(t, s) {
+    const b = document.getElementById('eventMessage');
+    if (!t) { b.className = 'alert d-none mb-0'; return; }
+    b.className = 'alert mb-0 ' + (s ? 'alert-success' : 'alert-danger');
+    b.innerText = t;
+}
+</script>
+}
+

@@ -1,0 +1,38 @@
+﻿@model IReadOnlyList<CinemaBD.Web.Models.AdminComboEditViewModel>
+@{
+    var i = 1;
+    string ImageSrc(string? image)
+    {
+        if (string.IsNullOrWhiteSpace(image)) return string.Empty;
+        return image.StartsWith("http", StringComparison.OrdinalIgnoreCase) || image.StartsWith("/", StringComparison.OrdinalIgnoreCase)
+            ? image
+            : Url.Content("~/Content/img/" + image);
+    }
+}
+<tbody>
+@foreach (var item in Model)
+{
+    <tr>
+        <td>@(i++)</td>
+        <td>@item.Id</td>
+        <td>@item.Name</td>
+        <td>@string.Format("{0:N0} đ", item.Price)</td>
+        <td>@item.Description</td>
+        <td>
+            @if (!string.IsNullOrWhiteSpace(item.ImageUrl))
+            {
+                <img src="@ImageSrc(item.ImageUrl)" alt="@item.Name" style="height:50px;object-fit:cover;border-radius:4px;" />
+            }
+        </td>
+        <td>
+            <button class="btn btn-sm btn-outline-primary btn-edit-dv" data-id="@item.Id"><i class="bi bi-pencil-square"></i> Sửa</button>
+            <button class="btn btn-sm btn-outline-danger btn-delete-dv" data-id="@item.Id"><i class="bi bi-trash"></i> Xóa</button>
+        </td>
+    </tr>
+}
+@if (!Model.Any())
+{
+    <tr><td colspan="7" class="text-center text-muted">Chưa có dịch vụ/combo.</td></tr>
+}
+</tbody>
+

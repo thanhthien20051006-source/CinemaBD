@@ -1,0 +1,97 @@
+﻿@model IReadOnlyList<CinemaBD.Web.Models.AdminReviewViewModel>
+@{
+    ViewData["Title"] = "Phản hồi khách hàng";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-1">Quản lý phản hồi / đánh giá</h4>
+        <div class="text-muted small">Xem và xóa các đánh giá phim từ khách hàng</div>
+    </div>
+    <span class="badge bg-secondary">@Model.Count đánh giá</span>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 80px;">Mã</th>
+                    <th>Khách hàng</th>
+                    <th>Phim</th>
+                    <th>Nội dung</th>
+                    <th style="width: 110px;">Rating</th>
+                    <th style="width: 110px;">Trạng thái</th>
+                    <th style="width: 150px;">Ngày tạo</th>
+                    <th class="text-end" style="width: 190px;">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-5">
+                            <i class="bi bi-chat-left-dots fs-1 d-block mb-2"></i>
+                            Chưa có phản hồi nào
+                        </td>
+                    </tr>
+                }
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td class="text-muted">#@item.Id</td>
+                        <td>
+                            <div class="fw-bold">@item.CustomerName</div>
+                            <small class="text-muted">@item.CustomerId</small>
+                        </td>
+                        <td>
+                            <div class="text-primary fw-semibold">@item.MovieTitle</div>
+                            <small class="text-muted">@item.MovieId</small>
+                        </td>
+                        <td style="max-width: 300px;">
+                            <div class="text-truncate-2" title="@item.Content">@item.Content</div>
+                        </td>
+                        <td class="text-warning">@string.Concat(Enumerable.Repeat("★", Math.Clamp(item.Rating, 1, 5)))</td>
+                        <td>
+                            @if (item.IsHidden)
+                            {
+                                <span class="badge bg-secondary">Đã ẩn</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">Đang hiển thị</span>
+                            }
+                        </td>
+                        <td>@item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td class="text-end">
+                            <form asp-action="ToggleHidden" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@item.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                    @(item.IsHidden ? "Hiện" : "Ẩn")
+                                </button>
+                            </form>
+                            <form asp-action="Delete" method="post" class="d-inline" onsubmit="return confirm('Xóa phản hồi này?')">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@item.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash"></i> Xóa
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .text-truncate-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+</style>
+

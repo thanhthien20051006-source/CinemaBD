@@ -1,0 +1,258 @@
+﻿@model CinemaBD.Web.Models.CheckoutPageViewModel
+@{
+    ViewData["Title"] = "Checkout";
+    var checkoutMessage = TempData["CheckoutMessage"] as string;
+}
+
+<div class="container mt-4">
+    <div class="card shadow-sm border-0 p-4">
+        <h4 class="text-danger fw-bold mb-2">XÁC NHẬN THANH TOÁN</h4>
+        <div class="alert alert-info d-flex justify-content-between align-items-center">
+            <div>
+                Ghế đang được giữ tạm thời trong <strong>5 phút</strong>. Vui lòng hoàn tất thanh toán trước khi hết giờ.
+            </div>
+            <div class="fs-5 fw-bold text-danger" id="checkoutCountdown">05:00</div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(checkoutMessage))
+        {
+            <div class="alert alert-warning">@checkoutMessage</div>
+        }
+
+        <div class="row">
+            <div class="col-md-6">
+                <h6 class="fw-bold text-muted">THÔNG TIN VÉ</h6>
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <td style="width: 150px;">Mã suất chiếu:</td>
+                        <td class="fw-bold">@Model.ShowtimeId</td>
+                    </tr>
+                    <tr>
+                        <td>Ghế đã chọn:</td>
+                        <td>
+                            @foreach (var s in Model.Seats)
+                            {
+                                <span class="badge bg-success me-1">@s</span>
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Dịch vụ kèm theo:</td>
+                        <td>@(string.IsNullOrWhiteSpace(Model.Combos) ? "Không có" : Model.Combos)</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-6 border-start">
+                <h6 class="fw-bold text-muted">CHI TIẾT GIÁ</h6>
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <td>Tổng tiền vé:</td>
+                        <td class="text-end">@String.Format("{0:N0} ₫", Model.TicketTotal)</td>
+                    </tr>
+                    <tr>
+                        <td>Tổng tiền combo:</td>
+                        <td class="text-end">@String.Format("{0:N0} ₫", Model.ComboTotal)</td>
+                    </tr>
+                    <tr>
+                        <td>Giảm voucher:</td>
+                        <td class="text-end text-success" id="discountAmountText">-0 ₫</td>
+                    </tr>
+                    <tr>
+                        <td>Giảm điểm thưởng:</td>
+                        <td class="text-end text-success" id="loyaltyDiscountText">-0 ₫</td>
+                    </tr>
+                    <tr class="border-top">
+                        <td class="fw-bold fs-5">TỔNG CỘNG:</td>
+                        <td class="text-end text-danger fw-bold fs-5" id="totalAmountText">@String.Format("{0:N0} ₫", Model.TotalAmount)</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="mt-4 text-center border-top pt-4">
+
+            @* ===== VNPAY ===== *@
+            <form method="post" asp-controller="Booking" asp-action="CheckoutSubmit" class="mb-3">
+                @Html.AntiForgeryToken()
+
+                <input type="hidden" name="ShowtimeId" value="@Model.ShowtimeId" />
+                <div class="row justify-content-center mb-3">
+                    <div class="col-md-7">
+                        <label class="form-label fw-bold">Mã voucher</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="voucherCode" value="@Model.VoucherCode" placeholder="Nhập mã voucher nếu có" />
+                            <button type="button" class="btn btn-outline-success" id="applyVoucherBtn">Áp dụng</button>
+                        </div>
+                        <div class="form-text" id="voucherMessage">Hỗ trợ mã dạng GIAM10 hoặc SALE50000. Server sẽ kiểm tra lại trước khi thanh toán.</div>
+                    </div>
+                </div>
+                <input type="hidden" name="Combos" value="@Model.Combos" />
+                <input type="hidden" name="TicketTotal" value="@Model.TicketTotal.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" />
+                <input type="hidden" name="ComboTotal" value="@Model.ComboTotal.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" />
+                <input type="hidden" name="VoucherCode" class="voucher-code-hidden" value="@Model.VoucherCode" />
+                <input type="hidden" name="DiscountAmount" class="discount-amount-input" value="@Model.DiscountAmount.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" />
+                <input type="hidden" name="LoyaltyDiscountAmount" class="loyalty-discount-input" value="@Model.LoyaltyDiscountAmount.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" />
+                <input type="hidden" name="LoyaltyPoints" class="loyalty-points-hidden" value="@Model.LoyaltyPoints" />
+                <input type="hidden" name="TotalAmount" class="total-amount-input" value="@Model.TotalAmount.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" />
+
+                <div class="row justify-content-center mb-3">
+                    <div class="col-md-7">
+                        <label class="form-label fw-bold">Dùng điểm thưởng</label>
+                        <div class="input-group">
+                            <input type="number" min="0" max="@Model.AvailableLoyaltyPoints" class="form-control loyalty-points-input" value="@Model.LoyaltyPoints" placeholder="Bạn có @Model.AvailableLoyaltyPoints điểm" />
+                            <button type="button" class="btn btn-outline-primary applyPointsBtn">Áp dụng điểm</button>
+                        </div>
+                        <div class="form-text loyaltyMessage">1 điểm = @Model.LoyaltyPointValue.ToString("N0") đ. Tối đa hiện có: @Model.AvailableLoyaltyPoints điểm.</div>
+                    </div>
+                </div>
+
+                @for (var i = 0; i < Model.Seats.Count; i++)
+                {
+                    <input type="hidden" name="Seats[@i]" value="@Model.Seats[i]" />
+                }
+
+                @for (var i = 0; i < Model.SeatIds.Count; i++)
+                {
+                    <input type="hidden" name="SeatIds[@i]" value="@Model.SeatIds[i]" />
+                }
+
+                <div class="mb-2">
+                    <img src="https://vinadesign.vn/uploads/images/2023/05/vnpay-logo-vinadesign-25-12-57-55.jpg" height="36" alt="VNPAY" />
+                </div>
+                <p class="small text-muted mb-2">Thanh toán qua cổng VNPAY (ATM / QR / Visa).</p>
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="javascript:history.back()" class="btn btn-outline-secondary px-4 rounded-pill">Quay lại</a>
+                    <button type="submit" class="btn btn-danger px-5 rounded-pill fw-bold">
+                        <img src="https://vinadesign.vn/uploads/images/2023/05/vnpay-logo-vinadesign-25-12-57-55.jpg" height="20" class="me-1" alt="" />
+                        THANH TOÁN VNPAY
+                    </button>
+                </div>
+            </form>
+
+            <hr class="my-3" />
+
+            @* ===== MOMO ===== *@
+            <form method="post" asp-controller="Booking" asp-action="CheckoutMomo">
+                @Html.AntiForgeryToken()
+
+                <input type="hidden" name="ShowtimeId" value="@Model.ShowtimeId" />
+                <input type="hidden" name="Combos" value="@Model.Combos" />
+                <input type="hidden" name="TicketTotal" value="@Model.TicketTotal.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" />
+                <input type="hidden" name="ComboTotal" value="@Model.ComboTotal.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" />
+                <input type="hidden" name="VoucherCode" class="voucher-code-hidden" value="@Model.VoucherCode" />
+                <input type="hidden" name="DiscountAmount" class="discount-amount-input" value="@Model.DiscountAmount.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" />
+                <input type="hidden" name="LoyaltyDiscountAmount" class="loyalty-discount-input" value="@Model.LoyaltyDiscountAmount.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" />
+                <input type="hidden" name="LoyaltyPoints" class="loyalty-points-hidden" value="@Model.LoyaltyPoints" />
+                <input type="hidden" name="TotalAmount" class="total-amount-input" value="@Model.TotalAmount.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" />
+
+                @for (var i = 0; i < Model.Seats.Count; i++)
+                {
+                    <input type="hidden" name="Seats[@i]" value="@Model.Seats[i]" />
+                }
+
+                @for (var i = 0; i < Model.SeatIds.Count; i++)
+                {
+                    <input type="hidden" name="SeatIds[@i]" value="@Model.SeatIds[i]" />
+                }
+
+                <div class="mb-2">
+                    <img src="https://seeklogo.com/images/M/momo-logo-ED8A3A0DF2-seeklogo.com.png" height="36" alt="MoMo" />
+                </div>
+                <p class="small text-muted mb-2">Thanh toán qua ví điện tử MoMo.</p>
+                <div class="d-flex justify-content-center">
+                    <button type="submit" class="btn px-5 rounded-pill fw-bold text-white" style="background-color:#ae2070;">
+                        <img src="https://seeklogo.com/images/M/momo-logo-ED8A3A0DF2-seeklogo.com.png" height="20" class="me-1" alt="" />
+                        THANH TOÁN MOMO
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+    <script>
+        (() => {
+            let seconds = 5 * 60;
+            const el = document.getElementById('checkoutCountdown');
+            const buttons = document.querySelectorAll('button[type="submit"]');
+
+            const formatMoney = value => new Intl.NumberFormat('vi-VN').format(value) + ' ₫';
+            const ticketTotal = Number('@Model.TicketTotal.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)');
+            const comboTotal = Number('@Model.ComboTotal.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)');
+            const subtotal = ticketTotal + comboTotal;
+            const voucherInput = document.getElementById('voucherCode');
+            const voucherMessage = document.getElementById('voucherMessage');
+            const totalText = document.getElementById('totalAmountText');
+            const discountText = document.getElementById('discountAmountText');
+            const loyaltyDiscountText = document.getElementById('loyaltyDiscountText');
+            const availablePoints = Number('@Model.AvailableLoyaltyPoints');
+            const pointValue = Number('@Model.LoyaltyPointValue');
+            let voucherDiscount = 0;
+            let loyaltyDiscount = 0;
+
+            function estimateDiscount(code) {
+                const normalized = (code || '').trim().toUpperCase();
+                if (!normalized) return 0;
+                const percent = normalized.match(/(GIAM|SALE|DISCOUNT)(\d{1,2})$/);
+                if (percent) return Math.round(subtotal * Number(percent[2]) / 100);
+                const amount = normalized.match(/(\d{4,})$/);
+                if (amount) return Math.min(subtotal, Number(amount[1]));
+                return Math.min(subtotal, 20000);
+            }
+
+            document.getElementById('applyVoucherBtn')?.addEventListener('click', () => {
+                const code = voucherInput?.value || '';
+                const discount = estimateDiscount(code);
+                voucherDiscount = discount;
+                const total = Math.max(0, subtotal - voucherDiscount - loyaltyDiscount);
+
+                document.querySelectorAll('.voucher-code-hidden').forEach(x => x.value = code.trim());
+                document.querySelectorAll('.discount-amount-input').forEach(x => x.value = discount.toString());
+                document.querySelectorAll('.total-amount-input').forEach(x => x.value = total.toString());
+                if (discountText) discountText.textContent = '-' + formatMoney(discount);
+                if (totalText) totalText.textContent = formatMoney(total);
+                if (voucherMessage) voucherMessage.textContent = code.trim()
+                    ? `Đã tạm tính giảm ${formatMoney(discount)}. Server sẽ xác thực mã khi tạo đơn.`
+                    : 'Chưa nhập mã voucher.';
+            });
+
+            document.querySelectorAll('.applyPointsBtn').forEach(btn => btn.addEventListener('click', () => {
+                const input = btn.closest('form')?.querySelector('.loyalty-points-input') || document.querySelector('.loyalty-points-input');
+                const raw = Math.max(0, Number(input?.value || 0));
+                const points = Math.min(raw, availablePoints);
+                const remainAfterVoucher = Math.max(0, subtotal - voucherDiscount);
+                loyaltyDiscount = Math.min(remainAfterVoucher, points * pointValue);
+                const usedPoints = Math.ceil(loyaltyDiscount / pointValue);
+                const total = Math.max(0, remainAfterVoucher - loyaltyDiscount);
+                document.querySelectorAll('.loyalty-points-hidden').forEach(x => x.value = usedPoints.toString());
+                document.querySelectorAll('.loyalty-discount-input').forEach(x => x.value = loyaltyDiscount.toString());
+                document.querySelectorAll('.total-amount-input').forEach(x => x.value = total.toString());
+                if (loyaltyDiscountText) loyaltyDiscountText.textContent = '-' + formatMoney(loyaltyDiscount);
+                if (totalText) totalText.textContent = formatMoney(total);
+                document.querySelectorAll('.loyaltyMessage').forEach(x => x.textContent = `Tạm dùng ${usedPoints} điểm, giảm ${formatMoney(loyaltyDiscount)}. Server sẽ kiểm tra lại trước khi thanh toán.`);
+            }));
+
+            const timer = setInterval(() => {
+                const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
+                const remainSeconds = (seconds % 60).toString().padStart(2, '0');
+                if (el) el.textContent = `${minutes}:${remainSeconds}`;
+
+                if (seconds <= 0) {
+                    clearInterval(timer);
+                    if (el) el.textContent = 'Hết hạn';
+                    buttons.forEach(x => x.disabled = true);
+                    document.querySelectorAll('form').forEach(form => form.classList.add('opacity-50'));
+                    alert('Đã hết thời gian giữ ghế. Vui lòng quay lại chọn ghế.');
+                }
+
+                seconds--;
+            }, 1000);
+        })();
+    </script>
+}
+
+
+

@@ -1,0 +1,90 @@
+﻿@model CinemaBD.Web.Models.AdminInvoiceListItemViewModel
+@{
+    ViewData["Title"] = "Chi tiết hóa đơn";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Chi tiết hóa đơn @Model.InvoiceId</h3>
+    <div>
+        <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="AdminHoaDon" asp-action="Index">Quay lại</a>
+        <a class="btn btn-primary" asp-area="Admin" asp-controller="AdminHoaDon" asp-action="PrintTickets" asp-route-id="@Model.InvoiceId"><i class="bi bi-printer"></i> In vé</a>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header fw-bold">Thông tin hóa đơn</div>
+            <div class="card-body">
+                <p><b>Mã hóa đơn:</b> @Model.InvoiceId</p>
+                <p><b>Mã giao dịch:</b> @(Model.TransactionRef ?? "")</p>
+                <p><b>Khách hàng:</b> @(Model.CustomerName ?? "Không rõ")</p>
+                <p><b>Ngày thanh toán:</b> @Model.PaymentDate.ToString("dd/MM/yyyy HH:mm")</p>
+                <p><b>Trạng thái:</b> @(Model.Status ?? "Không rõ")</p>
+                <p><b>Check-in:</b> @(Model.IsCheckedIn ? $"Đã check-in {Model.CheckedInAt:dd/MM/yyyy HH:mm}" : "Chưa check-in")</p>
+                <p><b>Ghi chú:</b> @(Model.Note ?? "")</p>
+                <h5 class="text-danger">@string.Format("{0:N0} đ", Model.TotalAmount)</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header fw-bold">Thông tin phim / suất chiếu</div>
+            <div class="card-body">
+                <p><b>Phim:</b> @(Model.MovieTitle ?? "Không rõ")</p>
+                <p><b>Ngày chiếu:</b> @(Model.ShowDate.HasValue ? Model.ShowDate.Value.ToString("dd/MM/yyyy") : "")</p>
+                <p><b>Giờ bắt đầu:</b> @(Model.StartTime.HasValue ? Model.StartTime.Value.ToString(@"hh\:mm") : "")</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header fw-bold">Chi tiết vé / combo</div>
+    <div class="card-body table-responsive">
+        <table class="table table-hover align-middle">
+            <thead><tr><th>#</th><th>Loại</th><th>Tên dòng</th><th>Mã vé</th><th>Mã combo</th><th>Check-in</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th><th>QR vé</th></tr></thead>
+            <tbody>
+            @if (Model.LineItems.Any())
+            {
+                var i = 1;
+                foreach (var item in Model.LineItems)
+                {
+                    <tr>
+                        <td>@i</td>
+                        <td>@item.LineType</td>
+                        <td>@item.ItemName</td>
+                        <td>@item.TicketId</td>
+                        <td>@item.ComboId</td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(item.TicketId))
+                            {
+                                <span class="badge @(item.IsCheckedIn ? "bg-success" : "bg-warning text-dark")">
+                                    @(item.IsCheckedIn ? $"Đã check-in {item.CheckedInAt:dd/MM/yyyy HH:mm}" : "Chưa check-in")
+                                </span>
+                            }
+                        </td>
+                        <td>@item.Quantity</td>
+                        <td>@string.Format("{0:N0} đ", item.UnitPrice)</td>
+                        <td>@string.Format("{0:N0} đ", item.Total)</td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(item.TicketId))
+                            {
+                                var qrText = $"CinemaBD|CHECKIN|{Model.TransactionRef}|{Model.InvoiceId}|{item.TicketId}";
+                                var qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=" + Uri.EscapeDataString(qrText);
+                                <img src="@qrUrl" alt="QR vé" class="border rounded p-1 bg-white" style="width:90px;height:90px" />
+                            }
+                        </td>
+                    </tr>
+                    i++;
+                }
+            }
+            else
+            {
+                <tr><td colspan="10" class="text-center text-muted">Chưa có dòng chi tiết.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+

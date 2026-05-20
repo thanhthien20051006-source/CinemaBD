@@ -1,0 +1,189 @@
+﻿@model IEnumerable<CinemaBD.Web.Models.EmployeeFormViewModel>
+@{
+    ViewData["Title"] = "Nhân viên";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h4 class="mb-1">Quản lý nhân viên</h4>
+        <div class="text-muted small">Quản lý đội ngũ nhân viên và gán chức vụ</div>
+    </div>
+    <button class="btn btn-primary" onclick="openEmployeeModal()"><i class="bi bi-plus-circle"></i> Thêm nhân viên</button>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-8">
+                <input name="search" class="form-control" placeholder="Tìm theo tên, email, số điện thoại..." value="@Context.Request.Query["search"]" />
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-primary w-100"><i class="bi bi-search"></i> Tìm</button>
+            </div>
+            <div class="col-md-2">
+                <a asp-action="Index" class="btn btn-outline-secondary w-100">Xóa lọc</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr><th>ID</th><th>Họ tên</th><th>Liên hệ</th><th>Chức vụ</th><th>Ngày vào làm</th><th>Trạng thái</th><th class="text-end">Thao tác</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr id="row-@item.Id">
+                        <td>@item.Id</td>
+                        <td class="fw-bold">@item.FullName</td>
+                        <td>
+                            <div class="small">@item.Email</div>
+                            <div class="small text-muted">@item.PhoneNumber</div>
+                        </td>
+                        <td>
+                            @if (ViewBag.Roles != null)
+                            {
+                                var role = ((List<CinemaBD.Web.Models.RoleFormViewModel>)ViewBag.Roles).FirstOrDefault(r => r.Id == item.RoleId);
+                                <span class="badge bg-info text-dark">@(role?.Name ?? "N/A")</span>
+                            }
+                        </td>
+                        <td>@(item.StartDate?.ToString("dd/MM/yyyy") ?? "-")</td>
+                        <td>
+                            <span class="badge @(item.IsActive ? "bg-success" : "bg-danger")">@(item.IsActive ? "Đang làm" : "Nghỉ việc")</span>
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-primary" onclick="editEmployee(@item.Id)"><i class="bi bi-pencil-square"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(@item.Id)"><i class="bi bi-trash"></i></button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="employeeModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <form id="employeeForm">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">Nhân viên</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body row g-3">
+                    <input type="hidden" name="Id" id="Id" />
+                    <div class="col-md-6">
+                        <label class="form-label">Họ tên</label>
+                        <input name="FullName" id="FullName" class="form-control" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Email</label>
+                        <input name="Email" id="Email" type="email" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Số điện thoại</label>
+                        <input name="PhoneNumber" id="PhoneNumber" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Ngày sinh</label>
+                        <input name="BirthDate" id="BirthDate" type="date" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Ngày vào làm</label>
+                        <input name="StartDate" id="StartDate" type="date" class="form-control" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Chức vụ</label>
+                        <select name="RoleId" id="RoleId" class="form-select" required>
+                            <option value="">-- Chọn chức vụ --</option>
+                            @if (ViewBag.Roles != null)
+                            {
+                                foreach (var r in (List<CinemaBD.Web.Models.RoleFormViewModel>)ViewBag.Roles)
+                                {
+                                    <option value="@r.Id">@r.Name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-check form-switch mt-2">
+                            <input class="form-check-input" type="checkbox" name="IsActive" id="IsActive" value="true" checked>
+                            <label class="form-check-label" for="IsActive">Đang làm việc</label>
+                        </div>
+                    </div>
+                    <div class="col-12"><div id="employeeMessage" class="alert d-none mb-0"></div></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+<script>
+let employeeModal;
+document.addEventListener('DOMContentLoaded', () => {
+    employeeModal = new bootstrap.Modal(document.getElementById('employeeModal'));
+    document.getElementById('employeeForm').addEventListener('submit', saveEmployee);
+});
+
+function openEmployeeModal() {
+    document.getElementById('modalTitle').innerText = 'Thêm nhân viên';
+    document.getElementById('employeeForm').reset();
+    document.getElementById('Id').value = '0';
+    document.getElementById('StartDate').value = new Date().toISOString().substring(0,10);
+    document.getElementById('IsActive').checked = true;
+    setEmployeeMessage('', true);
+    employeeModal.show();
+}
+
+async function editEmployee(id) {
+    const res = await fetch('/Admin/NhanVien/Get/' + id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    if (!res.ok) { alert('Không lấy được thông tin'); return; }
+    const d = await res.json();
+    document.getElementById('modalTitle').innerText = 'Cập nhật nhân viên';
+    document.getElementById('Id').value = d.id;
+    document.getElementById('FullName').value = d.fullName;
+    document.getElementById('Email').value = d.email || '';
+    document.getElementById('PhoneNumber').value = d.phoneNumber || '';
+    document.getElementById('BirthDate').value = d.birthDate ? d.birthDate.substring(0,10) : '';
+    document.getElementById('StartDate').value = d.startDate ? d.startDate.substring(0,10) : '';
+    document.getElementById('RoleId').value = d.roleId;
+    document.getElementById('IsActive').checked = d.isActive;
+    setEmployeeMessage('', true);
+    employeeModal.show();
+}
+
+async function saveEmployee(e) {
+    e.preventDefault();
+    const res = await fetch('/Admin/NhanVien/SaveAjax', { method: 'POST', body: new FormData(e.target), headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    const data = await res.json();
+    setEmployeeMessage(data.message, data.success);
+    if (data.success) setTimeout(() => location.reload(), 600);
+}
+
+async function deleteEmployee(id) {
+    if (!confirm('Xóa nhân viên này?')) return;
+    const res = await fetch('/Admin/NhanVien/DeleteAjax/' + id, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    const data = await res.json();
+    if (data.success) document.getElementById('row-' + id).remove();
+    else alert(data.message);
+}
+
+function setEmployeeMessage(t, s) {
+    const b = document.getElementById('employeeMessage');
+    if (!t) { b.className = 'alert d-none mb-0'; return; }
+    b.className = 'alert mb-0 ' + (s ? 'alert-success' : 'alert-danger');
+    b.innerText = t;
+}
+</script>
+}
+

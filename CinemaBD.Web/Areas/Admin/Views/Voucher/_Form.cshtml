@@ -1,0 +1,83 @@
+@model CinemaBD.Web.Models.AdminVoucherViewModel
+@using CinemaBD.Web.Models
+@{
+    var customers = ViewBag.Customers as List<AdminCustomerViewModel> ?? new();
+}
+
+<form id="voucherForm" asp-area="Admin" asp-controller="Voucher" asp-action="Save" method="post">
+    @Html.AntiForgeryToken()
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label">Mã voucher</label>
+            <input asp-for="Id" class="form-control" />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Phạm vi voucher</label>
+            <div class="form-check form-switch mt-2">
+                <input asp-for="IsGlobal" class="form-check-input" id="voucherGlobalSwitch" />
+                <label class="form-check-label fw-semibold" for="voucherGlobalSwitch">Tạo voucher cho tất cả khách hàng</label>
+            </div>
+            <small class="text-muted">Bật mục này thì khách nào cũng nhập được mã voucher.</small>
+        </div>
+        <div class="col-md-6" id="customerSelectWrap">
+            <label class="form-label">Khách hàng</label>
+            <select asp-for="CustomerId" class="form-select">
+                <option value="">-- Chọn khách hàng --</option>
+                @foreach (var c in customers)
+                {
+                    <option value="@c.Id">@c.FullName (@c.Id)</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Code nhập ở checkout</label>
+            <input asp-for="Code" class="form-control text-uppercase" placeholder="VD: GIAM10" />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Ngày hết hạn</label>
+            <input asp-for="ExpiredAt" type="date" class="form-control" value="@Model.ExpiredAt.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Loại giảm</label>
+            <select asp-for="DiscountType" class="form-select">
+                <option value="Amount">Giảm tiền</option>
+                <option value="Percent">Giảm %</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Giá trị giảm</label>
+            <input asp-for="DiscountValue" type="number" min="0" step="1000" class="form-control" placeholder="VD: 50000 hoặc 10" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Giảm tối đa</label>
+            <input asp-for="MaxDiscountAmount" type="number" min="0" step="1000" class="form-control" placeholder="Chỉ cần cho %" />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Đơn tối thiểu</label>
+            <input asp-for="MinOrderAmount" type="number" min="0" step="1000" class="form-control" />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Mô tả</label>
+            <input asp-for="Description" class="form-control" placeholder="Có thể để trống, hệ thống tự tạo" />
+        </div>
+    </div>
+    <div class="text-end mt-4">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+        <button type="submit" class="btn btn-primary">Lưu voucher</button>
+    </div>
+</form>
+
+<script>
+    (() => {
+        const sw = document.getElementById('voucherGlobalSwitch');
+        const wrap = document.getElementById('customerSelectWrap');
+        const select = wrap?.querySelector('select');
+        const sync = () => {
+            if (!sw || !wrap) return;
+            wrap.style.display = sw.checked ? 'none' : '';
+            if (select) select.disabled = sw.checked;
+        };
+        sw?.addEventListener('change', sync);
+        sync();
+    })();
+</script>
