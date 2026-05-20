@@ -16,7 +16,7 @@ public class ReviewService : IReviewService
         return await (from r in _db.Reviews.AsNoTracking()
                       join c in _db.Customers.AsNoTracking() on r.MaKH equals c.MaKH into customerJoin
                       from c in customerJoin.DefaultIfEmpty()
-                      where r.MaPhim == movieId && r.IsHidden != true
+                      where r.MaPhim == movieId
                       orderby r.NgayTao descending
                       select new Review
                       {
@@ -24,8 +24,8 @@ public class ReviewService : IReviewService
                           MovieId = r.MaPhim,
                           CustomerId = r.MaKH,
                           Content = r.NoiDung,
-                          Rating = r.Rating ?? 5,
-                          IsHidden = r.IsHidden ?? false,
+                          Rating = 5,
+                          IsHidden = false,
                           CreatedAt = r.NgayTao,
                           CustomerName = c != null ? c.HoTen : null
                       })
@@ -74,8 +74,6 @@ public class ReviewService : IReviewService
             MaPhim = movieId,
             MaKH = customerId,
             NoiDung = content.Trim(),
-            Rating = rating,
-            IsHidden = false,
             NgayTao = DateTime.Now
         };
 
@@ -88,8 +86,8 @@ public class ReviewService : IReviewService
             MovieId = entity.MaPhim,
             CustomerId = entity.MaKH,
             Content = entity.NoiDung,
-            Rating = entity.Rating ?? 5,
-            IsHidden = entity.IsHidden ?? false,
+            Rating = rating,
+            IsHidden = false,
             CreatedAt = entity.NgayTao,
             CanReview = false,
             ReviewRuleMessage = "Gửi đánh giá thành công."
