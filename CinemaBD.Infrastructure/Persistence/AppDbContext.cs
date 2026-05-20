@@ -16,6 +16,16 @@ public class AppDbContext : DbContext
             .HasIndex(x => x.GatewayTxnRef)
             .IsUnique()
             .HasFilter("[GatewayTxnRef] IS NOT NULL AND [GatewayTxnRef] <> ''");
+
+        modelBuilder.Entity<LegacySeat>()
+            .HasKey(x => new { x.MaPhong, x.MaGhe });
+
+        modelBuilder.Entity<LegacyRoom>()
+            .Ignore(x => x.MaRap);
+
+        modelBuilder.Entity<LegacyTicket>()
+            .Ignore(x => x.DaCheckIn)
+            .Ignore(x => x.ThoiGianCheckIn);
     }
 
     public DbSet<LegacyMovie> Movies => Set<LegacyMovie>();

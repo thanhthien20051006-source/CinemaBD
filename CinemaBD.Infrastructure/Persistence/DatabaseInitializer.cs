@@ -189,23 +189,6 @@ public class DatabaseInitializer
         if (currentRooms.Count >= desiredRoomCount)
             return;
 
-        var cinemaId = await _db.Cinemas.AsNoTracking()
-            .OrderBy(c => c.MaRap)
-            .Select(c => c.MaRap)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (string.IsNullOrWhiteSpace(cinemaId))
-        {
-            cinemaId = "RAP01";
-            _db.Cinemas.Add(new LegacyCinema
-            {
-                MaRap = cinemaId,
-                TenRap = "BD Cinema",
-                DiaChi = "CinemaBD",
-                SoDienThoai = "",
-                TrangThai = "Hoạt động"
-            });
-        }
 
         var seatCount = currentRooms.FirstOrDefault(r => r.SoLuong > 0)?.SoLuong ?? 30;
         var existingRoomIds = currentRooms.Select(r => r.MaPhong).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -226,8 +209,7 @@ public class DatabaseInitializer
                 MaPhong = roomId,
                 TenPhong = $"Phòng {number}",
                 SoLuong = seatCount,
-                TrangThai = "Hoạt động",
-                MaRap = cinemaId
+                TrangThai = "Hoạt động"
             });
             existingRoomIds.Add(roomId);
             createdRooms++;
