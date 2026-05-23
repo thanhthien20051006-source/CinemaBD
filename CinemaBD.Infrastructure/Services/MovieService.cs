@@ -22,7 +22,11 @@ public class MovieService : IMovieService
             .AsNoTracking()
             .Where(p =>
                 (p.TrangThai == null || p.TrangThai != "Inactive") &&
-                _db.Showtimes.Any(s => s.MaPhim == p.MaPhim && s.NgayChieu.Date >= today && (s.TrangThai == null || s.TrangThai != "Expired")))
+                _db.Showtimes.Any(s => s.MaPhim == p.MaPhim
+                    && s.NgayChieu.Date >= today
+                    && s.TrangThai != "Expired"
+                    && s.TrangThai != "Cancelled"
+                    && _db.Rooms.Any(r => r.MaPhong == s.MaPhong && (r.TrangThai == null || r.TrangThai == "Hoạt động" || r.TrangThai == "Hoat dong" || r.TrangThai == "Active"))))
             .OrderBy(p => p.TenPhim)
             .Select(p => new Movie
             {

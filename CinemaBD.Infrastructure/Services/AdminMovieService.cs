@@ -66,14 +66,9 @@ public class AdminMovieService : IAdminMovieService
 
     public async Task<Movie> CreateAsync(Movie movie, CancellationToken cancellationToken = default)
     {
-        var last = await _db.Movies.OrderByDescending(p => p.MaPhim).FirstOrDefaultAsync(cancellationToken);
-        var number = 1;
-        if (last != null && last.MaPhim.Length > 1 && int.TryParse(last.MaPhim.Substring(1), out var n))
-            number = n + 1;
-
         var entity = new LegacyMovie
         {
-            MaPhim = "P" + number.ToString("D3"),
+            MaPhim = await BuildMovieIdAsync(cancellationToken),
             TenPhim = movie.Title,
             TheLoai = movie.Genre,
             ThoiLuong = movie.DurationMinutes,
@@ -127,9 +122,30 @@ public class AdminMovieService : IAdminMovieService
         if (entity == null)
             return false;
 
+        var hasShowtimes = await _db.Showtimes.AnyAsync(s => s.MaPhim == id, cancellationToken);
+        if (hasShowtimes)
+        {
+            entity.TrangThai = "Inactive";
+            await _db.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
         _db.Movies.Remove(entity);
         await _db.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    private async Task<string> BuildMovieIdAsync(CancellationToken cancellationToken)
+    {
+        var ids = await _db.Movies.AsNoTracking().Select(p => p.MaPhim).ToListAsync(cancellationToken);
+        var max = ids.Select(id => id.Length > 2 && id.StartsWith("VN", StringComparison.OrdinalIgnoreCase) && int.TryParse(id[2..], out var n) ? n : 0).DefaultIfEmpty(0).Max();
+        for (var i = max + 1; i <= 999; i++)
+        {
+            var id = $"VN{i:000}";
+            if (!ids.Contains(id, StringComparer.OrdinalIgnoreCase)) return id;
+        }
+
+        return "VN" + DateTime.Now.ToString("yyMMddHHmmss");
     }
 }
 
