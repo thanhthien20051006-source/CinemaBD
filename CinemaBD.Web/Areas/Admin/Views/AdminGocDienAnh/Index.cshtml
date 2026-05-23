@@ -23,7 +23,7 @@
                         <td><div class="text-truncate" style="max-width: 300px;">@item.Summary</div></td>
                         <td class="text-end">
                             <button class="btn btn-sm btn-outline-primary" onclick="editArticle(@item.Id)"><i class="bi bi-pencil-square"></i></button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteArticle(@item.Id)"><i class="bi bi-trash"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteArticle(@item.Id)" title="Gỡ bài viết"><i class="bi bi-eye-slash"></i></button>
                         </td>
                     </tr>
                 }
@@ -109,7 +109,7 @@ async function saveArticle(e) {
 }
 
 async function deleteArticle(id) {
-    if (!confirm('Xóa bài viết này?')) return;
+    if (!confirm('Gỡ bài viết này khỏi trang khách hàng?')) return;
     const res = await fetch('/Admin/AdminGocDienAnh/DeleteAjax/' + id, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     const data = await res.json();
     if (data.success) document.getElementById('row-' + id).remove();

@@ -35,7 +35,7 @@ public class TheLoaiController : AdminApiCrudController
     public async Task<IActionResult> DeleteAjax(int id, CancellationToken ct)
     {
         var ok = await SendAsync(HttpMethod.Delete, $"api/admin/genres/{id}", null, ct);
-        return Json(new { success = ok, message = ok ? "Đã xóa thể loại" : "Không xóa được thể loại" });
+        return Json(new { success = ok, message = ok ? "Đã xóa thể loại" : "Không xóa được thể loại. Kiểm tra thể loại có đang được sử dụng không." });
     }
 }
 
@@ -70,7 +70,7 @@ public class AdminGocDienAnhController : AdminApiCrudController
     public async Task<IActionResult> DeleteAjax(int id, CancellationToken ct)
     {
         var ok = await SendAsync(HttpMethod.Delete, $"api/admin/articles/{id}", null, ct);
-        return Json(new { success = ok, message = ok ? "Đã xóa bài viết" : "Không xóa được bài viết" });
+        return Json(new { success = ok, message = ok ? "Đã gỡ bài viết" : "Không gỡ được bài viết" });
     }
 }
 
@@ -105,7 +105,7 @@ public class AdminSuKienController : AdminApiCrudController
     public async Task<IActionResult> DeleteAjax(int id, CancellationToken ct)
     {
         var ok = await SendAsync(HttpMethod.Delete, $"api/admin/events/{id}", null, ct);
-        return Json(new { success = ok, message = ok ? "Đã xóa sự kiện" : "Không xóa được sự kiện" });
+        return Json(new { success = ok, message = ok ? "Đã gỡ sự kiện" : "Không gỡ được sự kiện" });
     }
 }
 
