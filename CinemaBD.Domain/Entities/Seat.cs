@@ -1,4 +1,4 @@
-namespace CinemaBD.Domain.Entities;
+﻿namespace CinemaBD.Domain.Entities;
 
 public class Seat
 {
@@ -8,5 +8,8 @@ public class Seat
     public string Column { get; set; } = default!;
     public string? SeatType { get; set; }
     public bool IsBooked { get; set; }
+    public string Status { get; set; } = "Available";
     public decimal Price { get; set; }
 }
+
+

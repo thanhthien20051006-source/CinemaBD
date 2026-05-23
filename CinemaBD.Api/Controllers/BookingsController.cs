@@ -25,7 +25,7 @@ public class BookingsController : ControllerBase
     public async Task<IActionResult> GetSeats(string showtimeId, CancellationToken cancellationToken)
     {
         var seats = await _seatService.GetSeatsByShowtimeAsync(showtimeId, cancellationToken);
-        var response = seats.Select(s => new SeatResponse(s.Id, s.Row, s.Column, s.SeatType, s.IsBooked, s.Price));
+        var response = seats.Select(s => new SeatResponse(s.Id, s.Row, s.Column, s.SeatType, s.IsBooked, s.Status, s.Price));
         return Ok(new ApiResponse<object>(true, "Lấy sơ đồ ghế thành công", response));
     }
 
@@ -112,4 +112,5 @@ public class BookingsController : ControllerBase
     public sealed record SeatHoldRequest(string ShowtimeId, List<string> Seats);
     public sealed record RefundRequestBody(string TransactionRef, string? TicketId, string Reason);
 }
+
 

@@ -28,13 +28,27 @@ public class SeatService : ISeatService
             .ToListAsync(cancellationToken);
 
         var holdExpiredBefore = DateTime.Now.Subtract(SeatHoldDuration);
-        var bookedSeatIds = await _db.Tickets
+        var seatTickets = await _db.Tickets
             .AsNoTracking()
-            .Where(v => v.MaSuatChieu == showtimeId && (v.TrangThai == "Paid" || (v.TrangThai == "Pending" && v.NgayDat > holdExpiredBefore)))
-            .Select(v => v.MaGhe)
+            .Where(v => v.MaSuatChieu == showtimeId &&
+                (v.TrangThai == "Paid" || v.TrangThai == "Success" || v.TrangThai == "Thành công" || v.TrangThai == "Đã thanh toán" ||
+                 (v.TrangThai == "Pending" && v.NgayDat > holdExpiredBefore)))
+            .Select(v => new { v.MaGhe, v.TrangThai, v.DaCheckIn, v.NgayDat })
             .ToListAsync(cancellationToken);
 
-        var bookedSet = bookedSeatIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var seatStatusMap = seatTickets
+            .GroupBy(v => v.MaGhe, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g =>
+                {
+                    var tickets = g.ToList();
+                    if (tickets.Any(t => t.DaCheckIn == true)) return "CheckedIn";
+                    if (tickets.Any(t => IsPaidStatus(t.TrangThai))) return "Sold";
+                    if (tickets.Any(t => string.Equals(t.TrangThai, "Pending", StringComparison.OrdinalIgnoreCase))) return "Held";
+                    return "Available";
+                },
+                StringComparer.OrdinalIgnoreCase);
 
         return seats.Select(g => new Seat
         {
@@ -43,10 +57,17 @@ public class SeatService : ISeatService
             Row = g.MaGhe.Length > 0 ? g.MaGhe.Substring(0, 1) : string.Empty,
             Column = g.MaGhe.Length > 1 ? g.MaGhe.Substring(1) : string.Empty,
             SeatType = g.LoaiGhe,
-            IsBooked = bookedSet.Contains(g.MaGhe),
+            IsBooked = seatStatusMap.ContainsKey(g.MaGhe),
+            Status = seatStatusMap.TryGetValue(g.MaGhe, out var status) ? status : "Available",
             Price = showtime.GiaVe + (((g.LoaiGhe ?? string.Empty).ToUpper() == "VIP") ? 30000 : 0)
         }).ToList();
     }
+
+    private static bool IsPaidStatus(string? status)
+        => string.Equals(status, "Paid", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(status, "Success", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(status, "Thành công", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(status, "Đã thanh toán", StringComparison.OrdinalIgnoreCase);
 }
 
 
