@@ -46,9 +46,9 @@ public class AdminSuatChieuController : AdminApiCrudController
     [HttpPost]
     public async Task<IActionResult> DeleteShowtimeAjax(string id, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(id)) return Json(new { success = false, message = "Khong xac dinh duoc suat chieu can xoa." });
+        if (string.IsNullOrWhiteSpace(id)) return Json(new { success = false, message = "Không xác định được suất chiếu cần xóa." });
         var ok = await SendAsync(HttpMethod.Delete, $"api/admin/showtimes/{Uri.EscapeDataString(id)}", null, ct);
-        return Json(new { success = ok, message = ok ? "Da xoa/huy suat chieu." : "Khong xoa duoc suat chieu." });
+        return Json(new { success = ok, message = ok ? "Đã xóa/hủy suất chiếu." : "Không xóa được suất chiếu." });
     }
 
     [HttpPost]
@@ -65,15 +65,15 @@ public class AdminSuatChieuController : AdminApiCrudController
         };
 
         var ok = await SendAsync(HttpMethod.Post, "api/admin/showtimes/generate", body, ct);
-        return Json(new { success = ok, message = ok ? "Da sinh lich chieu tu dong." : "Khong sinh duoc lich chieu." });
+        return Json(new { success = ok, message = ok ? "Đã sinh lịch chiếu tự động." : "Không sinh được lịch chiếu." });
     }
 
     private async Task<(bool Success, string Message)> CreateOrUpdateAsync(string? id, string maPhim, string maPhong, DateTime ngayChieu, string gioBatDau, decimal giaVe, string? trangThai, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(maPhim) || string.IsNullOrWhiteSpace(maPhong))
-            return (false, "Vui long chon phim va phong chieu.");
+            return (false, "Vui lòng chọn phim và phòng chiếu.");
         if (!TimeSpan.TryParse(gioBatDau, out _))
-            return (false, "Gio bat dau khong hop le.");
+            return (false, "Giờ bắt đầu không hợp lệ.");
 
         var body = new { MovieId = maPhim, RoomId = maPhong, ShowDate = ngayChieu.Date, StartTime = gioBatDau, TicketPrice = giaVe, Status = trangThai };
         try
@@ -81,11 +81,11 @@ public class AdminSuatChieuController : AdminApiCrudController
             var ok = string.IsNullOrWhiteSpace(id)
                 ? await SendAsync(HttpMethod.Post, "api/admin/showtimes", body, ct)
                 : await SendAsync(HttpMethod.Put, $"api/admin/showtimes/{Uri.EscapeDataString(id)}", body, ct);
-            return (ok, ok ? (string.IsNullOrWhiteSpace(id) ? "Tao suat chieu thanh cong." : "Cap nhat suat chieu thanh cong.") : "Khong luu duoc suat chieu.");
+            return (ok, ok ? (string.IsNullOrWhiteSpace(id) ? "Tạo suất chiếu thành công." : "Cập nhật suất chiếu thành công.") : "Không lưu được suất chiếu.");
         }
         catch (Exception ex)
         {
-            return (false, "Loi: " + ex.Message);
+            return (false, "Lỗi: " + ex.Message);
         }
     }
 
