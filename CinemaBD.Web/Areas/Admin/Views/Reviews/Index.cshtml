@@ -1,4 +1,4 @@
-﻿@model IReadOnlyList<CinemaBD.Web.Models.AdminReviewViewModel>
+@model IReadOnlyList<CinemaBD.Web.Models.AdminReviewViewModel>
 @{
     ViewData["Title"] = "Phản hồi khách hàng";
 }
@@ -6,7 +6,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h4 class="mb-1">Quản lý phản hồi / đánh giá</h4>
-        <div class="text-muted small">Xem và xóa các đánh giá phim từ khách hàng</div>
+        <div class="text-muted small">Xem và ẩn các đánh giá phim từ khách hàng</div>
     </div>
     <span class="badge bg-secondary">@Model.Count đánh giá</span>
 </div>
@@ -30,7 +30,7 @@
                 @if (!Model.Any())
                 {
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-5">
+                        <td colspan="8" class="text-center text-muted py-5">
                             <i class="bi bi-chat-left-dots fs-1 d-block mb-2"></i>
                             Chưa có phản hồi nào
                         </td>
@@ -71,11 +71,11 @@
                                     @(item.IsHidden ? "Hiện" : "Ẩn")
                                 </button>
                             </form>
-                            <form asp-action="Delete" method="post" class="d-inline" onsubmit="return confirm('Xóa phản hồi này?')">
+                            <form asp-action="Delete" method="post" class="d-inline" onsubmit="return confirm('Ẩn phản hồi này?')">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="id" value="@item.Id" />
                                 <button type="submit" class="btn btn-sm btn-outline-danger">
-                                    <i class="bi bi-trash"></i> Xóa
+                                    <i class="bi bi-eye-slash"></i> Ẩn
                                 </button>
                             </form>
                         </td>
@@ -94,4 +94,3 @@
         overflow: hidden;
     }
 </style>
-
