@@ -60,7 +60,7 @@ public class UsersController : AdminApiCrudController
     {
         if (string.IsNullOrWhiteSpace(id)) return Json(new { success = false, message = "Thiếu mã khách hàng." });
         var ok = await SendAsync(HttpMethod.Delete, $"api/admin/customers/{Uri.EscapeDataString(id)}", null, ct);
-        return Json(new { success = ok, message = ok ? "Đã xóa khách hàng." : "Không xóa được khách hàng." });
+        return Json(new { success = ok, message = ok ? "Đã xóa khách hàng." : "Không xóa được khách hàng vì có lịch sử vé/hóa đơn." });
     }
 
     private static string? ValidateCustomer(AdminCustomerViewModel model, bool isCreate)
