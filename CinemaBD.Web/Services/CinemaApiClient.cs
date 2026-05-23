@@ -248,11 +248,32 @@ public class CinemaApiClient
 
     public async Task<InvoiceViewModel?> GetInvoiceAsync(string txnRef, CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.GetFromJsonAsync<ApiResponse<InvoiceViewModel>>($"api/bookings/invoice/{txnRef}", cancellationToken);
-        if (response?.Data != null)
-            response.Data.MoviePosterUrl = NormalizePosterUrlValue(response.Data.MoviePosterUrl);
+        try
+        {
+            var response = await _httpClient.GetFromJsonAsync<ApiResponse<InvoiceViewModel>>($"api/bookings/invoice/{Uri.EscapeDataString(txnRef)}", cancellationToken);
+            if (response?.Data != null)
+                response.Data.MoviePosterUrl = NormalizePosterUrlValue(response.Data.MoviePosterUrl);
 
-        return response?.Data;
+            return response?.Data;
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<InvoiceViewModel?> GetInvoiceAsync(string token, string txnRef, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/bookings/invoice/{Uri.EscapeDataString(txnRef)}");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode) return null;
+
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<InvoiceViewModel>>(cancellationToken: cancellationToken);
+        if (payload?.Data != null)
+            payload.Data.MoviePosterUrl = NormalizePosterUrlValue(payload.Data.MoviePosterUrl);
+
+        return payload?.Data;
     }
 
     public async Task<PaymentCallbackResult?> ConfirmPaymentAsync(IDictionary<string, string> query, CancellationToken cancellationToken = default)

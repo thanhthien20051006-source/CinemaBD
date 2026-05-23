@@ -210,7 +210,7 @@ public class AccountController : Controller
         if (string.IsNullOrWhiteSpace(token))
             return RedirectToAction(nameof(Login));
 
-        var invoice = await _apiClient.GetInvoiceAsync(txnRef, cancellationToken);
+        var invoice = await _apiClient.GetInvoiceAsync(token, txnRef, cancellationToken);
         if (invoice == null)
             return NotFound();
 
