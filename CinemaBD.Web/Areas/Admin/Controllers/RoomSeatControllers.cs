@@ -49,6 +49,14 @@ public class AdminPhongController : AdminApiCrudController
         return View("~/Areas/Admin/Views/AdminPhong/Index.cshtml", rooms);
     }
 
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Save(AdminRoomViewModel model, CancellationToken ct)
+    {
+        var body = new { model.Id, model.Name, model.SeatCount, model.Status };
+        await SendAsync(HttpMethod.Post, "api/admin/rooms", body, ct);
+        return RedirectToAction(nameof(Index), new { cinemaId = model.CinemaId });
+    }
+
     [HttpPost]
     public async Task<IActionResult> ToggleStatus(string id, CancellationToken ct)
     {

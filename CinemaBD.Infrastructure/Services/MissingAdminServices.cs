@@ -85,6 +85,36 @@ public class AdminRoomService : IAdminRoomService
             })
             .FirstOrDefaultAsync(ct);
 
+    public async Task<Room> UpsertAsync(string? id, string name, int seatCount, string? status, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Tên phòng không được rỗng", nameof(name));
+        if (seatCount <= 0) seatCount = 30;
+
+        var roomId = string.IsNullOrWhiteSpace(id) ? await BuildRoomIdAsync(ct) : id.Trim();
+        var room = await _db.Rooms.FirstOrDefaultAsync(x => x.MaPhong == roomId, ct);
+        if (room == null)
+        {
+            room = new LegacyRoom
+            {
+                MaPhong = roomId,
+                TenPhong = name.Trim(),
+                SoLuong = seatCount,
+                TrangThai = string.IsNullOrWhiteSpace(status) ? "Hoạt động" : status
+            };
+            _db.Rooms.Add(room);
+        }
+        else
+        {
+            room.TenPhong = name.Trim();
+            room.SoLuong = seatCount;
+            room.TrangThai = string.IsNullOrWhiteSpace(status) ? room.TrangThai : status;
+        }
+
+        await EnsureSeatCountAsync(room.MaPhong, room.SoLuong, ct);
+        await _db.SaveChangesAsync(ct);
+        return new Room { Id = room.MaPhong, Name = room.TenPhong, CinemaId = DefaultCinemaId, CinemaName = DefaultCinemaName, SeatCount = room.SoLuong, Status = room.TrangThai };
+    }
+
     public async Task<bool> ToggleStatusAsync(string id, CancellationToken ct = default)
     {
         var room = await _db.Rooms.FirstOrDefaultAsync(x => x.MaPhong == id, ct);
@@ -92,6 +122,41 @@ public class AdminRoomService : IAdminRoomService
         room.TrangThai = IsActive(room.TrangThai) ? "Ngưng hoạt động" : "Hoạt động";
         await _db.SaveChangesAsync(ct);
         return true;
+    }
+
+    private async Task<string> BuildRoomIdAsync(CancellationToken ct)
+    {
+        for (var i = 1; i <= 999; i++)
+        {
+            var id = $"PC{i:00}";
+            if (!await _db.Rooms.AnyAsync(x => x.MaPhong == id, ct)) return id;
+        }
+        return "PC" + DateTime.Now.ToString("yyMMddHHmmss");
+    }
+
+    private async Task EnsureSeatCountAsync(string roomId, int seatCount, CancellationToken ct)
+    {
+        var existing = await _db.Seats.Where(x => x.MaPhong == roomId).Select(x => x.MaGhe).ToListAsync(ct);
+        var existingSet = existing.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var rows = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        var cols = 6;
+        var created = 0;
+        for (var r = 0; r < rows.Length && created < seatCount; r++)
+        {
+            for (var c = 1; c <= cols && created < seatCount; c++)
+            {
+                var seatId = $"{rows[r]}{c}";
+                created++;
+                if (existingSet.Contains(seatId)) continue;
+                _db.Seats.Add(new LegacySeat
+                {
+                    MaPhong = roomId,
+                    MaGhe = seatId,
+                    LoaiGhe = c is 3 or 4 ? "VIP" : "THUONG",
+                    TrangThai = "Hoạt động"
+                });
+            }
+        }
     }
 
     private static bool IsActive(string? status)
