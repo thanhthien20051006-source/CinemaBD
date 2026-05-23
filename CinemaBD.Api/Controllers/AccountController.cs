@@ -88,7 +88,14 @@ public class AccountController : ControllerBase
         if (string.IsNullOrWhiteSpace(userId))
             return Unauthorized(new ApiResponse<object>(false, "Không xác định được người dùng", null));
 
-        return Ok(new ApiResponse<object>(true, "OK", await _loyaltyPointService.GetOrCreateAsync(userId, cancellationToken)));
+        try
+        {
+            return Ok(new ApiResponse<object>(true, "OK", await _loyaltyPointService.GetOrCreateAsync(userId, cancellationToken)));
+        }
+        catch (Exception ex) when (ex.Message.Contains("TICHDIEM", StringComparison.OrdinalIgnoreCase))
+        {
+            return Ok(new ApiResponse<object>(true, "Chưa có bảng tích điểm", new { balance = 0, pointValue = 1000, pointsToMoney = 0 }));
+        }
     }
 
     [HttpPost("loyalty/preview-redeem")]
@@ -98,8 +105,15 @@ public class AccountController : ControllerBase
         if (string.IsNullOrWhiteSpace(userId))
             return Unauthorized(new ApiResponse<object>(false, "Không xác định được người dùng", null));
 
-        var result = await _loyaltyPointService.PreviewRedeemAsync(userId, request.Points, request.Subtotal, cancellationToken);
-        return Ok(new ApiResponse<object>(result.Success, result.Message, result));
+        try
+        {
+            var result = await _loyaltyPointService.PreviewRedeemAsync(userId, request.Points, request.Subtotal, cancellationToken);
+            return Ok(new ApiResponse<object>(result.Success, result.Message, result));
+        }
+        catch (Exception ex) when (ex.Message.Contains("TICHDIEM", StringComparison.OrdinalIgnoreCase))
+        {
+            return Ok(new ApiResponse<object>(false, "Chức năng tích điểm chưa có dữ liệu.", new { success = false, message = "Chức năng tích điểm chưa có dữ liệu.", usedPoints = 0, discountAmount = 0, remainingPoints = 0 }));
+        }
     }
 
     [HttpGet("history")]
