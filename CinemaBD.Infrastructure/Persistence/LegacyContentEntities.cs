@@ -15,7 +15,7 @@ public class LegacyGenre
     public DateTime? UpdatedAt { get; set; }
 }
 
-[Table("BaiViets")]
+[Table("BaiViet")]
 public class LegacyArticle
 {
     [Key]
@@ -27,7 +27,7 @@ public class LegacyArticle
     public DateTime NgayDang { get; set; }
 }
 
-[Table("SuKiens")]
+[Table("SuKien")]
 public class LegacyEvent
 {
     [Key]

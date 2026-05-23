@@ -11,8 +11,8 @@ public class AdminEventsController : ControllerBase
     public AdminEventsController(IAdminEventService service) => _service = service;
     [HttpGet] public async Task<IActionResult> Get(CancellationToken ct) => Ok(new ApiResponse<object>(true, "OK", await _service.GetAllAsync(ct)));
     [HttpGet("{id:int}")] public async Task<IActionResult> GetById(int id, CancellationToken ct) => Ok(new ApiResponse<object>(true, "OK", await _service.GetByIdAsync(id, ct)));
-    [HttpPost] public async Task<IActionResult> Create([FromBody] EventRequest request, CancellationToken ct) => Ok(new ApiResponse<object>(true, "OK", await _service.CreateAsync(request.Title, request.Description, request.ImageUrl, request.StartDate, request.EndDate, ct)));
-    [HttpPut("{id:int}")] public async Task<IActionResult> Update(int id, [FromBody] EventRequest request, CancellationToken ct) => Ok(new ApiResponse<object>(true, "OK", await _service.UpdateAsync(id, request.Title, request.Description, request.ImageUrl, request.StartDate, request.EndDate, ct)));
+    [HttpPost] public async Task<IActionResult> Create([FromBody] EventRequest request, CancellationToken ct) { try { return Ok(new ApiResponse<object>(true, "OK", await _service.CreateAsync(request.Title, request.Description, request.ImageUrl, request.StartDate, request.EndDate, ct))); } catch (InvalidOperationException ex) { return BadRequest(new ApiResponse<object>(false, ex.Message, null)); } }
+    [HttpPut("{id:int}")] public async Task<IActionResult> Update(int id, [FromBody] EventRequest request, CancellationToken ct) { try { return Ok(new ApiResponse<object>(true, "OK", await _service.UpdateAsync(id, request.Title, request.Description, request.ImageUrl, request.StartDate, request.EndDate, ct))); } catch (InvalidOperationException ex) { return BadRequest(new ApiResponse<object>(false, ex.Message, null)); } }
     [HttpDelete("{id:int}")] public async Task<IActionResult> Delete(int id, CancellationToken ct) => Ok(new ApiResponse<object>(await _service.DeleteAsync(id, ct), "OK", null));
 }
 
