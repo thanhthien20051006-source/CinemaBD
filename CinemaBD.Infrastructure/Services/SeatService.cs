@@ -31,9 +31,9 @@ public class SeatService : ISeatService
         var seatTickets = await _db.Tickets
             .AsNoTracking()
             .Where(v => v.MaSuatChieu == showtimeId &&
-                (v.TrangThai == "Paid" || v.TrangThai == "Success" || v.TrangThai == "Thành công" || v.TrangThai == "Đã thanh toán" ||
+                (v.TrangThai == "Paid" || v.TrangThai == "Success" || v.TrangThai == "Thành công" || v.TrangThai == "Đã thanh toán" || v.TrangThai == "CheckedIn" ||
                  (v.TrangThai == "Pending" && v.NgayDat > holdExpiredBefore)))
-            .Select(v => new { v.MaGhe, v.TrangThai, v.DaCheckIn, v.NgayDat })
+            .Select(v => new { v.MaGhe, v.TrangThai, v.NgayDat })
             .ToListAsync(cancellationToken);
 
         var blockedSeatIds = seats
@@ -48,7 +48,7 @@ public class SeatService : ISeatService
                 g =>
                 {
                     var tickets = g.ToList();
-                    if (tickets.Any(t => t.DaCheckIn == true)) return "CheckedIn";
+                    if (tickets.Any(t => IsCheckedInStatus(t.TrangThai))) return "CheckedIn";
                     if (tickets.Any(t => IsPaidStatus(t.TrangThai))) return "Sold";
                     if (tickets.Any(t => string.Equals(t.TrangThai, "Pending", StringComparison.OrdinalIgnoreCase))) return "Held";
                     return "Available";
@@ -78,7 +78,11 @@ public class SeatService : ISeatService
         => string.Equals(status, "Paid", StringComparison.OrdinalIgnoreCase)
            || string.Equals(status, "Success", StringComparison.OrdinalIgnoreCase)
            || string.Equals(status, "Thành công", StringComparison.OrdinalIgnoreCase)
-           || string.Equals(status, "Đã thanh toán", StringComparison.OrdinalIgnoreCase);
+           || string.Equals(status, "Đã thanh toán", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(status, "CheckedIn", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsCheckedInStatus(string? status)
+        => string.Equals(status, "CheckedIn", StringComparison.OrdinalIgnoreCase);
 }
 
 

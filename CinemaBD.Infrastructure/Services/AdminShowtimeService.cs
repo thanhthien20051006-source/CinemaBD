@@ -41,8 +41,8 @@ public class AdminShowtimeService : IAdminShowtimeService
                 ShowtimeId = g.Key,
                 Total = g.Count(),
                 Pending = g.Count(t => t.TrangThai == "Pending"),
-                Paid = g.Count(t => t.TrangThai == "Paid" || t.TrangThai == "Success" || t.TrangThai == "Thành công" || t.TrangThai == "Đã thanh toán"),
-                CheckedIn = g.Count(t => t.DaCheckIn == true)
+                Paid = g.Count(t => t.TrangThai == "Paid" || t.TrangThai == "Success" || t.TrangThai == "Thành công" || t.TrangThai == "Đã thanh toán" || t.TrangThai == "CheckedIn"),
+                CheckedIn = g.Count(t => t.TrangThai == "CheckedIn")
             })
             .ToListAsync(cancellationToken);
         var ticketMap = ticketGroups.ToDictionary(x => x.ShowtimeId);

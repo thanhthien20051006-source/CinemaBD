@@ -56,6 +56,7 @@ public class AdminComboService : IAdminComboService
 
 public class AdminInvoiceService : IAdminInvoiceService
 {
+    private const string CheckedInStatus = "CheckedIn";
     private readonly AppDbContext _db;
     public AdminInvoiceService(AppDbContext db) => _db = db;
     public async Task<List<InvoiceDetail>> GetAllAsync(CancellationToken ct = default)
@@ -152,25 +153,24 @@ public class AdminInvoiceService : IAdminInvoiceService
             return detail;
         }
 
-        if (ticket.DaCheckIn == true)
+        if (IsCheckedInStatus(ticket.TrangThai))
         {
             detail.Success = false;
-            detail.Message = $"Vé {ticket.MaVe} đã check-in lúc {ticket.ThoiGianCheckIn:dd/MM/yyyy HH:mm}.";
+            detail.Message = $"Vé {ticket.MaVe} đã check-in.";
             detail.IsCheckedIn = true;
-            detail.CheckedInAt = ticket.ThoiGianCheckIn;
+            detail.CheckedInAt = ticket.NgayDat;
             return detail;
         }
 
-        ticket.DaCheckIn = true;
-        ticket.ThoiGianCheckIn = DateTime.Now;
+        ticket.TrangThai = "CheckedIn";
+        invoice.GhiChu = AppendNote(invoice.GhiChu, $"Check-in vé {ticket.MaVe} lúc {DateTime.Now:dd/MM/yyyy HH:mm}");
 
         var allInvoiceTickets = await _db.Tickets
             .Where(x => x.GatewayTxnRef == invoice.GatewayTxnRef)
             .ToListAsync(ct);
-        if (allInvoiceTickets.Count > 0 && allInvoiceTickets.All(x => x.MaVe == ticket.MaVe || x.DaCheckIn == true))
+        if (allInvoiceTickets.Count > 0 && allInvoiceTickets.All(x => x.MaVe == ticket.MaVe || IsCheckedInStatus(x.TrangThai)))
         {
-            invoice.DaCheckIn = true;
-            invoice.ThoiGianCheckIn = ticket.ThoiGianCheckIn;
+            invoice.GhiChu = AppendNote(invoice.GhiChu, $"Đã check-in đủ hóa đơn lúc {DateTime.Now:dd/MM/yyyy HH:mm}");
         }
 
         await _db.SaveChangesAsync(ct);
@@ -178,7 +178,7 @@ public class AdminInvoiceService : IAdminInvoiceService
         detail.Success = true;
         detail.Message = $"Check-in vé {ticket.MaVe} thành công.";
         detail.IsCheckedIn = true;
-        detail.CheckedInAt = ticket.ThoiGianCheckIn;
+        detail.CheckedInAt = DateTime.Now;
         return detail;
     }
 
@@ -332,6 +332,12 @@ public class AdminInvoiceService : IAdminInvoiceService
         return value;
     }
 
+    private static bool IsCheckedInStatus(string? status)
+        => string.Equals(status, CheckedInStatus, StringComparison.OrdinalIgnoreCase);
+
+    private static string AppendNote(string? current, string note)
+        => string.IsNullOrWhiteSpace(current) ? note : current + " | " + note;
+
     private static (string? TxnRef, string? InvoiceId, string? TicketId) ParseCheckInPayload(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return (null, null, null);
@@ -427,8 +433,8 @@ public class AdminInvoiceService : IAdminInvoiceService
             var ticketLine = tickets.FirstOrDefault(x => x.MaVe == line.TicketId);
             if (ticketLine != null)
             {
-                line.IsCheckedIn = ticketLine.DaCheckIn ?? false;
-                line.CheckedInAt = ticketLine.ThoiGianCheckIn;
+                line.IsCheckedIn = IsCheckedInStatus(ticketLine.TrangThai);
+                line.CheckedInAt = line.IsCheckedIn ? ticketLine.NgayDat : null;
             }
         }
 
@@ -442,8 +448,8 @@ public class AdminInvoiceService : IAdminInvoiceService
                 ItemName = $"Ghế {x.MaGhe}",
                 Quantity = 1,
                 UnitPrice = x.GiaVe,
-                IsCheckedIn = x.DaCheckIn ?? false,
-                CheckedInAt = x.ThoiGianCheckIn
+                IsCheckedIn = IsCheckedInStatus(x.TrangThai),
+                CheckedInAt = IsCheckedInStatus(x.TrangThai) ? x.NgayDat : null
             }).ToList();
         }
 
@@ -469,8 +475,8 @@ public class AdminInvoiceService : IAdminInvoiceService
             PaymentDate = invoice.NgayThanhToan,
             Note = invoice.GhiChu,
             TransactionRef = invoice.GatewayTxnRef,
-            IsCheckedIn = invoice.DaCheckIn ?? false,
-            CheckedInAt = invoice.ThoiGianCheckIn,
+            IsCheckedIn = invoice.GhiChu?.Contains("check-in", StringComparison.OrdinalIgnoreCase) == true,
+            CheckedInAt = null,
             LineItems = lines
         };
     }
@@ -490,8 +496,8 @@ public class AdminInvoiceService : IAdminInvoiceService
             StartTime = detail.StartTime,
             TotalAmount = detail.TotalAmount,
             Status = detail.Status,
-            IsCheckedIn = ticket?.DaCheckIn ?? detail.IsCheckedIn,
-            CheckedInAt = ticket?.ThoiGianCheckIn ?? detail.CheckedInAt
+            IsCheckedIn = ticket != null ? IsCheckedInStatus(ticket.TrangThai) : detail.IsCheckedIn,
+            CheckedInAt = ticket != null && IsCheckedInStatus(ticket.TrangThai) ? ticket.NgayDat : detail.CheckedInAt
         };
     }
 }
@@ -519,7 +525,7 @@ public class AdminStatisticsService : IAdminStatisticsService
                                 join s in _db.Showtimes.AsNoTracking() on t.MaSuatChieu equals s.MaSuatChieu
                                 join m in _db.Movies.AsNoTracking() on s.MaPhim equals m.MaPhim
                                 where t.GatewayTxnRef != null && txnRefs.Contains(t.GatewayTxnRef)
-                                select new { t.GatewayTxnRef, Movie = m.TenPhim, t.GiaVe, t.DaCheckIn })
+                                select new { t.GatewayTxnRef, Movie = m.TenPhim, t.GiaVe, t.TrangThai })
             .ToListAsync(ct);
 
         var comboRows = await (from c in _db.BookedCombos.AsNoTracking()
@@ -545,7 +551,7 @@ public class AdminStatisticsService : IAdminStatisticsService
             TotalRevenue = totalRevenue,
             TotalOrders = invoices.Count,
             TotalTickets = ticketRows.Count,
-            CheckedInTickets = ticketRows.Count(x => x.DaCheckIn == true),
+            CheckedInTickets = ticketRows.Count(x => x.TrangThai == "CheckedIn"),
             AverageOrderValue = invoices.Count == 0 ? 0 : Math.Round(totalRevenue / invoices.Count, 0),
             TodayRevenue = invoices.Where(x => x.NgayThanhToan.Date == now.Date).Sum(x => x.TongTien),
             CurrentMonthRevenue = invoices.Where(x => x.NgayThanhToan.Month == now.Month).Sum(x => x.TongTien),
