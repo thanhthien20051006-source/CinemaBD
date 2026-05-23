@@ -41,6 +41,8 @@ public class AdminCustomersController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] AdminCustomerUpsertRequest request, CancellationToken cancellationToken)
     {
+        try
+        {
         var created = await _service.CreateAsync(new Customer
         {
             FullName = request.FullName,
@@ -52,11 +54,18 @@ public class AdminCustomersController : ControllerBase
         }, cancellationToken);
 
         return Ok(new ApiResponse<object>(true, "Tạo khách hàng thành công", new AdminCustomerResponse(created.Id, created.FullName, created.Username, created.Email, created.PhoneNumber, created.BirthDate)));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<object>(false, ex.Message, null));
+        }
     }
 
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(string id, [FromBody] AdminCustomerUpsertRequest request, CancellationToken cancellationToken)
     {
+        try
+        {
         var updated = await _service.UpdateAsync(id, new Customer
         {
             FullName = request.FullName,
@@ -71,16 +80,28 @@ public class AdminCustomersController : ControllerBase
             return NotFound(new ApiResponse<object>(false, "Không tìm thấy khách hàng để cập nhật", null));
 
         return Ok(new ApiResponse<object>(true, "Cập nhật khách hàng thành công", new AdminCustomerResponse(updated.Id, updated.FullName, updated.Username, updated.Email, updated.PhoneNumber, updated.BirthDate)));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<object>(false, ex.Message, null));
+        }
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(string id, CancellationToken cancellationToken)
     {
+        try
+        {
         var deleted = await _service.DeleteAsync(id, cancellationToken);
         if (!deleted)
             return NotFound(new ApiResponse<object>(false, "Không tìm thấy khách hàng để xóa", null));
 
         return Ok(new ApiResponse<object>(true, "Xóa khách hàng thành công", null));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<object>(false, ex.Message, null));
+        }
     }
 }
 
