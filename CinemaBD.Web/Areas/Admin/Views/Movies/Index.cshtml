@@ -70,7 +70,7 @@
                         <td class="text-end">
                             <div class="btn-group">
                                 <button class="btn btn-sm btn-outline-primary" onclick="editMovie('@p.Id')" title="Sửa"><i class="bi bi-pencil-square"></i></button>
-                                <button class="btn btn-sm btn-outline-danger" onclick="deleteMovie('@p.Id')" title="Xóa"><i class="bi bi-trash"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteMovie('@p.Id')" title="Ngưng chiếu"><i class="bi bi-eye-slash"></i></button>
                             </div>
                         </td>
                     </tr>
@@ -228,7 +228,7 @@ async function saveMovie(e) {
 }
 
 async function deleteMovie(id) {
-    if (!confirm('Bạn có chắc muốn xóa phim này?')) return;
+    if (!confirm('Ngưng chiếu phim này? Phim đã có suất chiếu sẽ được khóa mềm.')) return;
     const body = new FormData();
     body.append('id', id);
     const res = await fetch('/Admin/Movies/DeleteAjax', { 

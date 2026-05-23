@@ -29,7 +29,7 @@
                         </td>
                         <td class="text-end">
                             <button class="btn btn-sm btn-outline-primary" onclick="editRole(@item.Id)"><i class="bi bi-pencil-square"></i></button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteRole(@item.Id)"><i class="bi bi-trash"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteRole(@item.Id)" title="Khóa chức vụ"><i class="bi bi-lock"></i></button>
                         </td>
                     </tr>
                 }
@@ -115,7 +115,7 @@ async function saveRole(e) {
 }
 
 async function deleteRole(id) {
-    if (!confirm('Xóa chức vụ này?')) return;
+    if (!confirm('Khóa chức vụ này? Chức vụ đã được sử dụng sẽ được khóa mềm.')) return;
     const res = await fetch('/Admin/Role/DeleteAjax/' + id, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     const data = await res.json();
     if (data.success) document.getElementById('row-' + id).remove();
