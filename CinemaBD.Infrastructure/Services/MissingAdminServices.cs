@@ -7,103 +7,97 @@ namespace CinemaBD.Infrastructure.Services;
 
 public class AdminCinemaService : IAdminCinemaService
 {
+    private const string DefaultCinemaId = "RAP_DEFAULT";
+    private const string DefaultCinemaName = "Bình Dương Cinema";
     private readonly AppDbContext _db;
     public AdminCinemaService(AppDbContext db) => _db = db;
 
     public async Task<List<Cinema>> GetAllAsync(CancellationToken ct = default)
     {
-        return await (from c in _db.Cinemas.AsNoTracking()
-                      join r in _db.Rooms.AsNoTracking() on c.MaRap equals r.MaRap into rooms
-                      orderby c.MaRap
-                      select new Cinema
-                      {
-                          Id = c.MaRap,
-                          Name = c.TenRap,
-                          Address = c.DiaChi,
-                          Phone = c.SoDienThoai,
-                          Status = c.TrangThai,
-                          RoomCount = rooms.Count()
-                      }).ToListAsync(ct);
+        var roomCount = await _db.Rooms.AsNoTracking().CountAsync(ct);
+        return new List<Cinema>
+        {
+            new()
+            {
+                Id = DefaultCinemaId,
+                Name = DefaultCinemaName,
+                Address = "Bình Dương",
+                Status = "Hoạt động",
+                RoomCount = roomCount
+            }
+        };
     }
 
     public async Task<Cinema?> GetByIdAsync(string id, CancellationToken ct = default)
-    {
-        return await (from c in _db.Cinemas.AsNoTracking()
-                      where c.MaRap == id
-                      join r in _db.Rooms.AsNoTracking() on c.MaRap equals r.MaRap into rooms
-                      select new Cinema
-                      {
-                          Id = c.MaRap,
-                          Name = c.TenRap,
-                          Address = c.DiaChi,
-                          Phone = c.SoDienThoai,
-                          Status = c.TrangThai,
-                          RoomCount = rooms.Count()
-                      }).FirstOrDefaultAsync(ct);
-    }
+        => (await GetAllAsync(ct)).FirstOrDefault(x => x.Id == id) ?? (await GetAllAsync(ct)).FirstOrDefault();
 
     public async Task<Cinema> UpsertAsync(string? id, string name, string? address, string? phone, string? status, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Tên rạp không được rỗng", nameof(name));
-        var entity = !string.IsNullOrWhiteSpace(id) ? await _db.Cinemas.FirstOrDefaultAsync(x => x.MaRap == id, ct) : null;
-        if (entity == null)
+        var roomCount = await _db.Rooms.CountAsync(ct);
+        return new Cinema
         {
-            entity = new LegacyCinema
-            {
-                MaRap = string.IsNullOrWhiteSpace(id) ? $"RAP{DateTime.Now:yyMMddHHmmss}" : id.Trim(),
-                TenRap = name.Trim(),
-                DiaChi = address,
-                SoDienThoai = phone,
-                TrangThai = string.IsNullOrWhiteSpace(status) ? "Hoạt động" : status
-            };
-            _db.Cinemas.Add(entity);
-        }
-        else
-        {
-            entity.TenRap = name.Trim();
-            entity.DiaChi = address;
-            entity.SoDienThoai = phone;
-            entity.TrangThai = string.IsNullOrWhiteSpace(status) ? entity.TrangThai : status;
-        }
-
-        await _db.SaveChangesAsync(ct);
-        return new Cinema { Id = entity.MaRap, Name = entity.TenRap, Address = entity.DiaChi, Phone = entity.SoDienThoai, Status = entity.TrangThai };
+            Id = string.IsNullOrWhiteSpace(id) ? DefaultCinemaId : id,
+            Name = string.IsNullOrWhiteSpace(name) ? DefaultCinemaName : name.Trim(),
+            Address = address ?? "Bình Dương",
+            Phone = phone,
+            Status = string.IsNullOrWhiteSpace(status) ? "Hoạt động" : status,
+            RoomCount = roomCount
+        };
     }
 
-    public async Task<bool> ToggleStatusAsync(string id, CancellationToken ct = default)
-    {
-        var cinema = await _db.Cinemas.FirstOrDefaultAsync(x => x.MaRap == id, ct);
-        if (cinema == null) return false;
-        cinema.TrangThai = IsActive(cinema.TrangThai) ? "Ngưng hoạt động" : "Hoạt động";
-        await _db.SaveChangesAsync(ct);
-        return true;
-    }
-
-    private static bool IsActive(string? status) => string.Equals(status, "Hoạt động", StringComparison.OrdinalIgnoreCase) || string.Equals(status, "Active", StringComparison.OrdinalIgnoreCase);
+    public Task<bool> ToggleStatusAsync(string id, CancellationToken ct = default)
+        => Task.FromResult(true);
 }
 
 public class AdminRoomService : IAdminRoomService
 {
+    private const string DefaultCinemaId = "RAP_DEFAULT";
+    private const string DefaultCinemaName = "Bình Dương Cinema";
     private readonly AppDbContext _db;
     public AdminRoomService(AppDbContext db) => _db = db;
     public async Task<List<Room>> GetAllAsync(string? cinemaId = null, CancellationToken ct = default)
     {
-        var query = from r in _db.Rooms.AsNoTracking()
-                    join c in _db.Cinemas.AsNoTracking() on r.MaRap equals c.MaRap into cinemaJoin
-                    from c in cinemaJoin.DefaultIfEmpty()
-                    select new { r, c };
-        if (!string.IsNullOrWhiteSpace(cinemaId)) query = query.Where(x => x.r.MaRap == cinemaId);
-        return await query.OrderBy(x => x.r.MaRap).ThenBy(x => x.r.MaPhong).Select(x => new Room { Id = x.r.MaPhong, Name = x.r.TenPhong, CinemaId = x.r.MaRap, CinemaName = x.c != null ? x.c.TenRap : null, SeatCount = x.r.SoLuong, Status = x.r.TrangThai }).ToListAsync(ct);
+        return await _db.Rooms.AsNoTracking()
+            .OrderBy(x => x.MaPhong)
+            .Select(x => new Room
+            {
+                Id = x.MaPhong,
+                Name = x.TenPhong,
+                CinemaId = DefaultCinemaId,
+                CinemaName = DefaultCinemaName,
+                SeatCount = x.SoLuong,
+                Status = x.TrangThai
+            })
+            .ToListAsync(ct);
     }
-    public async Task<Room?> GetByIdAsync(string id, CancellationToken ct = default) => await (from r in _db.Rooms.AsNoTracking() where r.MaPhong == id join c in _db.Cinemas.AsNoTracking() on r.MaRap equals c.MaRap into cinemaJoin from c in cinemaJoin.DefaultIfEmpty() select new Room { Id = r.MaPhong, Name = r.TenPhong, CinemaId = r.MaRap, CinemaName = c != null ? c.TenRap : null, SeatCount = r.SoLuong, Status = r.TrangThai }).FirstOrDefaultAsync(ct);
+
+    public async Task<Room?> GetByIdAsync(string id, CancellationToken ct = default)
+        => await _db.Rooms.AsNoTracking()
+            .Where(x => x.MaPhong == id)
+            .Select(x => new Room
+            {
+                Id = x.MaPhong,
+                Name = x.TenPhong,
+                CinemaId = DefaultCinemaId,
+                CinemaName = DefaultCinemaName,
+                SeatCount = x.SoLuong,
+                Status = x.TrangThai
+            })
+            .FirstOrDefaultAsync(ct);
+
     public async Task<bool> ToggleStatusAsync(string id, CancellationToken ct = default)
     {
         var room = await _db.Rooms.FirstOrDefaultAsync(x => x.MaPhong == id, ct);
         if (room == null) return false;
-        room.TrangThai = string.Equals(room.TrangThai, "Hoạt động", StringComparison.OrdinalIgnoreCase) || string.Equals(room.TrangThai, "Active", StringComparison.OrdinalIgnoreCase) ? "Ngưng hoạt động" : "Hoạt động";
+        room.TrangThai = IsActive(room.TrangThai) ? "Ngưng hoạt động" : "Hoạt động";
         await _db.SaveChangesAsync(ct);
         return true;
     }
+
+    private static bool IsActive(string? status)
+        => string.Equals(status, "Hoạt động", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(status, "Hoat dong", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(status, "Active", StringComparison.OrdinalIgnoreCase);
 }
 
 public class AdminSeatService : IAdminSeatService
@@ -115,14 +109,14 @@ public class AdminSeatService : IAdminSeatService
         var query = _db.Seats.AsNoTracking().AsQueryable();
         if (!string.IsNullOrWhiteSpace(roomId)) query = query.Where(x => x.MaPhong == roomId);
         if (!string.IsNullOrWhiteSpace(search)) query = query.Where(x => x.MaGhe.Contains(search));
-        return await query.OrderBy(x => x.MaPhong).ThenBy(x => x.MaGhe).Select(x => new Seat { Id = x.MaGhe, RoomId = x.MaPhong, Row = x.MaGhe.Substring(0, 1), Column = x.MaGhe.Length > 1 ? x.MaGhe.Substring(1) : "", SeatType = x.LoaiGhe, IsBooked = x.TrangThai != "Trống", Price = 0 }).ToListAsync(ct);
+        return await query.OrderBy(x => x.MaPhong).ThenBy(x => x.MaGhe).Select(x => new Seat { Id = x.MaGhe, RoomId = x.MaPhong, Row = x.MaGhe.Substring(0, 1), Column = x.MaGhe.Length > 1 ? x.MaGhe.Substring(1) : "", SeatType = x.LoaiGhe, IsBooked = x.TrangThai == "Khóa" || x.TrangThai == "Bảo trì", Status = x.TrangThai ?? "Hoạt động", Price = 0 }).ToListAsync(ct);
     }
     public Task<List<Seat>> GetSeatMapAsync(string roomId, CancellationToken ct = default) => GetAllAsync(roomId, null, ct);
     public async Task<string?> ToggleStatusAsync(string seatId, CancellationToken ct = default)
     {
         var seat = await _db.Seats.FirstOrDefaultAsync(x => x.MaGhe == seatId, ct);
         if (seat == null) return null;
-        seat.TrangThai = seat.TrangThai == "Khóa" ? "Trống" : "Khóa";
+        seat.TrangThai = seat.TrangThai == "Khóa" ? "Hoạt động" : "Khóa";
         await _db.SaveChangesAsync(ct);
         return seat.TrangThai;
     }

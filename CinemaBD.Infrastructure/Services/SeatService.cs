@@ -36,6 +36,11 @@ public class SeatService : ISeatService
             .Select(v => new { v.MaGhe, v.TrangThai, v.DaCheckIn, v.NgayDat })
             .ToListAsync(cancellationToken);
 
+        var blockedSeatIds = seats
+            .Where(g => IsBlockedSeatStatus(g.TrangThai))
+            .Select(g => g.MaGhe)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         var seatStatusMap = seatTickets
             .GroupBy(v => v.MaGhe, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
@@ -57,11 +62,17 @@ public class SeatService : ISeatService
             Row = g.MaGhe.Length > 0 ? g.MaGhe.Substring(0, 1) : string.Empty,
             Column = g.MaGhe.Length > 1 ? g.MaGhe.Substring(1) : string.Empty,
             SeatType = g.LoaiGhe,
-            IsBooked = seatStatusMap.ContainsKey(g.MaGhe),
-            Status = seatStatusMap.TryGetValue(g.MaGhe, out var status) ? status : "Available",
+            IsBooked = blockedSeatIds.Contains(g.MaGhe) || seatStatusMap.ContainsKey(g.MaGhe),
+            Status = blockedSeatIds.Contains(g.MaGhe) ? "Blocked" : seatStatusMap.TryGetValue(g.MaGhe, out var status) ? status : "Available",
             Price = showtime.GiaVe + (((g.LoaiGhe ?? string.Empty).ToUpper() == "VIP") ? 30000 : 0)
         }).ToList();
     }
+
+    private static bool IsBlockedSeatStatus(string? status)
+        => string.Equals(status, "Khóa", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(status, "Bảo trì", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(status, "Blocked", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(status, "Inactive", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsPaidStatus(string? status)
         => string.Equals(status, "Paid", StringComparison.OrdinalIgnoreCase)
