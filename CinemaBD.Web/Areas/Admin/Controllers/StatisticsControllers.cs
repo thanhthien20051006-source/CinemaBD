@@ -11,13 +11,20 @@ public class AdminThongKeController : AdminApiCrudController
 
     public async Task<IActionResult> Index(int? day, int? month, int? year, CancellationToken ct)
     {
-        var selectedYear = year ?? DateTime.Today.Year;
+        var requestedYear = year ?? DateTime.Today.Year;
+        var stats = await GetDataAsync<AdminStatisticsPageViewModel>($"api/admin/statistics/revenue?year={requestedYear}", ct);
+        if ((stats == null || stats.TotalRevenue == 0) && year == null)
+        {
+            stats = await GetDataAsync<AdminStatisticsPageViewModel>($"api/admin/statistics/revenue?year={requestedYear - 1}", ct);
+            if (stats?.TotalRevenue > 0) requestedYear--;
+        }
+
+        var selectedYear = requestedYear;
         var selectedMonth = month ?? DateTime.Today.Month;
         var selectedDay = day ?? DateTime.Today.Day;
         var selectedDate = SafeDate(selectedYear, selectedMonth, selectedDay);
 
-        var stats = await GetDataAsync<AdminStatisticsPageViewModel>($"api/admin/statistics/revenue?year={selectedDate.Year}", ct)
-                    ?? new AdminStatisticsPageViewModel { StatisticsDate = selectedDate };
+        stats ??= new AdminStatisticsPageViewModel { StatisticsDate = selectedDate };
         stats.StatisticsDate = selectedDate;
         return View("~/Areas/Admin/Views/AdminThongKe/Index.cshtml", stats);
     }
