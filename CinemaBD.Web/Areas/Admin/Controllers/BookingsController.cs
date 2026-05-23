@@ -1,18 +1,17 @@
-﻿using CinemaBD.Web.Core;
+using CinemaBD.Web.Core;
+using CinemaBD.Web.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CinemaBD.Web.Areas.Admin.Controllers;
 
 [AdminPermission("chitietve", "ve", "booking")]
-public class BookingsController : BaseAdminController
+public class BookingsController : AdminApiCrudController
 {
-    private readonly IAdminBookingCoreService _bookingService;
-    public BookingsController(IAdminBookingCoreService bookingService) => _bookingService = bookingService;
+    public BookingsController(HttpClient http, IConfiguration configuration) : base(http, configuration) { }
 
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(CancellationToken ct)
     {
-        var data = await _bookingService.GetAllAsync(cancellationToken);
-        return View(data);
+        var invoices = await GetDataAsync<List<AdminInvoiceListItemViewModel>>("api/admin/invoices", ct) ?? new();
+        return View(invoices.OrderByDescending(x => x.PaymentDate).ToList());
     }
 }
-
