@@ -13,7 +13,9 @@
     .seat-row-label { width: 34px; font-weight: 800; color: #64748b; text-align: center; }
     .admin-seat { width: 46px; height: 42px; border-radius: 10px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: .78rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; position: relative; }
     .admin-seat.vip { border-color: #f59e0b; background: #fffbeb; color: #92400e; }
-    .admin-seat.booked { border-color: #ef4444; background: #fee2e2; color: #991b1b; }
+    .admin-seat.held { border-color: #f59e0b; background: #fef3c7; color: #92400e; }
+    .admin-seat.sold { border-color: #ef4444; background: #fee2e2; color: #991b1b; }
+    .admin-seat.checked-in { border-color: #16a34a; background: #dcfce7; color: #166534; }
     .screen { height: 42px; border-radius: 0 0 50% 50%; background: linear-gradient(90deg,#111827,#64748b,#111827); color: white; display:flex; align-items:center; justify-content:center; letter-spacing: .2rem; font-weight: 800; margin-bottom: 1.5rem; }
     @@media print {
         .sidebar, .navbar, .btn, .no-print { display: none !important; }
@@ -61,9 +63,11 @@
 </div>
 
 <div class="row g-3 mb-3">
-    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-muted small">Tổng ghế</div><div class="h4 mb-0">@Model.TotalSeats</div></div></div></div>
-    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-muted small">Ghế trống</div><div class="h4 mb-0 text-success">@Model.AvailableSeats</div></div></div></div>
-    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-muted small">Đã bán/đang giữ</div><div class="h4 mb-0 text-danger">@Model.HeldOrBookedSeats</div></div></div></div>
+    <div class="col-md-2"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-muted small">Tổng ghế</div><div class="h4 mb-0">@Model.TotalSeats</div></div></div></div>
+    <div class="col-md-2"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-muted small">Ghế trống</div><div class="h4 mb-0 text-success">@Model.AvailableSeats</div></div></div></div>
+    <div class="col-md-2"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-muted small">Đang giữ</div><div class="h4 mb-0 text-warning">@Model.HeldSeats</div></div></div></div>
+    <div class="col-md-2"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-muted small">Đã bán</div><div class="h4 mb-0 text-danger">@Model.SoldSeats</div></div></div></div>
+    <div class="col-md-2"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-muted small">Check-in</div><div class="h4 mb-0 text-primary">@Model.CheckedInSeats</div></div></div></div>
 </div>
 
 <div class="card border-0 shadow-sm">
@@ -82,8 +86,15 @@
                         <div class="seat-row-label">@row.Key</div>
                         @foreach (var seat in row.OrderBy(x => x.Column))
                         {
-                            var seatClass = seat.IsBooked ? "booked" : string.Equals(seat.SeatType, "VIP", StringComparison.OrdinalIgnoreCase) ? "vip" : string.Empty;
-                            <div class="admin-seat @seatClass" title="@seat.Row@seat.Column - @seat.SeatType - @(seat.IsBooked ? "Đã bán/giữ" : "Trống")">
+                            var status = string.IsNullOrWhiteSpace(seat.Status) ? (seat.IsBooked ? "Sold" : "Available") : seat.Status;
+                            var isVip = string.Equals(seat.SeatType, "VIP", StringComparison.OrdinalIgnoreCase);
+                            var statusClass = status.Equals("CheckedIn", StringComparison.OrdinalIgnoreCase) ? "checked-in" : status.ToLowerInvariant();
+                            var label = status.Equals("Held", StringComparison.OrdinalIgnoreCase) ? "Đang giữ"
+                                : status.Equals("Sold", StringComparison.OrdinalIgnoreCase) ? "Đã bán"
+                                : status.Equals("CheckedIn", StringComparison.OrdinalIgnoreCase) ? "Đã check-in"
+                                : "Trống";
+                            var seatClass = status.Equals("Available", StringComparison.OrdinalIgnoreCase) && isVip ? "vip" : statusClass;
+                            <div class="admin-seat @seatClass" title="@seat.Row@seat.Column - @seat.SeatType - @label">
                                 @seat.Row@seat.Column
                             </div>
                         }
@@ -93,8 +104,10 @@
         }
         <div class="d-flex gap-3 flex-wrap mt-4 small">
             <span><span class="admin-seat" style="width:24px;height:22px"></span> Trống</span>
-            <span><span class="admin-seat vip" style="width:24px;height:22px"></span> VIP</span>
-            <span><span class="admin-seat booked" style="width:24px;height:22px"></span> Đã bán/đang giữ</span>
+            <span><span class="admin-seat vip" style="width:24px;height:22px"></span> VIP trống</span>
+            <span><span class="admin-seat held" style="width:24px;height:22px"></span> Đang giữ</span>
+            <span><span class="admin-seat sold" style="width:24px;height:22px"></span> Đã bán</span>
+            <span><span class="admin-seat checked-in" style="width:24px;height:22px"></span> Đã check-in</span>
         </div>
     </div>
 </div>

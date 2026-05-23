@@ -1,4 +1,4 @@
-namespace CinemaBD.Api.Contracts.Booking;
+﻿namespace CinemaBD.Api.Contracts.Booking;
 
 public record SeatResponse(
     string Id,
@@ -6,5 +6,8 @@ public record SeatResponse(
     string Column,
     string? SeatType,
     bool IsBooked,
+    string Status,
     decimal Price
 );
+
+

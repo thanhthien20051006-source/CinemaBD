@@ -1,4 +1,4 @@
-namespace CinemaBD.Web.Models;
+﻿namespace CinemaBD.Web.Models;
 
 public class AdminShowtimePageViewModel
 {
@@ -28,7 +28,10 @@ public class AdminShowtimeSeatMapViewModel
     public string Status { get; set; } = string.Empty;
     public int TotalSeats { get; set; }
     public int AvailableSeats { get; set; }
-    public int HeldOrBookedSeats { get; set; }
+    public int HeldSeats { get; set; }
+    public int SoldSeats { get; set; }
+    public int CheckedInSeats { get; set; }
+    public int HeldOrBookedSeats => HeldSeats + SoldSeats + CheckedInSeats;
     public IReadOnlyList<SeatViewModel> Seats { get; set; } = Array.Empty<SeatViewModel>();
 }
 
@@ -51,3 +54,5 @@ public class AdminShowtimeViewModel
     public bool CanDelete { get; set; } = true;
     public string? Status { get; set; }
 }
+
+

@@ -42,8 +42,10 @@ public class ShowtimesController : AdminApiCrudController
             StartTime = showtime?.StartTime ?? string.Empty,
             Status = showtime?.Status ?? string.Empty,
             TotalSeats = seats.Count,
-            HeldOrBookedSeats = seats.Count(x => x.IsBooked),
-            AvailableSeats = seats.Count(x => !x.IsBooked),
+            AvailableSeats = seats.Count(x => IsSeatStatus(x, "Available") || string.IsNullOrWhiteSpace(x.Status)),
+            HeldSeats = seats.Count(x => IsSeatStatus(x, "Held")),
+            SoldSeats = seats.Count(x => IsSeatStatus(x, "Sold")),
+            CheckedInSeats = seats.Count(x => IsSeatStatus(x, "CheckedIn")),
             Seats = seats.OrderBy(x => x.Row).ThenBy(x => x.Column).ToList()
         };
 
@@ -119,6 +121,10 @@ public class ShowtimesController : AdminApiCrudController
             Showtimes = showtimes.OrderBy(x => x.ShowDate).ThenBy(x => x.RoomName).ThenBy(x => x.StartTime).ToList()
         };
     }
+
+    private static bool IsSeatStatus(SeatViewModel seat, string status)
+        => string.Equals(seat.Status, status, StringComparison.OrdinalIgnoreCase)
+           || (status == "Available" && !seat.IsBooked && string.IsNullOrWhiteSpace(seat.Status));
 
     private static string Csv(string value)
     {
