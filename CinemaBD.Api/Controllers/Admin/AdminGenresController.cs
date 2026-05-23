@@ -15,8 +15,8 @@ public class AdminGenresController : ControllerBase
     public AdminGenresController(IAdminGenreService service) => _service = service;
     [HttpGet] public async Task<IActionResult> Get(CancellationToken ct) => Ok(new ApiResponse<object>(true, "OK", await _service.GetAllAsync(ct)));
     [HttpGet("{id:int}")] public async Task<IActionResult> GetById(int id, CancellationToken ct) => Ok(new ApiResponse<object>(true, "OK", await _service.GetByIdAsync(id, ct)));
-    [HttpPost] public async Task<IActionResult> Save([FromBody] GenreRequest request, CancellationToken ct) => Ok(new ApiResponse<object>(true, "OK", await _service.UpsertAsync(0, request.Name, request.Description, ct)));
-    [HttpPut("{id:int}")] public async Task<IActionResult> Save(int id, [FromBody] GenreRequest request, CancellationToken ct) => Ok(new ApiResponse<object>(true, "OK", await _service.UpsertAsync(id, request.Name, request.Description, ct)));
+    [HttpPost] public async Task<IActionResult> Save([FromBody] GenreRequest request, CancellationToken ct) { try { return Ok(new ApiResponse<object>(true, "OK", await _service.UpsertAsync(0, request.Name, request.Description, ct))); } catch (InvalidOperationException ex) { return BadRequest(new ApiResponse<object>(false, ex.Message, null)); } }
+    [HttpPut("{id:int}")] public async Task<IActionResult> Save(int id, [FromBody] GenreRequest request, CancellationToken ct) { try { return Ok(new ApiResponse<object>(true, "OK", await _service.UpsertAsync(id, request.Name, request.Description, ct))); } catch (InvalidOperationException ex) { return BadRequest(new ApiResponse<object>(false, ex.Message, null)); } }
     [HttpDelete("{id:int}")] public async Task<IActionResult> Delete(int id, CancellationToken ct) => Ok(new ApiResponse<object>(await _service.DeleteAsync(id, ct), "OK", null));
 }
 

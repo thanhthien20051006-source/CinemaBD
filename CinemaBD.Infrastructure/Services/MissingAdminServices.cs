@@ -211,6 +211,11 @@ public class AdminGenreService : IAdminGenreService
     public async Task<Genre?> GetByIdAsync(int id, CancellationToken ct = default) => await _db.Genres.AsNoTracking().Where(x => x.MaTL == id).Select(x => new Genre { Id = x.MaTL, Name = x.TenTheLoai, Description = x.MoTa, CreatedAt = x.CreatedAt, UpdatedAt = x.UpdatedAt }).FirstOrDefaultAsync(ct);
     public async Task<Genre> UpsertAsync(int id, string name, string? description, CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(name)) throw new InvalidOperationException("Tên thể loại là bắt buộc.");
+        name = name.Trim();
+        if (await _db.Genres.AnyAsync(x => x.MaTL != id && x.TenTheLoai == name, ct))
+            throw new InvalidOperationException("Tên thể loại đã tồn tại.");
+
         var entity = id > 0 ? await _db.Genres.FirstOrDefaultAsync(x => x.MaTL == id, ct) : null;
         if (entity == null)
         {
@@ -221,7 +226,14 @@ public class AdminGenreService : IAdminGenreService
         await _db.SaveChangesAsync(ct);
         return new Genre { Id = entity.MaTL, Name = entity.TenTheLoai, Description = entity.MoTa, CreatedAt = entity.CreatedAt, UpdatedAt = entity.UpdatedAt };
     }
-    public async Task<bool> DeleteAsync(int id, CancellationToken ct = default) { var e = await _db.Genres.FindAsync([id], ct); if (e == null) return false; _db.Genres.Remove(e); await _db.SaveChangesAsync(ct); return true; }
+    public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
+    {
+        var e = await _db.Genres.FindAsync([id], ct);
+        if (e == null) return false;
+        _db.Genres.Remove(e);
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
 }
 
 public class AdminArticleService : IAdminArticleService
@@ -230,8 +242,22 @@ public class AdminArticleService : IAdminArticleService
     public AdminArticleService(AppDbContext db) => _db = db;
     public async Task<List<Article>> GetAllAsync(CancellationToken ct = default) => await _db.Articles.AsNoTracking().OrderByDescending(x => x.NgayDang).Select(x => new Article { Id = x.MaBV, Title = x.TieuDe, Summary = x.MoTa, Content = x.NoiDung, ImageUrl = x.Anh, PublishedAt = x.NgayDang }).ToListAsync(ct);
     public async Task<Article?> GetByIdAsync(int id, CancellationToken ct = default) => await _db.Articles.AsNoTracking().Where(x => x.MaBV == id).Select(x => new Article { Id = x.MaBV, Title = x.TieuDe, Summary = x.MoTa, Content = x.NoiDung, ImageUrl = x.Anh, PublishedAt = x.NgayDang }).FirstOrDefaultAsync(ct);
-    public async Task<Article> CreateAsync(string title, string? summary, string? content, string? imageUrl, CancellationToken ct = default) { var e = new LegacyArticle { TieuDe = title, MoTa = summary, NoiDung = content, Anh = imageUrl, NgayDang = DateTime.Now }; _db.Articles.Add(e); await _db.SaveChangesAsync(ct); return new Article { Id = e.MaBV, Title = e.TieuDe, Summary = e.MoTa, Content = e.NoiDung, ImageUrl = e.Anh, PublishedAt = e.NgayDang }; }
-    public async Task<Article> UpdateAsync(int id, string title, string? summary, string? content, string? imageUrl, CancellationToken ct = default) { var e = await _db.Articles.FirstAsync(x => x.MaBV == id, ct); e.TieuDe = title; e.MoTa = summary; e.NoiDung = content; e.Anh = imageUrl; await _db.SaveChangesAsync(ct); return new Article { Id = e.MaBV, Title = e.TieuDe, Summary = e.MoTa, Content = e.NoiDung, ImageUrl = e.Anh, PublishedAt = e.NgayDang }; }
+    public async Task<Article> CreateAsync(string title, string? summary, string? content, string? imageUrl, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(title)) throw new InvalidOperationException("Tiêu đề bài viết là bắt buộc.");
+        var e = new LegacyArticle { TieuDe = title.Trim(), MoTa = summary, NoiDung = content, Anh = imageUrl, NgayDang = DateTime.Now };
+        _db.Articles.Add(e);
+        await _db.SaveChangesAsync(ct);
+        return new Article { Id = e.MaBV, Title = e.TieuDe, Summary = e.MoTa, Content = e.NoiDung, ImageUrl = e.Anh, PublishedAt = e.NgayDang };
+    }
+    public async Task<Article> UpdateAsync(int id, string title, string? summary, string? content, string? imageUrl, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(title)) throw new InvalidOperationException("Tiêu đề bài viết là bắt buộc.");
+        var e = await _db.Articles.FirstOrDefaultAsync(x => x.MaBV == id, ct) ?? throw new InvalidOperationException("Không tìm thấy bài viết.");
+        e.TieuDe = title.Trim(); e.MoTa = summary; e.NoiDung = content; e.Anh = imageUrl;
+        await _db.SaveChangesAsync(ct);
+        return new Article { Id = e.MaBV, Title = e.TieuDe, Summary = e.MoTa, Content = e.NoiDung, ImageUrl = e.Anh, PublishedAt = e.NgayDang };
+    }
     public async Task<bool> DeleteAsync(int id, CancellationToken ct = default) { var e = await _db.Articles.FindAsync([id], ct); if (e == null) return false; _db.Articles.Remove(e); await _db.SaveChangesAsync(ct); return true; }
 }
 
@@ -241,8 +267,29 @@ public class AdminEventService : IAdminEventService
     public AdminEventService(AppDbContext db) => _db = db;
     public async Task<List<Event>> GetAllAsync(CancellationToken ct = default) => await _db.Events.AsNoTracking().OrderByDescending(x => x.NgayBatDau).Select(x => new Event { Id = x.MaSK, Title = x.TieuDe, Description = x.MoTa, ImageUrl = x.Anh, StartDate = x.NgayBatDau, EndDate = x.NgayKetThuc }).ToListAsync(ct);
     public async Task<Event?> GetByIdAsync(int id, CancellationToken ct = default) => await _db.Events.AsNoTracking().Where(x => x.MaSK == id).Select(x => new Event { Id = x.MaSK, Title = x.TieuDe, Description = x.MoTa, ImageUrl = x.Anh, StartDate = x.NgayBatDau, EndDate = x.NgayKetThuc }).FirstOrDefaultAsync(ct);
-    public async Task<Event> CreateAsync(string title, string? description, string? imageUrl, DateTime? startDate, DateTime? endDate, CancellationToken ct = default) { var e = new LegacyEvent { TieuDe = title, MoTa = description, Anh = imageUrl, NgayBatDau = startDate, NgayKetThuc = endDate }; _db.Events.Add(e); await _db.SaveChangesAsync(ct); return new Event { Id = e.MaSK, Title = e.TieuDe, Description = e.MoTa, ImageUrl = e.Anh, StartDate = e.NgayBatDau, EndDate = e.NgayKetThuc }; }
-    public async Task<Event> UpdateAsync(int id, string title, string? description, string? imageUrl, DateTime? startDate, DateTime? endDate, CancellationToken ct = default) { var e = await _db.Events.FirstAsync(x => x.MaSK == id, ct); e.TieuDe = title; e.MoTa = description; e.Anh = imageUrl; e.NgayBatDau = startDate; e.NgayKetThuc = endDate; await _db.SaveChangesAsync(ct); return new Event { Id = e.MaSK, Title = e.TieuDe, Description = e.MoTa, ImageUrl = e.Anh, StartDate = e.NgayBatDau, EndDate = e.NgayKetThuc }; }
+    public async Task<Event> CreateAsync(string title, string? description, string? imageUrl, DateTime? startDate, DateTime? endDate, CancellationToken ct = default)
+    {
+        ValidateEvent(title, startDate, endDate);
+        var e = new LegacyEvent { TieuDe = title.Trim(), MoTa = description, Anh = imageUrl, NgayBatDau = startDate, NgayKetThuc = endDate };
+        _db.Events.Add(e);
+        await _db.SaveChangesAsync(ct);
+        return new Event { Id = e.MaSK, Title = e.TieuDe, Description = e.MoTa, ImageUrl = e.Anh, StartDate = e.NgayBatDau, EndDate = e.NgayKetThuc };
+    }
+    public async Task<Event> UpdateAsync(int id, string title, string? description, string? imageUrl, DateTime? startDate, DateTime? endDate, CancellationToken ct = default)
+    {
+        ValidateEvent(title, startDate, endDate);
+        var e = await _db.Events.FirstOrDefaultAsync(x => x.MaSK == id, ct) ?? throw new InvalidOperationException("Không tìm thấy sự kiện.");
+        e.TieuDe = title.Trim(); e.MoTa = description; e.Anh = imageUrl; e.NgayBatDau = startDate; e.NgayKetThuc = endDate;
+        await _db.SaveChangesAsync(ct);
+        return new Event { Id = e.MaSK, Title = e.TieuDe, Description = e.MoTa, ImageUrl = e.Anh, StartDate = e.NgayBatDau, EndDate = e.NgayKetThuc };
+    }
     public async Task<bool> DeleteAsync(int id, CancellationToken ct = default) { var e = await _db.Events.FindAsync([id], ct); if (e == null) return false; _db.Events.Remove(e); await _db.SaveChangesAsync(ct); return true; }
+
+    private static void ValidateEvent(string title, DateTime? startDate, DateTime? endDate)
+    {
+        if (string.IsNullOrWhiteSpace(title)) throw new InvalidOperationException("Tiêu đề sự kiện là bắt buộc.");
+        if (startDate.HasValue && endDate.HasValue && endDate.Value.Date < startDate.Value.Date)
+            throw new InvalidOperationException("Ngày kết thúc không được trước ngày bắt đầu.");
+    }
 }
 
