@@ -1,11 +1,9 @@
 ﻿using CinemaBD.Web.Configurations;
 using CinemaBD.Web.Core;
-using CinemaBD.Web.Data;
 using CinemaBD.Web.Infrastructure.Notifications;
 using CinemaBD.Web.Infrastructure.Payments;
 using CinemaBD.Web.Services;
 using CinemaBD.Web.Hubs;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,21 +21,17 @@ builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "DataProtectionKeys")))
     .SetApplicationName("CinemaBD.Web");
 
-builder.Services.AddDbContext<CinemaDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=cinemabd.web.db"));
-
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
-builder.Services.AddScoped<IAuthCoreService, AuthCoreService>();
-builder.Services.AddScoped<IBookingCoreService, BookingCoreService>();
-builder.Services.AddScoped<IAdminAuthCoreService, AdminAuthCoreService>();
-builder.Services.AddScoped<IAdminDashboardCoreService, AdminDashboardCoreService>();
-builder.Services.AddScoped<IAdminBookingCoreService, AdminBookingCoreService>();
-builder.Services.AddScoped<IAdminMovieCoreService, AdminMovieCoreService>();
-builder.Services.AddScoped<IAdminShowtimeCoreService, AdminShowtimeCoreService>();
-builder.Services.AddScoped<IAdminComboCoreService, AdminComboCoreService>();
-builder.Services.AddScoped<IAdminUserCoreService, AdminUserCoreService>();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient<IAuthCoreService, ApiAuthCoreService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5188/");
+});
+builder.Services.AddHttpClient<IBookingCoreService, ApiBookingCoreService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5188/");
+});
 builder.Services.AddHttpClient<IAdminLegacyReadService, AdminLegacyReadService>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5188/");
@@ -71,13 +65,6 @@ builder.Services.AddAuthentication(options =>
 
 var app = builder.Build();
 
-
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<CinemaDbContext>();
-    await db.Database.MigrateAsync();
-    await SeedData.InitializeAsync(db);
-}
 
 if (!app.Environment.IsDevelopment())
 {
