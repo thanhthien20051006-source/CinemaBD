@@ -43,8 +43,8 @@ $(function () {
         $.ajax({ url: form.attr('action'), type: 'POST', data: form.serialize(), success: function (tbodyHtml) { $('#tblDichVu').find('tbody').replaceWith(tbodyHtml); $('#dichVuModal').modal('hide'); }, error: function (xhr) { alert(xhr.responseText || 'Có lỗi khi lưu dịch vụ.'); } });
     });
     $('#tblDichVu').on('click', '.btn-delete-dv', function () {
-        if (!confirm('Bạn chắc chắn muốn xóa dịch vụ này?')) return;
-        $.ajax({ url: '@Url.Action("Delete", "AdminDichVu", new { area = "Admin" })', type: 'POST', data: { id: $(this).data('id') }, success: function (tbodyHtml) { $('#tblDichVu').find('tbody').replaceWith(tbodyHtml); }, error: function () { alert('Không xóa được dịch vụ.'); } });
+        if (!confirm('Ngưng bán dịch vụ này? Dịch vụ đã có hóa đơn sẽ được ẩn mềm.')) return;
+        $.ajax({ url: '@Url.Action("Delete", "AdminDichVu", new { area = "Admin" })', type: 'POST', data: { id: $(this).data('id') }, success: function (tbodyHtml) { $('#tblDichVu').find('tbody').replaceWith(tbodyHtml); }, error: function () { alert('Không ngưng bán được dịch vụ.'); } });
     });
 });
 </script>

@@ -15,7 +15,7 @@
                 <form asp-action="Delete" method="post">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="id" value="@c.Id" />
-                    <button class="btn btn-sm btn-danger" onclick="return confirm('Xóa combo này?')">Xóa</button>
+                    <button class="btn btn-sm btn-danger" onclick="return confirm('Ngưng bán combo này? Combo đã có hóa đơn sẽ được ẩn mềm.')">Ngưng bán</button>
                 </form>
             </td>
         </tr>
