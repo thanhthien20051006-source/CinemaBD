@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -141,6 +142,23 @@ public class CinemaApiClient
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         var payload = await response.Content.ReadFromJsonAsync<ApiResponse<LoyaltyRedeemApiResult>>(cancellationToken: cancellationToken);
         return payload?.Data;
+    }
+
+    public async Task<VoucherPreviewApiResult?> PreviewVoucherAsync(string token, string code, decimal subtotal, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            return new VoucherPreviewApiResult { Success = false, Message = "Chưa nhập mã voucher.", FinalAmount = subtotal };
+
+        var customerId = GetUserIdFromJwt(token) ?? token;
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/admin/vouchers/validate");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Content = JsonContent.Create(new { customerId, code, subtotal });
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            return new VoucherPreviewApiResult { Success = false, Message = "Không kiểm tra được voucher.", Code = code, FinalAmount = subtotal };
+
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<VoucherPreviewApiResult>>(cancellationToken: cancellationToken);
+        return payload?.Data ?? new VoucherPreviewApiResult { Success = false, Message = payload?.Message ?? "Không kiểm tra được voucher.", Code = code, FinalAmount = subtotal };
     }
 
     public async Task<RefundApiResult?> CreateRefundRequestAsync(string token, string transactionRef, string? ticketId, string reason, CancellationToken cancellationToken = default)
@@ -469,6 +487,25 @@ public class CinemaApiClient
         return movie;
     }
 
+    private static string? GetUserIdFromJwt(string token)
+    {
+        try
+        {
+            var parts = token.Split('.');
+            if (parts.Length < 2) return null;
+            var payload = parts[1].Replace('-', '+').Replace('_', '/');
+            payload = payload.PadRight(payload.Length + (4 - payload.Length % 4) % 4, '=');
+            using var doc = JsonDocument.Parse(Convert.FromBase64String(payload));
+            if (doc.RootElement.TryGetProperty("sub", out var sub)) return sub.GetString();
+            if (doc.RootElement.TryGetProperty(ClaimTypes.NameIdentifier, out var nameId)) return nameId.GetString();
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public sealed class RefundApiResult
     {
         public bool Success { get; set; }
@@ -482,6 +519,15 @@ public class CinemaApiClient
         public int UsedPoints { get; set; }
         public decimal DiscountAmount { get; set; }
         public int RemainingPoints { get; set; }
+    }
+
+    public sealed class VoucherPreviewApiResult
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public string? Code { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public decimal FinalAmount { get; set; }
     }
 
     public sealed class SeatHoldApiResult
