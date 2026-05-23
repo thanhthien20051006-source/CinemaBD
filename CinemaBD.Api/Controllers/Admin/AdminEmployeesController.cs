@@ -41,6 +41,8 @@ public class AdminEmployeesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] AdminEmployeeUpsertRequest request, CancellationToken cancellationToken)
     {
+        try
+        {
         var created = await _service.CreateAsync(new Employee
         {
             FullName = request.FullName,
@@ -53,11 +55,18 @@ public class AdminEmployeesController : ControllerBase
         }, cancellationToken);
 
         return Ok(new ApiResponse<object>(true, "Tạo nhân viên thành công", created));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<object>(false, ex.Message, null));
+        }
     }
 
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] AdminEmployeeUpsertRequest request, CancellationToken cancellationToken)
     {
+        try
+        {
         var updated = await _service.UpdateAsync(id, new Employee
         {
             FullName = request.FullName,
@@ -73,6 +82,11 @@ public class AdminEmployeesController : ControllerBase
             return NotFound(new ApiResponse<object>(false, "Không tìm thấy nhân viên để cập nhật", null));
 
         return Ok(new ApiResponse<object>(true, "Cập nhật nhân viên thành công", updated));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<object>(false, ex.Message, null));
+        }
     }
 
     [HttpDelete("{id:int}")]
