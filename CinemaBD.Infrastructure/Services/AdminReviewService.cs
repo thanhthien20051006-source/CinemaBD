@@ -24,9 +24,9 @@ public class AdminReviewService : IAdminReviewService
                           Id = r.MaDG,
                           MovieId = r.MaPhim,
                           CustomerId = r.MaKH,
-                          Content = r.NoiDung,
-                          Rating = r.Rating ?? 5,
-                          IsHidden = r.IsHidden ?? false,
+                          Content = ReviewService.NormalizeContent(r.NoiDung),
+                          Rating = 5,
+                          IsHidden = ReviewService.IsHiddenContent(r.NoiDung),
                           CreatedAt = r.NgayTao,
                           MovieTitle = m != null ? m.TenPhim : null,
                           CustomerName = c != null ? c.HoTen : null
@@ -38,7 +38,12 @@ public class AdminReviewService : IAdminReviewService
     {
         var review = await _db.Reviews.FirstOrDefaultAsync(x => x.MaDG == id, ct);
         if (review == null) return false;
-        review.IsHidden = !(review.IsHidden ?? false);
+
+        var isHidden = ReviewService.IsHiddenContent(review.NoiDung);
+        review.NoiDung = isHidden
+            ? ReviewService.NormalizeContent(review.NoiDung)
+            : $"[Đã ẩn] {review.NoiDung}";
+
         await _db.SaveChangesAsync(ct);
         return true;
     }
@@ -48,7 +53,10 @@ public class AdminReviewService : IAdminReviewService
         var review = await _db.Reviews.FirstOrDefaultAsync(x => x.MaDG == id, ct);
         if (review == null) return false;
 
-        _db.Reviews.Remove(review);
+        review.NoiDung = ReviewService.IsHiddenContent(review.NoiDung)
+            ? review.NoiDung
+            : $"[Đã ẩn] {review.NoiDung}";
+
         await _db.SaveChangesAsync(ct);
         return true;
     }
