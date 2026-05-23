@@ -29,6 +29,8 @@ public class ShowtimeService : IShowtimeService
                     where s.MaPhim == movieId
                         && s.NgayChieu.Date == selectedDate
                         && s.TrangThai != "Expired"
+                        && s.TrangThai != "Cancelled"
+                        && (r.TrangThai == null || r.TrangThai == "Hoạt động" || r.TrangThai == "Hoat dong" || r.TrangThai == "Active")
                         && s.GioBatDau >= FirstShowtime
                         && s.GioBatDau <= LastShowtime
                         && (selectedDate > now.Date || s.GioBatDau > currentTime)

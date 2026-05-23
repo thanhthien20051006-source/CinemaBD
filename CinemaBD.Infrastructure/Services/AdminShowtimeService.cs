@@ -183,7 +183,10 @@ public class AdminShowtimeService : IAdminShowtimeService
         var movieIds = request.MovieIds.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
         var roomIds = request.RoomIds.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
         var movies = await _db.Movies.Where(m => movieIds.Contains(m.MaPhim)).ToListAsync(cancellationToken);
-        var rooms = await _db.Rooms.Where(r => roomIds.Contains(r.MaPhong)).OrderBy(r => r.MaPhong).ToListAsync(cancellationToken);
+        var rooms = await _db.Rooms
+            .Where(r => roomIds.Contains(r.MaPhong) && IsActiveRoomStatus(r.TrangThai))
+            .OrderBy(r => r.MaPhong)
+            .ToListAsync(cancellationToken);
         if (movies.Count == 0 || rooms.Count == 0)
             throw new InvalidOperationException("Can chon phim va phong de sinh lich.");
 
@@ -291,8 +294,8 @@ public class AdminShowtimeService : IAdminShowtimeService
     {
         if (ticketPrice <= 0)
             throw new InvalidOperationException("Gia ve phai lon hon 0.");
-        if (string.Equals(room.TrangThai, "Ngung hoat dong", StringComparison.OrdinalIgnoreCase) || string.Equals(room.TrangThai, "Ngưng hoạt động", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Phong chieu dang ngung hoat dong.");
+        if (!IsActiveRoomStatus(room.TrangThai))
+            throw new InvalidOperationException("Phòng chiếu đang ngưng hoạt động hoặc bảo trì.");
         if (showDate.Date < GetVietnamNow().Date)
             throw new InvalidOperationException("Khong duoc tao lich trong qua khu.");
         if (!allowTodayPastTime && showDate.Date == GetVietnamNow().Date && ParseStartTime(startTime) <= GetVietnamNow().TimeOfDay)
@@ -329,6 +332,14 @@ public class AdminShowtimeService : IAdminShowtimeService
             if (newStart < oldEnd && s.GioBatDau < newEnd)
                 throw new InvalidOperationException($"Trung lich phong {roomId} voi suat {s.MaSuatChieu}.");
         }
+    }
+
+    private static bool IsActiveRoomStatus(string? status)
+    {
+        if (string.IsNullOrWhiteSpace(status)) return true;
+        return string.Equals(status, "Hoạt động", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(status, "Hoat dong", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(status, "Active", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsStarted(DateTime showDate, TimeSpan startTime)
