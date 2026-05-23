@@ -12,12 +12,14 @@ public class PaymentService : IPaymentService
     private readonly AppDbContext _db;
     private readonly VnPaySignatureValidator _validator;
     private readonly ILoyaltyPointService _loyaltyPointService;
+    private readonly IAdminVoucherService _voucherService;
 
-    public PaymentService(AppDbContext db, VnPaySignatureValidator validator, ILoyaltyPointService loyaltyPointService)
+    public PaymentService(AppDbContext db, VnPaySignatureValidator validator, ILoyaltyPointService loyaltyPointService, IAdminVoucherService voucherService)
     {
         _db = db;
         _validator = validator;
         _loyaltyPointService = loyaltyPointService;
+        _voucherService = voucherService;
     }
 
     public async Task<PaymentCallbackResult> HandleVnPayReturnAsync(IDictionary<string, string> query, CancellationToken cancellationToken = default)
@@ -214,7 +216,10 @@ public class PaymentService : IPaymentService
             if (paid)
                 await _loyaltyPointService.EarnFromPaymentAsync(txnRef, cancellationToken);
             else
+            {
                 await _loyaltyPointService.RefundRedeemedPointsAsync(txnRef, cancellationToken);
+                await _voucherService.ReopenVoucherForFailedPaymentAsync(txnRef, cancellationToken);
+            }
         }
 
         return new CallbackProcessResult
@@ -325,7 +330,10 @@ public class PaymentService : IPaymentService
 
         await _db.SaveChangesAsync(cancellationToken);
         if (!string.IsNullOrWhiteSpace(payment.GatewayTxnRef))
+        {
             await _loyaltyPointService.RefundRedeemedPointsAsync(payment.GatewayTxnRef, cancellationToken);
+            await _voucherService.ReopenVoucherForFailedPaymentAsync(payment.GatewayTxnRef, cancellationToken);
+        }
         return true;
     }
     private static string Get(IDictionary<string, string> query, string key)
