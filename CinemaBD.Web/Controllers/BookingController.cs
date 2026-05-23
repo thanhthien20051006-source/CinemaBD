@@ -152,7 +152,7 @@ public class BookingController : Controller
             });
         }
 
-        NormalizeCheckoutVoucher(model);
+        await NormalizeCheckoutVoucherAsync(token, model, cancellationToken);
         await NormalizeCheckoutLoyaltyAsync(token, model, cancellationToken);
 
         // Use SeatIds for the API call
@@ -191,7 +191,7 @@ public class BookingController : Controller
             });
         }
 
-        NormalizeCheckoutVoucher(model);
+        await NormalizeCheckoutVoucherAsync(token, model, cancellationToken);
         await NormalizeCheckoutLoyaltyAsync(token, model, cancellationToken);
 
         // Tao booking truoc, lay txnRef
@@ -343,28 +343,41 @@ public class BookingController : Controller
         model.Combos = string.Join(',', parts);
     }
 
-    private static void NormalizeCheckoutVoucher(CheckoutPageViewModel model)
+    private async Task NormalizeCheckoutVoucherAsync(string token, CheckoutPageViewModel model, CancellationToken cancellationToken)
     {
         model.VoucherCode = (model.VoucherCode ?? string.Empty).Trim();
-        model.TotalAmount = Math.Max(0, model.TicketTotal + model.ComboTotal - model.DiscountAmount - model.LoyaltyDiscountAmount);
+        model.DiscountAmount = 0;
 
-        if (string.IsNullOrWhiteSpace(model.VoucherCode))
-            return;
+        var subtotal = Math.Max(0, model.TicketTotal + model.ComboTotal);
+        model.TotalAmount = Math.Max(0, subtotal - model.LoyaltyDiscountAmount);
 
-        var voucherItem = $"voucher:{model.VoucherCode}";
-        if (string.IsNullOrWhiteSpace(model.Combos))
-        {
-            model.Combos = voucherItem;
-            return;
-        }
-
-        var parts = model.Combos
+        var parts = (model.Combos ?? string.Empty)
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(x => !x.StartsWith("voucher:", StringComparison.OrdinalIgnoreCase))
             .ToList();
-        parts.Add(voucherItem);
+
+        if (string.IsNullOrWhiteSpace(model.VoucherCode))
+        {
+            model.Combos = string.Join(',', parts);
+            return;
+        }
+
+        var preview = await _apiClient.PreviewVoucherAsync(token, model.VoucherCode, subtotal, cancellationToken);
+        if (preview?.Success != true || preview.DiscountAmount <= 0)
+        {
+            model.VoucherCode = string.Empty;
+            model.Combos = string.Join(',', parts);
+            TempData["CheckoutMessage"] = preview?.Message ?? "Voucher không hợp lệ.";
+            return;
+        }
+
+        model.VoucherCode = preview.Code ?? model.VoucherCode;
+        model.DiscountAmount = preview.DiscountAmount;
+        model.TotalAmount = Math.Max(0, subtotal - model.DiscountAmount - model.LoyaltyDiscountAmount);
+        parts.Add($"voucher:{model.VoucherCode}");
         model.Combos = string.Join(',', parts);
     }
+
     [HttpGet("invoice/{txnRef}")]
     public async Task<IActionResult> Invoice(string txnRef, CancellationToken cancellationToken)
     {
@@ -410,6 +423,8 @@ public class BookingController : Controller
         return $"data:image/png;base64,{Convert.ToBase64String(qrPng)}";
     }
 }
+
+
 
 
 
