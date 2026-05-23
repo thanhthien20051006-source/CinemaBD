@@ -1,4 +1,4 @@
-using CinemaBD.Application.Interfaces;
+﻿using CinemaBD.Application.Interfaces;
 using CinemaBD.Domain.Entities;
 using CinemaBD.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -29,7 +29,7 @@ public class LoyaltyPointService : ILoyaltyPointService
         if (string.IsNullOrWhiteSpace(txnRef)) return 0;
 
         var payment = await _db.Payments.AsNoTracking()
-            .FirstOrDefaultAsync(x => x.GatewayTxnRef == txnRef && (x.TrangThai == "Thành công" || x.TrangThai == "Paid" || x.TrangThai == "Success"), ct);
+            .FirstOrDefaultAsync(x => x.GatewayTxnRef == txnRef && (x.TrangThai == "ThÃ nh cÃ´ng" || x.TrangThai == "Paid" || x.TrangThai == "Success"), ct);
         if (payment == null || payment.SoTien <= 0) return 0;
 
         var customerId = await _db.Tickets.AsNoTracking()
@@ -62,14 +62,43 @@ public class LoyaltyPointService : ILoyaltyPointService
         return result;
     }
 
+
+    public async Task<int> RefundRedeemedPointsAsync(string txnRef, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(txnRef)) return 0;
+
+        var payment = await _db.Payments.AsNoTracking().FirstOrDefaultAsync(x => x.GatewayTxnRef == txnRef, ct);
+        if (payment == null || !(string.Equals(payment.TrangThai, "Failed", StringComparison.OrdinalIgnoreCase) || string.Equals(payment.TrangThai, "Expired", StringComparison.OrdinalIgnoreCase)))
+            return 0;
+
+        var customerId = await _db.Tickets.AsNoTracking()
+            .Where(x => x.GatewayTxnRef == txnRef && x.MaKH != null)
+            .Select(x => x.MaKH!)
+            .FirstOrDefaultAsync(ct);
+        if (string.IsNullOrWhiteSpace(customerId)) return 0;
+
+        var pointsText = await _db.BookedCombos.AsNoTracking()
+            .Where(x => x.GatewayTxnRef == txnRef && x.MaCombo != null && x.MaCombo.StartsWith("points:"))
+            .Select(x => x.MaCombo!.Substring("points:".Length))
+            .FirstOrDefaultAsync(ct);
+        if (!int.TryParse(pointsText, out var points) || points <= 0) return 0;
+
+        var entity = await GetOrCreateEntityAsync(customerId, ct);
+        var actual = Math.Min(points, entity.DiemTru);
+        if (actual <= 0) return 0;
+
+        entity.DiemTru -= actual;
+        await _db.SaveChangesAsync(ct);
+        return actual;
+    }
     private static LoyaltyRedeemResult BuildRedeemResult(LegacyLoyaltyPoints entity, int points, decimal subtotal, bool mutate)
     {
-        if (points <= 0) return new LoyaltyRedeemResult { Success = false, Message = "Chưa nhập số điểm cần dùng.", RemainingPoints = CurrentBalance(entity) };
-        if (subtotal <= 0) return new LoyaltyRedeemResult { Success = false, Message = "Giá trị đơn hàng không hợp lệ.", RemainingPoints = CurrentBalance(entity) };
+        if (points <= 0) return new LoyaltyRedeemResult { Success = false, Message = "ChÆ°a nháº­p sá»‘ Ä‘iá»ƒm cáº§n dÃ¹ng.", RemainingPoints = CurrentBalance(entity) };
+        if (subtotal <= 0) return new LoyaltyRedeemResult { Success = false, Message = "GiÃ¡ trá»‹ Ä‘Æ¡n hÃ ng khÃ´ng há»£p lá»‡.", RemainingPoints = CurrentBalance(entity) };
 
         var balance = CurrentBalance(entity);
-        if (balance <= 0) return new LoyaltyRedeemResult { Success = false, Message = "Tài khoản chưa có điểm để sử dụng.", RemainingPoints = 0 };
-        if (points > balance) return new LoyaltyRedeemResult { Success = false, Message = $"Không đủ điểm. Hiện có {balance} điểm.", RemainingPoints = balance };
+        if (balance <= 0) return new LoyaltyRedeemResult { Success = false, Message = "TÃ i khoáº£n chÆ°a cÃ³ Ä‘iá»ƒm Ä‘á»ƒ sá»­ dá»¥ng.", RemainingPoints = 0 };
+        if (points > balance) return new LoyaltyRedeemResult { Success = false, Message = $"KhÃ´ng Ä‘á»§ Ä‘iá»ƒm. Hiá»‡n cÃ³ {balance} Ä‘iá»ƒm.", RemainingPoints = balance };
 
         var discount = Math.Min(subtotal, points * MoneyPerRedeemPoint);
         var actualPoints = (int)Math.Ceiling(discount / MoneyPerRedeemPoint);
@@ -78,7 +107,7 @@ public class LoyaltyPointService : ILoyaltyPointService
         return new LoyaltyRedeemResult
         {
             Success = true,
-            Message = $"Dùng {actualPoints} điểm, giảm {discount:N0} đ.",
+            Message = $"DÃ¹ng {actualPoints} Ä‘iá»ƒm, giáº£m {discount:N0} Ä‘.",
             UsedPoints = actualPoints,
             DiscountAmount = discount,
             RemainingPoints = balance - actualPoints
@@ -118,3 +147,4 @@ public class LoyaltyPointService : ILoyaltyPointService
         PointsToMoney = CurrentBalance(entity) * (int)MoneyPerRedeemPoint
     };
 }
+
