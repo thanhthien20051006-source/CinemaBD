@@ -213,6 +213,8 @@ public class PaymentService : IPaymentService
             await _db.SaveChangesAsync(cancellationToken);
             if (paid)
                 await _loyaltyPointService.EarnFromPaymentAsync(txnRef, cancellationToken);
+            else
+                await _loyaltyPointService.RefundRedeemedPointsAsync(txnRef, cancellationToken);
         }
 
         return new CallbackProcessResult
@@ -322,6 +324,8 @@ public class PaymentService : IPaymentService
             ticket.TrangThai = PaymentStatuses.Expired;
 
         await _db.SaveChangesAsync(cancellationToken);
+        if (!string.IsNullOrWhiteSpace(payment.GatewayTxnRef))
+            await _loyaltyPointService.RefundRedeemedPointsAsync(payment.GatewayTxnRef, cancellationToken);
         return true;
     }
     private static string Get(IDictionary<string, string> query, string key)
