@@ -65,10 +65,10 @@
     });
 
     $(document).on('click', '.btn-delete-voucher', function () {
-        if (!confirm('Bạn chắc chắn muốn xóa voucher này?')) return;
+        if (!confirm('Vô hiệu hóa voucher này? Voucher đã dùng sẽ được giữ lịch sử.')) return;
         $.post('@Url.Action("Delete", "Voucher", new { area = "Admin" })', { id: $(this).data('id') })
             .done(html => $('#voucherTableWrap').html(html))
-            .fail(xhr => alert(xhr.responseText || 'Không xóa được voucher'));
+            .fail(xhr => alert(xhr.responseText || 'Không vô hiệu hóa được voucher'));
     });
 </script>
 }

@@ -32,7 +32,7 @@
                     foreach (var hd in Model)
                     {
                         var status = (hd.Status ?? "").Trim();
-                        var badgeClass = status is "Paid" or "Đã thanh toán" or "Da thanh toan" ? "bg-success" : status is "Cancelled" or "Đã hủy" or "Da huy" ? "bg-danger" : "bg-secondary";
+                        var badgeClass = status is "Paid" or "Success" or "CheckedIn" or "Đã thanh toán" or "Da thanh toan" or "Thành công" or "Thanh cong" ? "bg-success" : status is "Cancelled" or "Đã hủy" or "Da huy" ? "bg-danger" : "bg-secondary";
                         <tr>
                             <td>@i</td>
                             <td>@hd.InvoiceId</td>

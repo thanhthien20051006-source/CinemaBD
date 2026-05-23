@@ -70,7 +70,8 @@ public class VoucherController : AdminApiCrudController
     public async Task<IActionResult> Delete(string id, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(id)) return BadRequest("Thiếu mã voucher");
-        await SendAsync(HttpMethod.Delete, $"api/admin/vouchers/{Uri.EscapeDataString(id)}", null, ct);
+        var ok = await SendAsync(HttpMethod.Delete, $"api/admin/vouchers/{Uri.EscapeDataString(id)}", null, ct);
+        if (!ok) return BadRequest("Không vô hiệu hóa được voucher");
         var vouchers = await GetDataAsync<List<AdminVoucherViewModel>>("api/admin/vouchers", ct) ?? new();
         return PartialView("_Table", vouchers);
     }
