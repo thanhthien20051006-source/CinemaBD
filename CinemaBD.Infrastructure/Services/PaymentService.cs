@@ -111,7 +111,7 @@ public class PaymentService : IPaymentService
 
         await EnsureInvoiceAsync(payment, tickets, cancellationToken);
         await _db.SaveChangesAsync(cancellationToken);
-        await _loyaltyPointService.EarnFromPaymentAsync(txnRef, cancellationToken);
+        await TryEarnLoyaltyPointsAsync(txnRef, cancellationToken);
 
         return new PaymentCallbackResult
         {
@@ -214,10 +214,10 @@ public class PaymentService : IPaymentService
 
             await _db.SaveChangesAsync(cancellationToken);
             if (paid)
-                await _loyaltyPointService.EarnFromPaymentAsync(txnRef, cancellationToken);
+                await TryEarnLoyaltyPointsAsync(txnRef, cancellationToken);
             else
             {
-                await _loyaltyPointService.RefundRedeemedPointsAsync(txnRef, cancellationToken);
+                await TryRefundLoyaltyPointsAsync(txnRef, cancellationToken);
                 await _voucherService.ReopenVoucherForFailedPaymentAsync(txnRef, cancellationToken);
             }
         }
@@ -331,11 +331,35 @@ public class PaymentService : IPaymentService
         await _db.SaveChangesAsync(cancellationToken);
         if (!string.IsNullOrWhiteSpace(payment.GatewayTxnRef))
         {
-            await _loyaltyPointService.RefundRedeemedPointsAsync(payment.GatewayTxnRef, cancellationToken);
+            await TryRefundLoyaltyPointsAsync(payment.GatewayTxnRef, cancellationToken);
             await _voucherService.ReopenVoucherForFailedPaymentAsync(payment.GatewayTxnRef, cancellationToken);
         }
         return true;
     }
+    private async Task TryEarnLoyaltyPointsAsync(string txnRef, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _loyaltyPointService.EarnFromPaymentAsync(txnRef, cancellationToken);
+        }
+        catch (Exception ex) when (ex.Message.Contains("TICHDIEM", StringComparison.OrdinalIgnoreCase))
+        {
+            // Database hiện tại chưa có bảng tích điểm; không được làm hỏng luồng thanh toán thành công.
+        }
+    }
+
+    private async Task TryRefundLoyaltyPointsAsync(string txnRef, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _loyaltyPointService.RefundRedeemedPointsAsync(txnRef, cancellationToken);
+        }
+        catch (Exception ex) when (ex.Message.Contains("TICHDIEM", StringComparison.OrdinalIgnoreCase))
+        {
+            // Database hiện tại chưa có bảng tích điểm; bỏ qua rollback điểm.
+        }
+    }
+
     private static string Get(IDictionary<string, string> query, string key)
         => query.TryGetValue(key, out var value) ? value : string.Empty;
 
