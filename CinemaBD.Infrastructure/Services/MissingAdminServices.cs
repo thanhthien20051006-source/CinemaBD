@@ -173,17 +173,33 @@ public class AdminSeatService : IAdminSeatService
     {
         var query = _db.Seats.AsNoTracking().AsQueryable();
         if (!string.IsNullOrWhiteSpace(roomId)) query = query.Where(x => x.MaPhong == roomId);
-        if (!string.IsNullOrWhiteSpace(search)) query = query.Where(x => x.MaGhe.Contains(search));
-        return await query.OrderBy(x => x.MaPhong).ThenBy(x => x.MaGhe).Select(x => new Seat { Id = x.MaGhe, RoomId = x.MaPhong, Row = x.MaGhe.Substring(0, 1), Column = x.MaGhe.Length > 1 ? x.MaGhe.Substring(1) : "", SeatType = x.LoaiGhe, IsBooked = x.TrangThai == "Khóa" || x.TrangThai == "Bảo trì", Status = x.TrangThai ?? "Hoạt động", Price = 0 }).ToListAsync(ct);
+        if (!string.IsNullOrWhiteSpace(search)) query = query.Where(x => x.MaGhe.Contains(search) || x.MaPhong.Contains(search));
+        return await query.OrderBy(x => x.MaPhong).ThenBy(x => x.MaGhe).Select(x => new Seat { Id = x.MaGhe, RoomId = x.MaPhong, Row = x.MaGhe.Substring(0, 1), Column = x.MaGhe.Length > 1 ? x.MaGhe.Substring(1) : "", SeatType = x.LoaiGhe, IsBooked = IsBlockedStatus(x.TrangThai), Status = NormalizeSeatStatus(x.TrangThai), Price = 0 }).ToListAsync(ct);
     }
     public Task<List<Seat>> GetSeatMapAsync(string roomId, CancellationToken ct = default) => GetAllAsync(roomId, null, ct);
-    public async Task<string?> ToggleStatusAsync(string seatId, CancellationToken ct = default)
+    public async Task<string?> ToggleStatusAsync(string seatId, string? roomId = null, CancellationToken ct = default)
     {
-        var seat = await _db.Seats.FirstOrDefaultAsync(x => x.MaGhe == seatId, ct);
+        var query = _db.Seats.AsQueryable().Where(x => x.MaGhe == seatId);
+        if (!string.IsNullOrWhiteSpace(roomId)) query = query.Where(x => x.MaPhong == roomId);
+        var seat = await query.OrderBy(x => x.MaPhong).FirstOrDefaultAsync(ct);
         if (seat == null) return null;
-        seat.TrangThai = seat.TrangThai == "Khóa" ? "Hoạt động" : "Khóa";
+        seat.TrangThai = IsBlockedStatus(seat.TrangThai) ? "Hoạt động" : "Khóa";
         await _db.SaveChangesAsync(ct);
-        return seat.TrangThai;
+        return NormalizeSeatStatus(seat.TrangThai);
+    }
+
+    private static bool IsBlockedStatus(string? status)
+        => string.Equals(status, "Khóa", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(status, "Bảo trì", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(status, "Blocked", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(status, "Inactive", StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizeSeatStatus(string? status)
+    {
+        if (IsBlockedStatus(status)) return "Khóa";
+        return string.IsNullOrWhiteSpace(status) || string.Equals(status, "Trống", StringComparison.OrdinalIgnoreCase)
+            ? "Hoạt động"
+            : status;
     }
 }
 
