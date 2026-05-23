@@ -91,14 +91,14 @@ public class AccountController : Controller
             HttpContext.Session.SetString("AdminRole", admin.Role ?? string.Empty);
             HttpContext.Session.SetString("LoginType", "Admin");
 
-            TempData["Success"] = "�ang nh?p admin th�nh c�ng.";
+            TempData["Success"] = "Đăng nhập admin thành công.";
             return RedirectToAction("Index", "Dashboard", new { area = "Admin" });
         }
 
         var auth = await _apiClient.LoginAsync(model.Username, model.Password, cancellationToken);
         if (auth == null)
         {
-            ViewBag.Error = "�ang nh?p th?t b?i. Ki?m tra l?i t�i kho?n ho?c m?t kh?u.";
+            ViewBag.Error = "Đăng nhập thất bại. Kiểm tra lại tài khoản hoặc mật khẩu.";
             return View(model);
         }
 
@@ -109,7 +109,7 @@ public class AccountController : Controller
         HttpContext.Session.SetString("UserId", auth.UserId);
         HttpContext.Session.SetString("LoginType", "Customer");
 
-        TempData["Success"] = "�ang nh?p th�nh c�ng.";
+        TempData["Success"] = "Đăng nhập thành công.";
         return RedirectToAction("Index", "Home");
     }
     [HttpGet("register")]
@@ -265,8 +265,4 @@ public class AccountController : Controller
     }
 
 }
-
-
-
-
 
