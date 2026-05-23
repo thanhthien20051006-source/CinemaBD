@@ -6,7 +6,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
         <h4 class="mb-1">Quản lý khách hàng</h4>
-        <div class="text-muted small">Tìm kiếm, thêm/sửa/xóa khách hàng</div>
+        <div class="text-muted small">Tìm kiếm, thêm/sửa khách hàng và bảo vệ lịch sử đặt vé</div>
     </div>
     <button class="btn btn-primary" onclick="openCustomerModal()"><i class="bi bi-plus-circle"></i> Thêm khách hàng</button>
 </div>
@@ -48,7 +48,7 @@
                     <td>@(u.BirthDate?.ToString("dd/MM/yyyy") ?? "-")</td>
                     <td class="text-end">
                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="editCustomer('@u.Id')"><i class="bi bi-pencil-square"></i></button>
-                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteCustomer('@u.Id')"><i class="bi bi-trash"></i></button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteCustomer('@u.Id')" title="Xóa nếu chưa có lịch sử"><i class="bi bi-person-x"></i></button>
                     </td>
                 </tr>
             }
@@ -144,13 +144,13 @@ async function saveCustomer(e) {
 }
 
 async function deleteCustomer(id) {
-    if (!confirm('Xóa khách hàng này?')) return;
+    if (!confirm('Xóa khách hàng này? Khách đã có vé/hóa đơn sẽ được hệ thống bảo vệ lịch sử và không xóa cứng.')) return;
     const body = new FormData();
     body.append('id', id);
     const res = await fetch('/Admin/Users/DeleteAjax', { method: 'POST', body, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     const data = await res.json();
     if (data.success) document.getElementById('row-' + id)?.remove();
-    else alert(data.message || 'Không xóa được khách hàng');
+    else alert(data.message || 'Không xóa được khách hàng vì có lịch sử vé/hóa đơn.');
 }
 
 function setCustomerMessage(text, success) {
