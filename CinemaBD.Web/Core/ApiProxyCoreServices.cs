@@ -1,5 +1,5 @@
-﻿using System.Net.Http.Json;
-using System.Text.Json;
+﻿using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using CinemaBD.Web.Models;
 
 namespace CinemaBD.Web.Core;
@@ -24,6 +24,7 @@ public class ApiAuthCoreService : IAuthCoreService
     private async Task<T?> GetWithUserAsync<T>(string url, string userId, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userId);
         request.Headers.TryAddWithoutValidation("X-User-Id", userId);
         using var response = await _http.SendAsync(request, ct);
         if (!response.IsSuccessStatusCode) return default;
@@ -63,6 +64,7 @@ public class ApiBookingCoreService : IBookingCoreService
     public async Task<CheckoutResponse?> CheckoutAsync(string userId, CheckoutRequest request, CancellationToken cancellationToken = default)
     {
         using var message = new HttpRequestMessage(HttpMethod.Post, "api/bookings/checkout");
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userId);
         message.Headers.TryAddWithoutValidation("X-User-Id", userId);
         message.Content = JsonContent.Create(request);
         using var response = await _http.SendAsync(message, cancellationToken);
