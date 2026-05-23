@@ -98,7 +98,8 @@ public class AdminGheController : AdminApiCrudController
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> ToggleTrangThai(string id, string? maPhong, CancellationToken ct)
     {
-        await SendAsync(HttpMethod.Post, $"api/admin/seats/{Uri.EscapeDataString(id)}/toggle", null, ct);
+        var url = $"api/admin/seats/{Uri.EscapeDataString(id)}/toggle" + (string.IsNullOrWhiteSpace(maPhong) ? "" : $"?roomId={Uri.EscapeDataString(maPhong)}");
+        await SendAsync(HttpMethod.Post, url, null, ct);
         return RedirectToAction(nameof(Index), new { maPhong });
     }
 
@@ -106,7 +107,9 @@ public class AdminGheController : AdminApiCrudController
     public async Task<IActionResult> ToggleTrangThaiAjax(string maGhe, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(maGhe)) return Json(new { success = false, message = "Mã ghế không hợp lệ" });
-        using var response = await Http.SendAsync(CreateApiRequest(HttpMethod.Post, $"api/admin/seats/{Uri.EscapeDataString(maGhe)}/toggle"), ct);
+        var roomId = Request.Form["maPhong"].ToString();
+        var url = $"api/admin/seats/{Uri.EscapeDataString(maGhe)}/toggle" + (string.IsNullOrWhiteSpace(roomId) ? "" : $"?roomId={Uri.EscapeDataString(roomId)}");
+        using var response = await Http.SendAsync(CreateApiRequest(HttpMethod.Post, url), ct);
         if (!response.IsSuccessStatusCode) return Json(new { success = false, message = "Không đổi được trạng thái" });
         var text = await response.Content.ReadAsStringAsync(ct);
         string? status = null;

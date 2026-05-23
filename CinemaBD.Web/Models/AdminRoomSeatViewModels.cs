@@ -29,8 +29,9 @@ public class AdminSeatViewModel
     public string Column { get; set; } = string.Empty;
     public string? SeatType { get; set; }
     public bool IsBooked { get; set; }
+    public string? Status { get; set; }
     public decimal Price { get; set; }
-    public string StatusText => IsBooked ? "Bảo trì" : "Hoạt động";
+    public string StatusText => IsBooked ? "Khóa" : "Hoạt động";
 }
 
 public class AdminSeatPageViewModel

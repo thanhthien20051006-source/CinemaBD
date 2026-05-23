@@ -55,6 +55,7 @@
                                 <button type="button"
                                         class="@css"
                                         data-maghe="@seat.Id"
+                                        data-maphong="@seat.RoomId"
                                         title="@($"{SeatLabel(seat.Id)} - {seat.SeatType} - {seat.StatusText}")">
                                     @SeatLabel(seat.Id)
                                 </button>
@@ -67,9 +68,9 @@
             <div class="cinema-seat-legend">
                 <span class="cinema-legend-pill"><span class="cinema-legend-dot cinema-legend-normal"></span> Ghế thường</span>
                 <span class="cinema-legend-pill"><span class="cinema-legend-dot cinema-legend-vip"></span> Ghế VIP</span>
-                <span class="cinema-legend-pill"><span class="cinema-legend-dot cinema-legend-maintenance"></span> Bảo trì</span>
+                <span class="cinema-legend-pill"><span class="cinema-legend-dot cinema-legend-maintenance"></span> Khóa</span>
             </div>
-            <div class="text-center text-muted small mt-2">Bấm vào ghế để bật/tắt trạng thái bảo trì.</div>
+            <div class="text-center text-muted small mt-2">Bấm vào ghế để bật/tắt trạng thái khóa.</div>
         }
         else
         {
@@ -90,7 +91,7 @@ $(function () {
         $.ajax({
             url: '@Url.Action("ToggleTrangThaiAjax", "AdminGhe", new { area = "Admin" })',
             type: 'POST',
-            data: { maGhe: btn.data('maghe') },
+            data: { maGhe: btn.data('maghe'), maPhong: btn.data('maphong') },
             success: function (res) {
                 if (!res.success) return alert(res.message || 'Không đổi được trạng thái');
                 btn.toggleClass('cinema-seat-maintenance');

@@ -26,7 +26,7 @@
             </div>
             <div class="col-md-5">
                 <div class="input-group">
-                    <input name="search" value="@Model.Search" class="form-control" placeholder="Tìm kiếm theo tên ghế..." />
+                    <input name="search" value="@Model.Search" class="form-control" placeholder="Tìm theo mã ghế hoặc mã phòng..." />
                     <button class="btn btn-primary"><i class="bi bi-search"></i> Tìm kiếm</button>
                 </div>
             </div>
@@ -56,8 +56,8 @@
                                 <form asp-area="Admin" asp-controller="AdminGhe" asp-action="ToggleTrangThai" method="post" class="d-inline">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@g.Id" />
-                                    <input type="hidden" name="maPhong" value="@Model.RoomId" />
-                                    <button class="btn btn-sm @(isActive ? "btn-success" : "btn-warning")">@(isActive ? "Hoạt động" : "Bảo trì")</button>
+                                    <input type="hidden" name="maPhong" value="@(Model.RoomId ?? g.RoomId)" />
+                                    <button class="btn btn-sm @(isActive ? "btn-success" : "btn-warning")">@(isActive ? "Hoạt động" : "Khóa")</button>
                                 </form>
                             </td>
                         </tr>
