@@ -1,6 +1,5 @@
 ﻿using CinemaBD.Application.Interfaces;
 using CinemaBD.Domain.Entities;
-using CinemaBD.Infrastructure.Payments;
 using CinemaBD.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -63,9 +62,10 @@ public class CustomerProfileService : ICustomerProfileService
 
     public async Task<List<CustomerHistory>> GetHistoryAsync(string customerId, CancellationToken ct = default)
     {
+        var paidStatuses = GetPaidStatuses();
         var payments = await _db.Payments
             .AsNoTracking()
-            .Where(p => PaymentStatuses.IsPaid(p.TrangThai))
+            .Where(p => paidStatuses.Contains(p.TrangThai ?? string.Empty))
             .Join(_db.Tickets.AsNoTracking(),
                 payment => payment.GatewayTxnRef,
                 ticket => ticket.GatewayTxnRef,
@@ -102,9 +102,10 @@ public class CustomerProfileService : ICustomerProfileService
 
     public async Task<decimal> GetTotalSpendingAsync(string customerId, int year, CancellationToken ct = default)
     {
+        var paidStatuses = GetPaidStatuses();
         return await _db.Payments
             .AsNoTracking()
-            .Where(p => PaymentStatuses.IsPaid(p.TrangThai) && (p.PayDate ?? p.NgayDat).Year == year)
+            .Where(p => paidStatuses.Contains(p.TrangThai ?? string.Empty) && (p.PayDate ?? p.NgayDat).Year == year)
             .Join(_db.Tickets.AsNoTracking(),
                 payment => payment.GatewayTxnRef,
                 ticket => ticket.GatewayTxnRef,
@@ -118,6 +119,18 @@ public class CustomerProfileService : ICustomerProfileService
                 (txnRef, payment) => payment.SoTien)
             .SumAsync(ct);
     }
+
+    private static string[] GetPaidStatuses() =>
+    [
+        "Paid",
+        "Success",
+        "CheckedIn",
+        "Thành công",
+        "Thanh cong",
+        "Đã thanh toán",
+        "Da thanh toan",
+        "Dã thanh toán"
+    ];
 }
 
 
