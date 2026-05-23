@@ -134,6 +134,30 @@ public class AdminVoucherService : IAdminVoucherService
         return Math.Min(subtotal, Math.Max(0, discount));
     }
 
+    public async Task<int> ReopenVoucherForFailedPaymentAsync(string txnRef, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(txnRef)) return 0;
+
+        var payment = await _db.Payments.AsNoTracking().FirstOrDefaultAsync(x => x.GatewayTxnRef == txnRef, ct);
+        if (payment == null || !(string.Equals(payment.TrangThai, "Failed", StringComparison.OrdinalIgnoreCase) || string.Equals(payment.TrangThai, "Expired", StringComparison.OrdinalIgnoreCase)))
+            return 0;
+
+        var vouchers = await _db.Vouchers
+            .Where(x => x.GatewayTxnRef == txnRef && x.DaSuDung == true && x.MaKH != "ALL" && x.MaKH != "*")
+            .ToListAsync(ct);
+        if (vouchers.Count == 0) return 0;
+
+        foreach (var voucher in vouchers)
+        {
+            voucher.DaSuDung = false;
+            voucher.NgaySuDung = null;
+            voucher.GatewayTxnRef = null;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return vouchers.Count;
+    }
+
     private static Voucher MapVoucher(LegacyVoucher v, string? customerName) => new()
     {
         Id = v.MaVoucher,
