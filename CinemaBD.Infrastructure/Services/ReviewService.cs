@@ -17,13 +17,14 @@ public class ReviewService : IReviewService
                       join c in _db.Customers.AsNoTracking() on r.MaKH equals c.MaKH into customerJoin
                       from c in customerJoin.DefaultIfEmpty()
                       where r.MaPhim == movieId
+                         && !EF.Functions.Like(r.NoiDung, "[Đã ẩn]%")
                       orderby r.NgayTao descending
                       select new Review
                       {
                           Id = r.MaDG,
                           MovieId = r.MaPhim,
                           CustomerId = r.MaKH,
-                          Content = r.NoiDung,
+                          Content = NormalizeContent(r.NoiDung),
                           Rating = 5,
                           IsHidden = false,
                           CreatedAt = r.NgayTao,
@@ -41,7 +42,7 @@ public class ReviewService : IReviewService
         if (existing)
             return Deny(movieId, customerId, "Bạn đã đánh giá phim này rồi.");
 
-        var paidStatuses = new[] { "Paid", "Success", "Thành công", "Đã thanh toán" };
+        var paidStatuses = new[] { "Paid", "Success", "Thành công", "Đã thanh toán", "CheckedIn" };
         var now = DateTime.Now;
         var watched = await (from v in _db.Tickets.AsNoTracking()
                              join s in _db.Showtimes.AsNoTracking() on v.MaSuatChieu equals s.MaSuatChieu
@@ -55,7 +56,13 @@ public class ReviewService : IReviewService
         if (!watched)
             return Deny(movieId, customerId, "Chỉ khách đã xem phim này mới được đánh giá.");
 
-        return new Review { MovieId = movieId, CustomerId = customerId, CanReview = true, ReviewRuleMessage = "Bạn có thể đánh giá phim này." };
+        return new Review
+        {
+            MovieId = movieId,
+            CustomerId = customerId,
+            CanReview = true,
+            ReviewRuleMessage = "Bạn có thể đánh giá phim này."
+        };
     }
 
     public async Task<Review> CreateAsync(string movieId, string customerId, string content, int rating, CancellationToken ct = default)
@@ -92,6 +99,17 @@ public class ReviewService : IReviewService
             CanReview = false,
             ReviewRuleMessage = "Gửi đánh giá thành công."
         };
+    }
+
+    internal static bool IsHiddenContent(string? content) =>
+        (content ?? string.Empty).TrimStart().StartsWith("[Đã ẩn]", StringComparison.OrdinalIgnoreCase);
+
+    internal static string NormalizeContent(string? content)
+    {
+        var value = content ?? string.Empty;
+        return IsHiddenContent(value)
+            ? value.TrimStart().Substring("[Đã ẩn]".Length).TrimStart()
+            : value;
     }
 
     private static Review Deny(string movieId, string customerId, string message) => new()
