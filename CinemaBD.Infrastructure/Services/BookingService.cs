@@ -96,7 +96,7 @@ public class BookingService : IBookingService
         return new SeatHoldResult { Success = true, ShowtimeId = showtimeId, Message = "Đã nhả ghế.", HeldSeats = ownPendingTickets.Select(x => x.MaGhe).ToList() };
     }
 
-    public async Task<CheckoutResult> CreateCheckoutAsync(string userId, string showtimeId, List<string> seats, string? combos, decimal totalAmount, CancellationToken cancellationToken = default)
+    public async Task<CheckoutResult> CreateCheckoutAsync(string userId, string showtimeId, List<string> seats, string? combos, decimal totalAmount, string? returnUrl = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(showtimeId))
             throw new ArgumentException("Thiếu mã suất chiếu.");
@@ -229,7 +229,7 @@ public class BookingService : IBookingService
         await _db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        var paymentUrl = _vnPayUrlBuilder.Build(payableAmount, txnRef, ipAddress: "127.0.0.1");
+        var paymentUrl = _vnPayUrlBuilder.Build(payableAmount, txnRef, ipAddress: "127.0.0.1", returnUrl);
 
         return new CheckoutResult
         {

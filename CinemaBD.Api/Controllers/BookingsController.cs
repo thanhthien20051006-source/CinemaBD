@@ -61,7 +61,8 @@ public class BookingsController : ControllerBase
         if (string.IsNullOrWhiteSpace(userId))
             return Unauthorized(new ApiResponse<object>(false, "Không xác định được người dùng", null));
 
-        var result = await _bookingService.CreateCheckoutAsync(userId, request.ShowtimeId, request.Seats, request.Combos, request.TotalAmount, cancellationToken);
+        var returnUrl = Request.Headers.TryGetValue("X-Return-Url", out var headerReturnUrl) ? headerReturnUrl.ToString() : null;
+        var result = await _bookingService.CreateCheckoutAsync(userId, request.ShowtimeId, request.Seats, request.Combos, request.TotalAmount, returnUrl, cancellationToken);
         var response = new CheckoutResponse(result.TransactionRef, result.PaymentUrl, result.TotalAmount);
         return Ok(new ApiResponse<object>(true, "Tạo phiên thanh toán thành công", response));
     }

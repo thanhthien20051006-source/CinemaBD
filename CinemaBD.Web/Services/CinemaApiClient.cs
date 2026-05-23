@@ -191,9 +191,11 @@ public class CinemaApiClient
         return payload?.Data;
     }
 
-    public async Task<(string TransactionRef, string PaymentUrl, decimal TotalAmount)?> CheckoutAsync(string token, string showtimeId, IReadOnlyList<string> seats, string? combos, decimal totalAmount, CancellationToken cancellationToken = default)
+    public async Task<(string TransactionRef, string PaymentUrl, decimal TotalAmount)?> CheckoutAsync(string token, string showtimeId, IReadOnlyList<string> seats, string? combos, decimal totalAmount, string? returnUrl = null, CancellationToken cancellationToken = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, "api/bookings/checkout");
+        if (!string.IsNullOrWhiteSpace(returnUrl))
+            request.Headers.TryAddWithoutValidation("X-Return-Url", returnUrl);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         request.Headers.TryAddWithoutValidation("X-User-Id", token);
         request.Content = new StringContent(JsonSerializer.Serialize(new

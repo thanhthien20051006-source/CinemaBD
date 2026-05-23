@@ -4,7 +4,7 @@ namespace CinemaBD.Application.Interfaces;
 
 public interface IBookingService
 {
-    Task<CheckoutResult> CreateCheckoutAsync(string userId, string showtimeId, List<string> seats, string? combos, decimal totalAmount, CancellationToken cancellationToken = default);
+    Task<CheckoutResult> CreateCheckoutAsync(string userId, string showtimeId, List<string> seats, string? combos, decimal totalAmount, string? returnUrl = null, CancellationToken cancellationToken = default);
     Task<IReadOnlyCollection<string>> GetBookedSeatsAsync(string showtimeId, CancellationToken cancellationToken = default);
     Task<SeatHoldResult> HoldSeatsAsync(string userId, string showtimeId, List<string> seats, CancellationToken cancellationToken = default);
     Task<SeatHoldResult> ReleaseSeatsAsync(string userId, string showtimeId, List<string> seats, CancellationToken cancellationToken = default);
