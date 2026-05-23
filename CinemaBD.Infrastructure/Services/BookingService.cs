@@ -332,7 +332,7 @@ public class BookingService : IBookingService
     {
         return await _db.Tickets
             .AsNoTracking()
-            .Where(v => v.MaSuatChieu == showtimeId && (v.TrangThai == "Paid" || (v.TrangThai == "Pending" && v.NgayDat > DateTime.Now.Subtract(SeatHoldDuration))))
+            .Where(v => v.MaSuatChieu == showtimeId && (v.TrangThai == "Paid" || v.TrangThai == "CheckedIn" || (v.TrangThai == "Pending" && v.NgayDat > DateTime.Now.Subtract(SeatHoldDuration))))
             .Select(v => v.MaGhe)
             .ToListAsync(cancellationToken);
     }
@@ -355,7 +355,7 @@ public class BookingService : IBookingService
         var tickets = await ticketsQuery.ToListAsync(cancellationToken);
         if (!tickets.Any())
             return new RefundRequestResult { Success = false, Message = "Không tìm thấy vé đã thanh toán để hủy." };
-        if (tickets.Any(x => x.DaCheckIn == true))
+        if (tickets.Any(x => x.TrangThai == "CheckedIn"))
             return new RefundRequestResult { Success = false, Message = "Vé đã check-in nên không thể hủy." };
 
         var showtime = await _db.Showtimes.AsNoTracking().FirstOrDefaultAsync(x => x.MaSuatChieu == tickets.First().MaSuatChieu, cancellationToken);
@@ -471,8 +471,8 @@ public class BookingService : IBookingService
                     SeatId = v.MaGhe,
                     Price = v.GiaVe,
                     Status = v.TrangThai,
-                    IsCheckedIn = v.DaCheckIn == true,
-                    CheckedInAt = v.ThoiGianCheckIn
+                    IsCheckedIn = v.TrangThai == "CheckedIn",
+                    CheckedInAt = v.TrangThai == "CheckedIn" ? v.NgayDat : null
                 })
                 .ToList(),
             Combos = combos.Select(c =>

@@ -240,8 +240,7 @@ public class PaymentService : IPaymentService
             invoice = new LegacyInvoice
             {
                 MaHD = "HD" + DateTime.Now.Ticks,
-                GatewayTxnRef = payment.GatewayTxnRef,
-                DaCheckIn = false
+                GatewayTxnRef = payment.GatewayTxnRef
             };
             _db.Invoices.Add(invoice);
         }

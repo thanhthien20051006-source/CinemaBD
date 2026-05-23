@@ -23,6 +23,10 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<LegacyRoom>()
             .Ignore(x => x.MaRap);
 
+        modelBuilder.Entity<LegacyInvoice>()
+            .Ignore(x => x.DaCheckIn)
+            .Ignore(x => x.ThoiGianCheckIn);
+
         modelBuilder.Entity<LegacyTicket>()
             .Ignore(x => x.DaCheckIn)
             .Ignore(x => x.ThoiGianCheckIn);

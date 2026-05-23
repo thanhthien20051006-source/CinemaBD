@@ -93,7 +93,7 @@ public class CustomerProfileService : ICustomerProfileService
                 Status = g.Select(x => x.payment.TrangThai).FirstOrDefault(),
                 PaymentDate = g.Select(x => x.payment.PayDate ?? x.payment.NgayDat).FirstOrDefault(),
                 TicketCount = g.Select(x => x.ticket.MaVe).Distinct().Count(),
-                CheckedInCount = g.Count(x => x.ticket.DaCheckIn == true),
+                CheckedInCount = g.Count(x => x.ticket.TrangThai == "CheckedIn"),
                 SeatIds = g.Select(x => x.ticket.MaGhe).OrderBy(x => x).ToList()
             })
             .OrderByDescending(x => x.PaymentDate)
