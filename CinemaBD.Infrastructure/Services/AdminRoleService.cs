@@ -66,6 +66,9 @@ public class AdminRoleService : IAdminRoleService
         if (await _db.Roles.AnyAsync(x => x.TenChucVu == role.Name && x.MaCV != id, cancellationToken))
             throw new InvalidOperationException("Tên chức vụ đã tồn tại.");
 
+        if (entity.IsMaster && !role.IsMaster)
+            throw new InvalidOperationException("Không thể bỏ quyền master của chức vụ hệ thống.");
+
         entity.TenChucVu = role.Name;
         entity.IsMaster = role.IsMaster;
         entity.IsActive = role.IsActive;
@@ -80,6 +83,23 @@ public class AdminRoleService : IAdminRoleService
         var entity = await _db.Roles.FirstOrDefaultAsync(x => x.MaCV == id, cancellationToken);
         if (entity == null)
             return false;
+
+        if (entity.IsMaster)
+            throw new InvalidOperationException("Không thể xóa chức vụ hệ thống/master.");
+
+        var isUsedByEmployee = await _db.Employees.AnyAsync(x => x.MaCV == id, cancellationToken);
+        var isUsedByAdmin = await _db.Admins.AnyAsync(x => x.MaCV == id, cancellationToken);
+        if (isUsedByEmployee || isUsedByAdmin)
+        {
+            entity.IsActive = false;
+            entity.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
+        var permissions = await _db.RolePermissions.Where(x => x.MaCV == id).ToListAsync(cancellationToken);
+        if (permissions.Count > 0)
+            _db.RolePermissions.RemoveRange(permissions);
 
         _db.Roles.Remove(entity);
         await _db.SaveChangesAsync(cancellationToken);
@@ -106,7 +126,7 @@ public class AdminRoleService : IAdminRoleService
 
     public async Task AssignPermissionAsync(int roleId, int permissionId, CancellationToken cancellationToken = default)
     {
-        var roleExists = await _db.Roles.AnyAsync(x => x.MaCV == roleId, cancellationToken);
+        var roleExists = await _db.Roles.AnyAsync(x => x.MaCV == roleId && x.IsActive, cancellationToken);
         var permissionExists = await _db.Permissions.AnyAsync(x => x.MaCN == permissionId, cancellationToken);
         if (!roleExists || !permissionExists)
             throw new InvalidOperationException("Chức vụ hoặc chức năng không hợp lệ.");

@@ -40,28 +40,49 @@ public class AdminRolesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] AdminRoleUpsertRequest request, CancellationToken cancellationToken)
     {
-        var created = await _service.CreateAsync(new Role { Name = request.Name, IsMaster = request.IsMaster, IsActive = request.IsActive }, cancellationToken);
-        return Ok(new ApiResponse<object>(true, "Tạo chức vụ thành công", new AdminRoleResponse(created.Id, created.Name, created.IsMaster, created.IsActive)));
+        try
+        {
+            var created = await _service.CreateAsync(new Role { Name = request.Name, IsMaster = request.IsMaster, IsActive = request.IsActive }, cancellationToken);
+            return Ok(new ApiResponse<object>(true, "Tạo chức vụ thành công", new AdminRoleResponse(created.Id, created.Name, created.IsMaster, created.IsActive)));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<object>(false, ex.Message, null));
+        }
     }
 
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] AdminRoleUpsertRequest request, CancellationToken cancellationToken)
     {
-        var updated = await _service.UpdateAsync(id, new Role { Name = request.Name, IsMaster = request.IsMaster, IsActive = request.IsActive }, cancellationToken);
-        if (updated == null)
-            return NotFound(new ApiResponse<object>(false, "Không tìm thấy chức vụ để cập nhật", null));
+        try
+        {
+            var updated = await _service.UpdateAsync(id, new Role { Name = request.Name, IsMaster = request.IsMaster, IsActive = request.IsActive }, cancellationToken);
+            if (updated == null)
+                return NotFound(new ApiResponse<object>(false, "Không tìm thấy chức vụ để cập nhật", null));
 
-        return Ok(new ApiResponse<object>(true, "Cập nhật chức vụ thành công", new AdminRoleResponse(updated.Id, updated.Name, updated.IsMaster, updated.IsActive)));
+            return Ok(new ApiResponse<object>(true, "Cập nhật chức vụ thành công", new AdminRoleResponse(updated.Id, updated.Name, updated.IsMaster, updated.IsActive)));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<object>(false, ex.Message, null));
+        }
     }
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        var deleted = await _service.DeleteAsync(id, cancellationToken);
-        if (!deleted)
-            return NotFound(new ApiResponse<object>(false, "Không tìm thấy chức vụ để xóa", null));
+        try
+        {
+            var deleted = await _service.DeleteAsync(id, cancellationToken);
+            if (!deleted)
+                return NotFound(new ApiResponse<object>(false, "Không tìm thấy chức vụ để xóa", null));
 
-        return Ok(new ApiResponse<object>(true, "Xóa chức vụ thành công", null));
+            return Ok(new ApiResponse<object>(true, "Xóa/ngưng hoạt động chức vụ thành công", null));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<object>(false, ex.Message, null));
+        }
     }
 
     [HttpGet("permissions")]
@@ -83,8 +104,15 @@ public class AdminRolesController : ControllerBase
     [HttpPost("permissions/assign")]
     public async Task<IActionResult> AssignPermission([FromBody] AdminPermissionAssignRequest request, CancellationToken cancellationToken)
     {
-        await _service.AssignPermissionAsync(request.RoleId, request.PermissionId, cancellationToken);
-        return Ok(new ApiResponse<object>(true, "Gán quyền thành công", null));
+        try
+        {
+            await _service.AssignPermissionAsync(request.RoleId, request.PermissionId, cancellationToken);
+            return Ok(new ApiResponse<object>(true, "Gán quyền thành công", null));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<object>(false, ex.Message, null));
+        }
     }
 
     [HttpDelete("{roleId:int}/permissions/{permissionId:int}")]
