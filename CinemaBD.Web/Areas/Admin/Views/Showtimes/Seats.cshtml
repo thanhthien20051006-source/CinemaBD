@@ -16,6 +16,8 @@
     .admin-seat.held { border-color: #f59e0b; background: #fef3c7; color: #92400e; }
     .admin-seat.sold { border-color: #ef4444; background: #fee2e2; color: #991b1b; }
     .admin-seat.checked-in { border-color: #16a34a; background: #dcfce7; color: #166534; }
+    .admin-seat.d-none { display: none !important; }
+    .seat-row.d-none { display: none !important; }
     .screen { height: 42px; border-radius: 0 0 50% 50%; background: linear-gradient(90deg,#111827,#64748b,#111827); color: white; display:flex; align-items:center; justify-content:center; letter-spacing: .2rem; font-weight: 800; margin-bottom: 1.5rem; }
     @@media print {
         .sidebar, .navbar, .btn, .no-print { display: none !important; }
@@ -72,6 +74,22 @@
 
 <div class="card border-0 shadow-sm">
     <div class="card-body">
+        <div class="no-print mb-3">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <div class="btn-group btn-group-sm flex-wrap" role="group" aria-label="Lọc trạng thái ghế">
+                    <button type="button" class="btn btn-primary seat-filter-btn active" data-filter-type="all" data-filter-value="all">Tất cả</button>
+                    <button type="button" class="btn btn-outline-success seat-filter-btn" data-filter-type="status" data-filter-value="Available">Trống</button>
+                    <button type="button" class="btn btn-outline-warning seat-filter-btn" data-filter-type="type" data-filter-value="VIP">VIP</button>
+                    <button type="button" class="btn btn-outline-warning seat-filter-btn" data-filter-type="status" data-filter-value="Held">Đang giữ</button>
+                    <button type="button" class="btn btn-outline-danger seat-filter-btn" data-filter-type="status" data-filter-value="Sold">Đã bán</button>
+                    <button type="button" class="btn btn-outline-primary seat-filter-btn" data-filter-type="status" data-filter-value="CheckedIn">Check-in</button>
+                </div>
+                <div class="ms-md-auto" style="min-width:220px">
+                    <input type="search" id="seatSearch" class="form-control form-control-sm" placeholder="Tìm mã ghế: A1, B5..." />
+                </div>
+                <div class="text-muted small" id="seatFilterCount"></div>
+            </div>
+        </div>
         <div class="screen">MÀN HÌNH</div>
         @if (!Model.Seats.Any())
         {
@@ -82,7 +100,7 @@
             <div class="seat-map">
                 @foreach (var row in rows)
                 {
-                    <div class="seat-row">
+                    <div class="seat-row" data-seat-row="@row.Key">
                         <div class="seat-row-label">@row.Key</div>
                         @foreach (var seat in row.OrderBy(x => x.Column))
                         {
@@ -94,7 +112,7 @@
                                 : status.Equals("CheckedIn", StringComparison.OrdinalIgnoreCase) ? "Đã check-in"
                                 : "Trống";
                             var seatClass = status.Equals("Available", StringComparison.OrdinalIgnoreCase) && isVip ? "vip" : statusClass;
-                            <div class="admin-seat @seatClass" title="@seat.Row@seat.Column - @seat.SeatType - @label">
+                            <div class="admin-seat @seatClass" data-status="@status" data-seat-type="@seat.SeatType" data-seat-code="@(seat.Row)@(seat.Column)" title="@seat.Row@seat.Column - @seat.SeatType - @label">
                                 @seat.Row@seat.Column
                             </div>
                         }
@@ -111,3 +129,64 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        (() => {
+            const seats = Array.from(document.querySelectorAll(".admin-seat[data-seat-code]"));
+            const rows = Array.from(document.querySelectorAll(".seat-row[data-seat-row]"));
+            const buttons = Array.from(document.querySelectorAll(".seat-filter-btn"));
+            const search = document.getElementById("seatSearch");
+            const count = document.getElementById("seatFilterCount");
+            let activeType = "all";
+            let activeValue = "all";
+
+            const normalize = value => (value || "").toString().trim().toLowerCase();
+
+            function applyFilter() {
+                const keyword = normalize(search?.value);
+                let visible = 0;
+
+                seats.forEach(seat => {
+                    const status = normalize(seat.dataset.status);
+                    const seatType = normalize(seat.dataset.seatType);
+                    const code = normalize(seat.dataset.seatCode);
+                    const filterValue = normalize(activeValue);
+
+                    const matchFilter = activeType === "all"
+                        || (activeType === "status" && status === filterValue)
+                        || (activeType === "type" && seatType === filterValue);
+                    const matchSearch = !keyword || code.includes(keyword);
+                    const show = matchFilter && matchSearch;
+
+                    seat.classList.toggle("d-none", !show);
+                    if (show) visible++;
+                });
+
+                rows.forEach(row => {
+                    const hasVisibleSeat = Array.from(row.querySelectorAll(".admin-seat[data-seat-code]")).some(seat => !seat.classList.contains("d-none"));
+                    row.classList.toggle("d-none", !hasVisibleSeat);
+                });
+
+                if (count) count.textContent = `Hiển thị ${visible}/${seats.length} ghế`;
+            }
+
+            buttons.forEach(button => {
+                button.addEventListener("click", () => {
+                    activeType = button.dataset.filterType || "all";
+                    activeValue = button.dataset.filterValue || "all";
+                    buttons.forEach(btn => {
+                        btn.classList.remove("active", "btn-primary");
+                        if (!btn.className.includes("btn-outline")) btn.classList.add("btn-outline-secondary");
+                    });
+                    button.classList.add("active", "btn-primary");
+                    button.classList.remove("btn-outline-secondary", "btn-outline-success", "btn-outline-warning", "btn-outline-danger", "btn-outline-primary");
+                    applyFilter();
+                });
+            });
+
+            search?.addEventListener("input", applyFilter);
+            applyFilter();
+        })();
+    </script>
+}
