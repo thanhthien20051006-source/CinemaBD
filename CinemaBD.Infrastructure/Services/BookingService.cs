@@ -12,11 +12,15 @@ public class BookingService : IBookingService
     private readonly AppDbContext _db;
     private static readonly TimeSpan SeatHoldDuration = TimeSpan.FromMinutes(5);
     private readonly VnPayUrlBuilder _vnPayUrlBuilder;
+    private readonly ILoyaltyPointService _loyaltyPointService;
+    private readonly IAdminVoucherService _voucherService;
 
-    public BookingService(AppDbContext db, VnPayUrlBuilder vnPayUrlBuilder)
+    public BookingService(AppDbContext db, VnPayUrlBuilder vnPayUrlBuilder, ILoyaltyPointService loyaltyPointService, IAdminVoucherService voucherService)
     {
         _db = db;
         _vnPayUrlBuilder = vnPayUrlBuilder;
+        _loyaltyPointService = loyaltyPointService;
+        _voucherService = voucherService;
     }
 
     public async Task<SeatHoldResult> HoldSeatsAsync(string userId, string showtimeId, List<string> seats, CancellationToken cancellationToken = default)
@@ -326,7 +330,15 @@ public class BookingService : IBookingService
         foreach (var payment in payments)
             payment.TrangThai = "Expired";
 
-        return await _db.SaveChangesAsync(cancellationToken);
+        var changed = await _db.SaveChangesAsync(cancellationToken);
+
+        foreach (var txnRef in txnRefs)
+        {
+            await _loyaltyPointService.RefundRedeemedPointsAsync(txnRef!, cancellationToken);
+            await _voucherService.ReopenVoucherForFailedPaymentAsync(txnRef!, cancellationToken);
+        }
+
+        return changed;
     }
     public async Task<IReadOnlyCollection<string>> GetBookedSeatsAsync(string showtimeId, CancellationToken cancellationToken = default)
     {
