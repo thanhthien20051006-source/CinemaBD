@@ -18,7 +18,9 @@ public class CombosController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> Get(CancellationToken ct)
     {
-        var combos = await _comboService.GetAllAsync(ct);
+        var combos = (await _comboService.GetAllAsync(ct))
+            .Where(x => !x.Name.StartsWith("[Ngưng bán]", StringComparison.OrdinalIgnoreCase))
+            .ToList();
         return Ok(new ApiResponse<object>(true, "OK", combos));
     }
 
@@ -26,7 +28,7 @@ public class CombosController : ControllerBase
     public async Task<IActionResult> GetById(string id, CancellationToken ct)
     {
         var combo = await _comboService.GetByIdAsync(id, ct);
-        if (combo == null) return NotFound(new ApiResponse<object>(false, "Không tìm thấy combo", null));
+        if (combo == null || combo.Name.StartsWith("[Ngưng bán]", StringComparison.OrdinalIgnoreCase)) return NotFound(new ApiResponse<object>(false, "Không tìm thấy combo", null));
         return Ok(new ApiResponse<object>(true, "OK", combo));
     }
 }

@@ -27,8 +27,8 @@ public class AdminDichVuController : AdminApiCrudController
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(AdminComboEditViewModel model, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(model.Id)) return BadRequest("Mã combo không được để trống");
         if (string.IsNullOrWhiteSpace(model.Name)) return BadRequest("Tên dịch vụ không được để trống");
+        if (model.Price < 0) return BadRequest("Giá dịch vụ không được âm");
         var body = new { model.Id, model.Name, model.Price, model.Description, model.ImageUrl };
         var existing = await GetDataAsync<AdminComboEditViewModel>($"api/admin/combos/{Uri.EscapeDataString(model.Id)}", ct);
         var ok = existing == null
