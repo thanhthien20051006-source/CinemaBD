@@ -17,19 +17,22 @@ public class BookingController : Controller
     private readonly IInvoiceNotificationService _invoiceNotificationService;
     private readonly ITicketPdfService _ticketPdfService;
     private readonly IWebHostEnvironment _environment;
+    private readonly IConfiguration _configuration;
 
     public BookingController(
         CinemaApiClient apiClient,
         IMomoService momoService,
         IInvoiceNotificationService invoiceNotificationService,
         ITicketPdfService ticketPdfService,
-        IWebHostEnvironment environment)
+        IWebHostEnvironment environment,
+        IConfiguration configuration)
     {
         _apiClient = apiClient;
         _momoService = momoService;
         _invoiceNotificationService = invoiceNotificationService;
         _ticketPdfService = ticketPdfService;
         _environment = environment;
+        _configuration = configuration;
     }
 
     [HttpGet("select")]
@@ -156,7 +159,7 @@ public class BookingController : Controller
         await NormalizeCheckoutLoyaltyAsync(token, model, cancellationToken);
 
         // Use SeatIds for the API call
-        var result = await _apiClient.CheckoutAsync(token, model.ShowtimeId, model.SeatIds, model.Combos, model.TotalAmount, cancellationToken);
+        var result = await _apiClient.CheckoutAsync(token, model.ShowtimeId, model.SeatIds, model.Combos, model.TotalAmount, GetPublicPaymentReturnUrl(), cancellationToken);
         if (result == null)
         {
             TempData["CheckoutMessage"] = "Checkout chưa thành công. Vui lòng kiểm tra lại thông tin hoặc đăng nhập lại.";
@@ -195,7 +198,7 @@ public class BookingController : Controller
         await NormalizeCheckoutLoyaltyAsync(token, model, cancellationToken);
 
         // Tao booking truoc, lay txnRef
-        var result = await _apiClient.CheckoutAsync(token, model.ShowtimeId, model.SeatIds, model.Combos, model.TotalAmount, cancellationToken);
+        var result = await _apiClient.CheckoutAsync(token, model.ShowtimeId, model.SeatIds, model.Combos, model.TotalAmount, GetPublicPaymentReturnUrl(), cancellationToken);
         if (result == null)
         {
             TempData["CheckoutMessage"] = "Không thể tạo đơn hàng. Vui lòng thử lại.";
@@ -316,6 +319,16 @@ public class BookingController : Controller
     }
 
 
+
+    private string GetPublicPaymentReturnUrl()
+    {
+        var configured = _configuration["PaymentSettings:ReturnUrl"];
+        if (!string.IsNullOrWhiteSpace(configured) && !configured.Contains("localhost", StringComparison.OrdinalIgnoreCase))
+            return configured;
+
+        return Url.Action(nameof(PaymentReturn), "Booking", null, Request.Scheme, Request.Host.ToString())
+               ?? "http://localhost:7188/booking/payment-return";
+    }
     private async Task NormalizeCheckoutLoyaltyAsync(string token, CheckoutPageViewModel model, CancellationToken cancellationToken)
     {
         model.LoyaltyDiscountAmount = 0;
@@ -423,6 +436,7 @@ public class BookingController : Controller
         return $"data:image/png;base64,{Convert.ToBase64String(qrPng)}";
     }
 }
+
 
 
 

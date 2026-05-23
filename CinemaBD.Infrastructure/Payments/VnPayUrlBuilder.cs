@@ -12,10 +12,13 @@ public sealed class VnPayUrlBuilder
     }
 
     public string Build(decimal totalAmount, string txnRef, string ipAddress)
+        => Build(totalAmount, txnRef, ipAddress, null);
+
+    public string Build(decimal totalAmount, string txnRef, string ipAddress, string? returnUrlOverride)
     {
         var baseUrl = GetRequired("VnPay:BaseUrl");
         var tmnCode = GetRequired("VnPay:TmnCode");
-        var returnUrl = GetRequired("VnPay:ReturnUrl");
+        var returnUrl = string.IsNullOrWhiteSpace(returnUrlOverride) ? GetRequired("VnPay:ReturnUrl") : returnUrlOverride.Trim();
         var secret = GetRequired("VnPay:HashSecret");
 
         var now = GetVietnamNow();
