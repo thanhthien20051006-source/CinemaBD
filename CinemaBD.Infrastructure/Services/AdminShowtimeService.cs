@@ -1,4 +1,4 @@
-using CinemaBD.Application.Interfaces;
+﻿using CinemaBD.Application.Interfaces;
 using CinemaBD.Domain.Entities;
 using CinemaBD.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +12,7 @@ public class AdminShowtimeService : IAdminShowtimeService
     private static readonly TimeSpan LastShowtime = new(23, 30, 0);
     private static readonly HashSet<string> PaidTicketStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
-        "Paid", "Success", "Thanh cong", "Thanh toán", "Da thanh toan", "Đã thanh toán", "Thành công"
+        "Paid", "Success", "Thanh cong", "Thanh toán", "Da thanh toan", "Đã thanh toán", "Thành công", "CheckedIn"
     };
 
     private readonly AppDbContext _db;
@@ -41,7 +41,7 @@ public class AdminShowtimeService : IAdminShowtimeService
                 ShowtimeId = g.Key,
                 Total = g.Count(),
                 Pending = g.Count(t => t.TrangThai == "Pending"),
-                Paid = g.Count(t => t.TrangThai == "Paid" || t.TrangThai == "Success" || t.TrangThai == "Thành công" || t.TrangThai == "Đã thanh toán" || t.TrangThai == "CheckedIn"),
+                Paid = g.Count(t => PaidTicketStatuses.Contains(t.TrangThai ?? string.Empty)),
                 CheckedIn = g.Count(t => t.TrangThai == "CheckedIn")
             })
             .ToListAsync(cancellationToken);
@@ -174,11 +174,11 @@ public class AdminShowtimeService : IAdminShowtimeService
         if (fromDate < GetVietnamNow().Date)
             fromDate = GetVietnamNow().Date;
         if (toDate < fromDate)
-            throw new InvalidOperationException("Khoang ngay sinh lich khong hop le.");
+            throw new InvalidOperationException("Khoảng ngày sinh lịch không hợp lệ.");
 
         var starts = request.StartTimes.Select(ParseStartTime).Distinct().OrderBy(x => x).ToList();
         if (starts.Count == 0)
-            throw new InvalidOperationException("Chua chon khung gio.");
+            throw new InvalidOperationException("Chưa chọn khung giờ.");
 
         var movieIds = request.MovieIds.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
         var roomIds = request.RoomIds.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
@@ -188,7 +188,7 @@ public class AdminShowtimeService : IAdminShowtimeService
             .OrderBy(r => r.MaPhong)
             .ToListAsync(cancellationToken);
         if (movies.Count == 0 || rooms.Count == 0)
-            throw new InvalidOperationException("Can chon phim va phong de sinh lich.");
+            throw new InvalidOperationException("Cần chọn phim và phòng để sinh lịch.");
 
         for (var date = fromDate; date <= toDate; date = date.AddDays(1))
         {
@@ -219,14 +219,14 @@ public class AdminShowtimeService : IAdminShowtimeService
                         }
                         catch
                         {
-                            // Thu phong tiep theo neu bi trung gio/khong hop le.
+                            // Thử phòng tiếp theo nếu bị trùng giờ/không hợp lệ.
                         }
                     }
 
                     if (!placed)
                     {
                         result.Skipped++;
-                        result.Messages.Add($"Bo qua {date:dd/MM/yyyy} {start:hh\\:mm} - {movie.TenPhim}: het phong trong.");
+                        result.Messages.Add($"Bỏ qua {date:dd/MM/yyyy} {start:hh\\:mm} - {movie.TenPhim}: hết phòng trống.");
                     }
                 }
             }
@@ -293,23 +293,23 @@ public class AdminShowtimeService : IAdminShowtimeService
     private static TimeSpan ValidateShowtime(LegacyMovie movie, LegacyRoom room, DateTime showDate, string startTime, decimal ticketPrice, bool allowTodayPastTime = true)
     {
         if (ticketPrice <= 0)
-            throw new InvalidOperationException("Gia ve phai lon hon 0.");
+            throw new InvalidOperationException("Giá vé phải lớn hơn 0.");
         if (!IsActiveRoomStatus(room.TrangThai))
             throw new InvalidOperationException("Phòng chiếu đang ngưng hoạt động hoặc bảo trì.");
         if (showDate.Date < GetVietnamNow().Date)
-            throw new InvalidOperationException("Khong duoc tao lich trong qua khu.");
+            throw new InvalidOperationException("Không được tạo lịch trong quá khứ.");
         if (!allowTodayPastTime && showDate.Date == GetVietnamNow().Date && ParseStartTime(startTime) <= GetVietnamNow().TimeOfDay)
-            throw new InvalidOperationException("Khong duoc tao lich trong qua khu.");
+            throw new InvalidOperationException("Không được tạo lịch trong quá khứ.");
         if (movie.NgayKhoiChieu.HasValue && showDate.Date < movie.NgayKhoiChieu.Value.Date)
-            throw new InvalidOperationException("Ngay chieu som hon ngay khoi chieu cua phim.");
+            throw new InvalidOperationException("Ngày chiếu sớm hơn ngày khởi chiếu của phim.");
         if (movie.NgayKetThuc.HasValue && showDate.Date > movie.NgayKetThuc.Value.Date)
-            throw new InvalidOperationException("Ngay chieu vuot qua ngay ket thuc cua phim.");
+            throw new InvalidOperationException("Ngày chiếu vượt quá ngày kết thúc của phim.");
 
         var start = ParseStartTime(startTime);
         if (start < FirstShowtime || start > LastShowtime)
-            throw new InvalidOperationException("Gio chieu chi duoc nam trong khoang 08:00 den 23:30.");
+            throw new InvalidOperationException("Giờ chiếu chỉ được nằm trong khoảng 08:00 đến 23:30.");
         if (start.Add(TimeSpan.FromMinutes(movie.ThoiLuong + CleanupMinutes)) > TimeSpan.FromDays(1))
-            throw new InvalidOperationException("Suat chieu vuot qua gio dong cua.");
+            throw new InvalidOperationException("Suất chiếu vượt quá giờ đóng cửa.");
 
         return start;
     }
@@ -330,14 +330,14 @@ public class AdminShowtimeService : IAdminShowtimeService
         {
             var oldEnd = s.GioBatDau.Add(TimeSpan.FromMinutes(s.ThoiLuong + CleanupMinutes));
             if (newStart < oldEnd && s.GioBatDau < newEnd)
-                throw new InvalidOperationException($"Trung lich phong {roomId} voi suat {s.MaSuatChieu}.");
+                throw new InvalidOperationException($"Trùng lịch phòng {roomId} với suất {s.MaSuatChieu}.");
         }
     }
 
     private static bool IsActiveRoomStatus(string? status)
     {
         if (string.IsNullOrWhiteSpace(status)) return true;
-        return string.Equals(status, "Hoạt động", StringComparison.OrdinalIgnoreCase)
+        return string.Equals(status, "Hoáº¡t Ä‘á»™ng", StringComparison.OrdinalIgnoreCase)
                || string.Equals(status, "Hoat dong", StringComparison.OrdinalIgnoreCase)
                || string.Equals(status, "Active", StringComparison.OrdinalIgnoreCase);
     }
@@ -351,7 +351,7 @@ public class AdminShowtimeService : IAdminShowtimeService
     private static TimeSpan ParseStartTime(string startTime)
     {
         if (!TimeSpan.TryParse(startTime, out var start))
-            throw new InvalidOperationException("Gio bat dau khong hop le.");
+            throw new InvalidOperationException("Giờ bắt đầu không hợp lệ.");
         return start;
     }
 
@@ -377,9 +377,9 @@ public class AdminShowtimeService : IAdminShowtimeService
     {
         if (string.IsNullOrWhiteSpace(status) || string.Equals(status, "Active", StringComparison.OrdinalIgnoreCase))
             return "Scheduled";
-        if (string.Equals(status, "Dang chieu", StringComparison.OrdinalIgnoreCase) || string.Equals(status, "Đang chiếu", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(status, "Dang chieu", StringComparison.OrdinalIgnoreCase) || string.Equals(status, "Äang chiáº¿u", StringComparison.OrdinalIgnoreCase))
             return "Selling";
-        if (string.Equals(status, "Huy", StringComparison.OrdinalIgnoreCase) || string.Equals(status, "Đã hủy", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(status, "Huy", StringComparison.OrdinalIgnoreCase) || string.Equals(status, "ÄÃ£ há»§y", StringComparison.OrdinalIgnoreCase))
             return "Cancelled";
         return status;
     }
@@ -398,3 +398,5 @@ public class AdminShowtimeService : IAdminShowtimeService
         }
     }
 }
+
+
