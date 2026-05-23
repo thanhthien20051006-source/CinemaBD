@@ -23,7 +23,7 @@
                         <td>@item.Description</td>
                         <td class="text-end">
                             <button class="btn btn-sm btn-outline-primary" onclick="editGenre(@item.Id)"><i class="bi bi-pencil-square"></i></button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteGenre(@item.Id)"><i class="bi bi-trash"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteGenre(@item.Id)" title="Xóa nếu chưa dùng"><i class="bi bi-trash"></i></button>
                         </td>
                     </tr>
                 }
@@ -99,7 +99,7 @@ async function saveGenre(e) {
 }
 
 async function deleteGenre(id) {
-    if (!confirm('Xóa thể loại này?')) return;
+    if (!confirm('Xóa thể loại này? Chỉ nên xóa khi chưa được phim sử dụng.')) return;
     const res = await fetch('/Admin/TheLoai/DeleteAjax/' + id, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     const data = await res.json();
     if (data.success) document.getElementById('row-' + id).remove();
