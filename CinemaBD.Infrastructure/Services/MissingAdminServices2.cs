@@ -509,22 +509,25 @@ public class AdminStatisticsService : IAdminStatisticsService
     public async Task<RevenueStatistics> GetRevenueAsync(int? year = null, CancellationToken ct = default)
     {
         var selectedYear = year ?? DateTime.Now.Year;
-        var paidStatuses = new[] { "Thành công", "Đã thanh toán", "Paid", "Success" };
+        var paidInvoiceStatuses = new[] { "Đã thanh toán", "Thành công", "Paid", "Success", "CheckedIn" };
+        var paidTicketStatuses = new[] { "Paid", "Success", "Thành công", "Đã thanh toán", "CheckedIn" };
+        var paidPaymentStatuses = new[] { "Thành công", "Đã thanh toán", "Paid", "Success" };
+
         var invoices = await _db.Invoices.AsNoTracking()
-            .Where(x => x.NgayThanhToan.Year == selectedYear && paidStatuses.Contains(x.TrangThai))
+            .Where(x => x.NgayThanhToan.Year == selectedYear && paidInvoiceStatuses.Contains(x.TrangThai))
             .Select(x => new { x.GatewayTxnRef, x.TongTien, x.NgayThanhToan, x.TrangThai })
             .ToListAsync(ct);
 
         var txnRefs = invoices.Select(x => x.GatewayTxnRef).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
         var payments = await _db.Payments.AsNoTracking()
-            .Where(x => x.GatewayTxnRef != null && txnRefs.Contains(x.GatewayTxnRef))
+            .Where(x => x.GatewayTxnRef != null && txnRefs.Contains(x.GatewayTxnRef) && paidPaymentStatuses.Contains(x.TrangThai))
             .Select(x => new { x.GatewayTxnRef, Method = x.PaymentGateway ?? x.HinhThuc ?? "Khác", x.SoTien })
             .ToListAsync(ct);
 
         var ticketRows = await (from t in _db.Tickets.AsNoTracking()
                                 join s in _db.Showtimes.AsNoTracking() on t.MaSuatChieu equals s.MaSuatChieu
                                 join m in _db.Movies.AsNoTracking() on s.MaPhim equals m.MaPhim
-                                where t.GatewayTxnRef != null && txnRefs.Contains(t.GatewayTxnRef)
+                                where t.GatewayTxnRef != null && txnRefs.Contains(t.GatewayTxnRef) && paidTicketStatuses.Contains(t.TrangThai)
                                 select new { t.GatewayTxnRef, Movie = m.TenPhim, t.GiaVe, t.TrangThai })
             .ToListAsync(ct);
 
@@ -538,7 +541,7 @@ public class AdminStatisticsService : IAdminStatisticsService
         var customerRows = await (from h in _db.Invoices.AsNoTracking()
                                   join kh in _db.Customers.AsNoTracking() on h.MaKH equals kh.MaKH into khJoin
                                   from kh in khJoin.DefaultIfEmpty()
-                                  where h.NgayThanhToan.Year == selectedYear && paidStatuses.Contains(h.TrangThai)
+                                  where h.NgayThanhToan.Year == selectedYear && paidInvoiceStatuses.Contains(h.TrangThai)
                                   select new { Customer = kh != null ? kh.HoTen : h.MaKH, h.TongTien })
             .ToListAsync(ct);
 
