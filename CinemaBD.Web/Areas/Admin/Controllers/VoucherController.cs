@@ -60,7 +60,7 @@ public class VoucherController : AdminApiCrudController
             ? await SendAsync(HttpMethod.Post, "api/admin/vouchers", body, ct)
             : await SendAsync(HttpMethod.Put, $"api/admin/vouchers/{Uri.EscapeDataString(model.Id)}", body, ct);
 
-        if (!ok) return BadRequest("KhÃ´ng lÆ°u Ä‘Æ°á»£c voucher");
+        if (!ok) return BadRequest("Không lưu được voucher");
 
         var vouchers = await GetDataAsync<List<AdminVoucherViewModel>>("api/admin/vouchers", ct) ?? new();
         return PartialView("_Table", vouchers);
@@ -69,7 +69,7 @@ public class VoucherController : AdminApiCrudController
     [HttpPost]
     public async Task<IActionResult> Delete(string id, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(id)) return BadRequest("Thiáº¿u mÃ£ voucher");
+        if (string.IsNullOrWhiteSpace(id)) return BadRequest("Thiếu mã voucher");
         await SendAsync(HttpMethod.Delete, $"api/admin/vouchers/{Uri.EscapeDataString(id)}", null, ct);
         var vouchers = await GetDataAsync<List<AdminVoucherViewModel>>("api/admin/vouchers", ct) ?? new();
         return PartialView("_Table", vouchers);
