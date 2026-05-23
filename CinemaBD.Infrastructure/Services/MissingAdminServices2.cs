@@ -11,15 +11,47 @@ public class AdminComboService : IAdminComboService
     public AdminComboService(AppDbContext db) => _db = db;
     public async Task<List<Combo>> GetAllAsync(CancellationToken ct = default) => await _db.Combos.AsNoTracking().OrderBy(x => x.MaCombo).Select(x => new Combo { Id = x.MaCombo, Name = x.TenCombo, Price = x.Gia, Description = x.MoTa, ImageUrl = x.Anh }).ToListAsync(ct);
     public async Task<Combo?> GetByIdAsync(string id, CancellationToken ct = default) => await _db.Combos.AsNoTracking().Where(x => x.MaCombo == id).Select(x => new Combo { Id = x.MaCombo, Name = x.TenCombo, Price = x.Gia, Description = x.MoTa, ImageUrl = x.Anh }).FirstOrDefaultAsync(ct);
-    public async Task<Combo> UpsertAsync(string id, string name, decimal price, string? description, string? imageUrl, CancellationToken ct = default)
+    public async Task<Combo> UpsertAsync(string? id, string name, decimal price, string? description, string? imageUrl, CancellationToken ct = default)
     {
-        var entity = await _db.Combos.FirstOrDefaultAsync(x => x.MaCombo == id, ct);
-        if (entity == null) { entity = new LegacyCombo { MaCombo = id, TenCombo = name, Gia = price, MoTa = description, Anh = imageUrl }; _db.Combos.Add(entity); }
-        else { entity.TenCombo = name; entity.Gia = price; entity.MoTa = description; entity.Anh = imageUrl; }
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Tên combo không được rỗng", nameof(name));
+        if (price < 0) throw new ArgumentException("Giá combo không được âm", nameof(price));
+
+        var comboId = string.IsNullOrWhiteSpace(id) ? await BuildComboIdAsync(ct) : id.Trim();
+        var entity = await _db.Combos.FirstOrDefaultAsync(x => x.MaCombo == comboId, ct);
+        if (entity == null) { entity = new LegacyCombo { MaCombo = comboId, TenCombo = name.Trim(), Gia = price, MoTa = description, Anh = imageUrl }; _db.Combos.Add(entity); }
+        else { entity.TenCombo = name.Trim(); entity.Gia = price; entity.MoTa = description; entity.Anh = imageUrl; }
         await _db.SaveChangesAsync(ct);
         return new Combo { Id = entity.MaCombo, Name = entity.TenCombo, Price = entity.Gia, Description = entity.MoTa, ImageUrl = entity.Anh };
     }
-    public async Task<bool> DeleteAsync(string id, CancellationToken ct = default) { var e = await _db.Combos.FindAsync([id], ct); if (e == null) return false; _db.Combos.Remove(e); await _db.SaveChangesAsync(ct); return true; }
+    public async Task<bool> DeleteAsync(string id, CancellationToken ct = default)
+    {
+        var e = await _db.Combos.FindAsync([id], ct);
+        if (e == null) return false;
+        var isUsed = await _db.BookedCombos.AnyAsync(x => x.MaCombo == id, ct)
+                     || await _db.InvoiceLineItems.AnyAsync(x => x.MaCombo == id, ct);
+        if (isUsed)
+        {
+            e.TenCombo = e.TenCombo.StartsWith("[Ngưng bán]", StringComparison.OrdinalIgnoreCase) ? e.TenCombo : "[Ngưng bán] " + e.TenCombo;
+            await _db.SaveChangesAsync(ct);
+            return true;
+        }
+
+        _db.Combos.Remove(e);
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    private async Task<string> BuildComboIdAsync(CancellationToken ct)
+    {
+        var ids = await _db.Combos.AsNoTracking().Select(x => x.MaCombo).ToListAsync(ct);
+        var max = ids.Select(id => id.Length > 2 && id.StartsWith("CB", StringComparison.OrdinalIgnoreCase) && int.TryParse(id[2..], out var n) ? n : 0).DefaultIfEmpty(0).Max();
+        for (var i = max + 1; i <= 999; i++)
+        {
+            var id = $"CB{i:00}";
+            if (!ids.Contains(id, StringComparer.OrdinalIgnoreCase)) return id;
+        }
+        return "CB" + DateTime.Now.ToString("yyMMddHHmmss");
+    }
 }
 
 public class AdminInvoiceService : IAdminInvoiceService
