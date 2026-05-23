@@ -1,38 +1,26 @@
-﻿using CinemaBD.Web.Core;
-using CinemaBD.Web.Domain;
+using CinemaBD.Web.Core;
+using CinemaBD.Web.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CinemaBD.Web.Areas.Admin.Controllers;
 
-public class CombosController : BaseAdminController
+[AdminPermission("dichvu", "combo")]
+public class CombosController : AdminApiCrudController
 {
-    private readonly IAdminComboCoreService _comboService;
-    public CombosController(IAdminComboCoreService comboService) => _comboService = comboService;
+    public CombosController(HttpClient http, IConfiguration configuration) : base(http, configuration) { }
 
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(CancellationToken ct)
     {
-        var data = await _comboService.GetAllAsync(cancellationToken);
-        return View(data);
-    }
-
-    [HttpGet]
-    public IActionResult Create() => View(new Combo { Id = $"C{DateTime.Now:yyMMddHHmmss}" });
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(Combo model, CancellationToken cancellationToken)
-    {
-        if (!ModelState.IsValid) return View(model);
-        await _comboService.CreateAsync(model, cancellationToken);
-        return RedirectToAction(nameof(Index));
+        var data = await GetDataAsync<List<AdminComboEditViewModel>>("api/admin/combos", ct) ?? new();
+        return View(data.OrderBy(x => x.Name).ToList());
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Delete(string id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Delete(string id, CancellationToken ct)
     {
-        await _comboService.DeleteAsync(id, cancellationToken);
+        if (string.IsNullOrWhiteSpace(id)) return RedirectToAction(nameof(Index));
+        await SendAsync(HttpMethod.Delete, $"api/admin/combos/{Uri.EscapeDataString(id)}", null, ct);
         return RedirectToAction(nameof(Index));
     }
 }
-
