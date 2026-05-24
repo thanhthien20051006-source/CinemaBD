@@ -42,6 +42,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAdminLoyaltyPointService, AdminLoyaltyPointService>();
         services.AddScoped<IAdminRefundService, AdminRefundService>();
         services.AddScoped<ILoyaltyPointService, LoyaltyPointService>();
+        services.AddScoped<IArticleService, ArticleService>();
+        services.AddScoped<IEventService, EventService>();
         services.AddScoped<IMovieService, MovieService>();
         services.AddScoped<IShowtimeService, ShowtimeService>();
         services.AddScoped<ISeatService, SeatService>();

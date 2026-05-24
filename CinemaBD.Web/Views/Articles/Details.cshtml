@@ -1,0 +1,37 @@
+@model CinemaBD.Web.Models.ArticleDetailsPageViewModel
+@{
+    ViewData["Title"] = Model.Article.Title;
+}
+
+<section class="container py-5 mt-5">
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <a class="text-decoration-none text-danger" asp-controller="Articles" asp-action="Index">
+                <i class="bi bi-arrow-left"></i> Quay lại Góc điện ảnh
+            </a>
+            <h1 class="fw-bold mt-3">@Model.Article.Title</h1>
+            <p class="text-muted">@Model.Article.PublishedAt.ToString("dd/MM/yyyy")</p>
+            @if (!string.IsNullOrWhiteSpace(Model.Article.ImageName))
+            {
+                <img src="@Model.Article.ImageName" class="img-fluid rounded shadow-sm mb-4" alt="@Model.Article.Title" />
+            }
+            <div class="fs-5 lh-lg">
+                @Html.Raw((Model.Article.Content ?? Model.Article.Summary).Replace("\n", "<br />"))
+            </div>
+        </div>
+        <aside class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-danger text-white fw-bold">Bài viết mới</div>
+                <div class="list-group list-group-flush">
+                    @foreach (var item in Model.LatestArticles)
+                    {
+                        <a class="list-group-item list-group-item-action" asp-controller="Articles" asp-action="Details" asp-route-id="@item.Id">
+                            <div class="fw-semibold">@item.Title</div>
+                            <small class="text-muted">@item.PublishedAt.ToString("dd/MM/yyyy")</small>
+                        </a>
+                    }
+                </div>
+            </div>
+        </aside>
+    </div>
+</section>
