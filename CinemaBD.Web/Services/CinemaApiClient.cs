@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using CinemaBD.Web.Models;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 namespace CinemaBD.Web.Services;
 
@@ -13,11 +14,13 @@ public class CinemaApiClient
 {
     private readonly HttpClient _httpClient;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ILogger<CinemaApiClient> _logger;
 
-    public CinemaApiClient(HttpClient httpClient, IHttpContextAccessor httpContextAccessor)
+    public CinemaApiClient(HttpClient httpClient, IHttpContextAccessor httpContextAccessor, ILogger<CinemaApiClient> logger)
     {
         _httpClient = httpClient;
         _httpContextAccessor = httpContextAccessor;
+        _logger = logger;
 
         var baseAddress = _httpClient.BaseAddress?.ToString() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(baseAddress) ||
@@ -70,6 +73,47 @@ public class CinemaApiClient
     {
         var response = await _httpClient.GetFromJsonAsync<ApiResponse<List<ComboViewModel>>>("api/combos", cancellationToken);
         return response?.Data ?? new List<ComboViewModel>();
+    }
+
+    public async Task<ArticleListPageViewModel> GetArticlesAsync(int page = 1, int pageSize = 9, CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.GetFromJsonAsync<ApiResponse<PagedApiResult<ArticleViewModel>>>($"api/articles?page={page}&pageSize={pageSize}", cancellationToken);
+        var data = response?.Data;
+        return new ArticleListPageViewModel
+        {
+            Articles = NormalizeArticleImages(data?.Items ?? new List<ArticleViewModel>()),
+            Page = data?.Page ?? Math.Max(1, page),
+            TotalPages = data?.TotalPages ?? 1
+        };
+    }
+
+    public async Task<ArticleDetailsPageViewModel?> GetArticleDetailsAsync(int id, CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.GetAsync($"api/articles/{id}", cancellationToken);
+        if (!response.IsSuccessStatusCode) return null;
+
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<ArticleViewModel>>(cancellationToken: cancellationToken);
+        var article = NormalizeArticleImage(payload?.Data);
+        if (article == null) return null;
+
+        var latest = await GetArticlesAsync(1, 5, cancellationToken);
+        return new ArticleDetailsPageViewModel
+        {
+            Article = article,
+            LatestArticles = latest.Articles.Where(x => x.Id != id).Take(4).ToList()
+        };
+    }
+
+    public async Task<EventListPageViewModel> GetEventsAsync(int page = 1, int pageSize = 9, CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.GetFromJsonAsync<ApiResponse<PagedApiResult<EventViewModel>>>($"api/events?page={page}&pageSize={pageSize}", cancellationToken);
+        var data = response?.Data;
+        return new EventListPageViewModel
+        {
+            Events = NormalizeEventImages(data?.Items ?? new List<EventViewModel>()),
+            Page = data?.Page ?? Math.Max(1, page),
+            TotalPages = data?.TotalPages ?? 1
+        };
     }
 
     public async Task<AuthResult?> LoginAsync(string username, string password, CancellationToken cancellationToken = default)
@@ -210,7 +254,7 @@ public class CinemaApiClient
         if (!response.IsSuccessStatusCode)
         {
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
-            Console.WriteLine($"Checkout API failed: {(int)response.StatusCode} {body}");
+            _logger.LogWarning("Checkout API failed: {StatusCode} {Body}", (int)response.StatusCode, body);
             return null;
         }
 
@@ -487,6 +531,57 @@ public class CinemaApiClient
 
         movie.PosterUrl = NormalizePosterUrlValue(movie.PosterUrl);
         return movie;
+    }
+
+    private List<ArticleViewModel> NormalizeArticleImages(List<ArticleViewModel> articles)
+    {
+        foreach (var article in articles)
+            NormalizeArticleImage(article);
+
+        return articles;
+    }
+
+    private ArticleViewModel? NormalizeArticleImage(ArticleViewModel? article)
+    {
+        if (article is null)
+            return article;
+
+        article.ImageName = NormalizeContentImageUrl(article.ImageName);
+        return article;
+    }
+
+    private List<EventViewModel> NormalizeEventImages(List<EventViewModel> events)
+    {
+        foreach (var item in events)
+            item.ImageName = NormalizeContentImageUrl(item.ImageName);
+
+        return events;
+    }
+
+    private string NormalizeContentImageUrl(string? imageUrl)
+    {
+        if (string.IsNullOrWhiteSpace(imageUrl))
+            return string.Empty;
+
+        if (Uri.TryCreate(imageUrl, UriKind.Absolute, out _))
+            return imageUrl;
+
+        var normalized = imageUrl.Replace('\\', '/').TrimStart('/');
+        if (normalized.StartsWith("legacy/", StringComparison.OrdinalIgnoreCase))
+            normalized = normalized[7..];
+        if (normalized.StartsWith("Content/", StringComparison.OrdinalIgnoreCase))
+            normalized = normalized[8..];
+
+        var request = _httpContextAccessor.HttpContext?.Request;
+        var origin = request is null ? string.Empty : $"{request.Scheme}://{request.Host}";
+        return $"{origin}/legacy/Content/{normalized}";
+    }
+
+    private sealed class PagedApiResult<T>
+    {
+        public List<T> Items { get; set; } = new();
+        public int Page { get; set; }
+        public int TotalPages { get; set; }
     }
 
     private static string? GetUserIdFromJwt(string token)
