@@ -13,7 +13,22 @@
 
 @if (!string.IsNullOrWhiteSpace(Model.Message))
 {
-    <div class="alert alert-warning">@Model.Message</div>
+    <div class="alert alert-warning d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
+        <div>
+            @Model.Message
+            @if (Model.SelectedDate.Date == DateTime.Today)
+            {
+                <span> Hôm nay có thể đã hết suất chiếu khả dụng.</span>
+            }
+        </div>
+        <a asp-controller="Booking"
+           asp-action="Select"
+           asp-route-movieId="@Model.Movie?.Id"
+           asp-route-date="@Model.SelectedDate.AddDays(1).ToString("yyyy-MM-dd")"
+           class="btn btn-sm btn-outline-danger">
+            Xem suất ngày mai
+        </a>
+    </div>
 }
 else if (Model.Showtimes.Any())
 {
@@ -39,6 +54,15 @@ else if (Model.Showtimes.Any())
 }
 else
 {
-    <p class="text-muted">Không có suất chiếu cho ngày này.</p>
+    <div class="alert alert-warning d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
+        <span>Không có suất chiếu cho ngày này.</span>
+        <a asp-controller="Booking"
+           asp-action="Select"
+           asp-route-movieId="@Model.Movie?.Id"
+           asp-route-date="@Model.SelectedDate.AddDays(1).ToString("yyyy-MM-dd")"
+           class="btn btn-sm btn-outline-danger">
+            Xem suất ngày mai
+        </a>
+    </div>
 }
 

@@ -30,15 +30,16 @@
                             {
                                 var seatCode = $"{seat.Row}{seat.Column}";
                                 var isVip = string.Equals(seat.SeatType, "VIP", StringComparison.OrdinalIgnoreCase);
-                                var css = $"cinema-seat {(isVip ? "cinema-seat-vip" : "cinema-seat-normal")} {(seat.IsBooked ? "cinema-seat-booked" : "")}";
+                                var isUnavailable = seat.IsBooked || !string.Equals(seat.Status, "Available", StringComparison.OrdinalIgnoreCase);
+                                var css = $"cinema-seat {(isVip ? "cinema-seat-vip" : "cinema-seat-normal")} {(isUnavailable ? "cinema-seat-booked" : "")}";
                                 <button type="button"
                                         class="@css"
                                         data-id="@seat.Id"
                                         data-code="@seatCode"
                                         data-price="@seat.Price"
                                         data-seat-type="@seat.SeatType"
-                                        title="@($"{seatCode} - {seat.SeatType} - {seat.Price:N0}đ")"
-                                        @(seat.IsBooked ? "disabled" : null)>
+                                        title="@($"{seatCode} - {seat.SeatType} - {seat.Status} - {seat.Price:N0}đ")"
+                                        @(isUnavailable ? "disabled" : null)>
                                     @seatCode
                                 </button>
                             }

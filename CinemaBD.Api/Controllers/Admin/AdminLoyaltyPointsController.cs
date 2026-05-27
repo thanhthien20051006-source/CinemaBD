@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CinemaBD.Api.Controllers.Admin;
 
-[ApiController, Authorize, Route("api/admin/loyalty-points")]
+[ApiController, Authorize(Policy = "AdminOnly"), Route("api/admin/loyalty-points")]
 public class AdminLoyaltyPointsController : ControllerBase
 {
     private readonly IAdminLoyaltyPointService _service;

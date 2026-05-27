@@ -62,7 +62,7 @@ public class ReviewsController : ControllerBase
         }
     }
 
-    [Authorize]
+    [Authorize(Policy = "AdminOnly")]
     [HttpGet("admin")]
     public async Task<IActionResult> GetAllForAdmin(CancellationToken cancellationToken)
     {
@@ -70,7 +70,7 @@ public class ReviewsController : ControllerBase
         return Ok(new ApiResponse<object>(true, "Lấy danh sách đánh giá thành công", reviews.Select(ToResponse)));
     }
 
-    [Authorize]
+    [Authorize(Policy = "AdminOnly")]
     [HttpPost("admin/{id:int}/toggle-hidden")]
     public async Task<IActionResult> ToggleHidden(int id, CancellationToken cancellationToken)
     {
@@ -79,7 +79,7 @@ public class ReviewsController : ControllerBase
         return Ok(new ApiResponse<object>(true, "Cập nhật trạng thái đánh giá thành công", null));
     }
 
-    [Authorize]
+    [Authorize(Policy = "AdminOnly")]
     [HttpDelete("admin/{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {

@@ -49,10 +49,17 @@ public class InvoiceNotificationService : IInvoiceNotificationService
             return false;
         }
 
-        var invoice = await _apiClient.GetInvoiceAsync(txnRef, cancellationToken);
+        var token = _httpContextAccessor.HttpContext?.Session.GetString("UserToken");
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            _logger.LogWarning("Skip invoice email {TxnRef}: current user token is missing.", txnRef);
+            return false;
+        }
+
+        var invoice = await _apiClient.GetInvoiceAsync(token, txnRef, cancellationToken);
         if (invoice == null)
         {
-            _logger.LogWarning("Skip invoice email {TxnRef}: invoice not found.", txnRef);
+            _logger.LogWarning("Skip invoice email {TxnRef}: invoice not found or access denied.", txnRef);
             return false;
         }
 

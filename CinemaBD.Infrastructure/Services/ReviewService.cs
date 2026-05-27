@@ -44,14 +44,15 @@ public class ReviewService : IReviewService
 
         var paidStatuses = new[] { "Paid", "Success", "Thành công", "Đã thanh toán", "CheckedIn" };
         var now = DateTime.Now;
-        var watched = await (from v in _db.Tickets.AsNoTracking()
-                             join s in _db.Showtimes.AsNoTracking() on v.MaSuatChieu equals s.MaSuatChieu
-                             where v.MaKH == customerId
-                                && s.MaPhim == movieId
-                                && paidStatuses.Contains(v.TrangThai ?? string.Empty)
-                                && s.NgayChieu.Date.Add(s.GioBatDau) <= now
-                             select v.MaVe)
-            .AnyAsync(ct);
+        var watchedShowtimes = await (from v in _db.Tickets.AsNoTracking()
+                                      join s in _db.Showtimes.AsNoTracking() on v.MaSuatChieu equals s.MaSuatChieu
+                                      where v.MaKH == customerId
+                                         && s.MaPhim == movieId
+                                         && paidStatuses.Contains(v.TrangThai ?? string.Empty)
+                                      select new { s.NgayChieu, s.GioBatDau })
+            .ToListAsync(ct);
+
+        var watched = watchedShowtimes.Any(x => x.NgayChieu.Date.Add(x.GioBatDau) <= now);
 
         if (!watched)
             return Deny(movieId, customerId, "Chỉ khách đã xem phim này mới được đánh giá.");

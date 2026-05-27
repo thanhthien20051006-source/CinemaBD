@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CinemaBD.Api.Controllers.Admin;
-[ApiController, Authorize, Route("api/admin/statistics")]
+[ApiController, Authorize(Policy = "AdminOnly"), Route("api/admin/statistics")]
 public class AdminStatisticsController : ControllerBase
 {
     private readonly IAdminStatisticsService _service;

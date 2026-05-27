@@ -53,7 +53,7 @@ public class ShowtimeService : IShowtimeService
             .Select(g => g.First())
             .OrderBy(x => x.GioBatDau)
             .ThenBy(x => x.MaPhong)
-            .Take(5)
+            .Take(6)
             .ToList();
         var showtimeIds = raw.Select(x => x.MaSuatChieu).ToList();
 

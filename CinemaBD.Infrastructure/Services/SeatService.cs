@@ -15,6 +15,14 @@ public class SeatService : ISeatService
         _db = db;
     }
 
+    public async Task<bool> ShowtimeExistsAsync(string showtimeId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(showtimeId))
+            return false;
+
+        return await _db.Showtimes.AsNoTracking().AnyAsync(s => s.MaSuatChieu == showtimeId, cancellationToken);
+    }
+
     public async Task<IReadOnlyCollection<Seat>> GetSeatsByShowtimeAsync(string showtimeId, CancellationToken cancellationToken = default)
     {
         var showtime = await _db.Showtimes.AsNoTracking().FirstOrDefaultAsync(s => s.MaSuatChieu == showtimeId, cancellationToken);
@@ -55,16 +63,23 @@ public class SeatService : ISeatService
                 },
                 StringComparer.OrdinalIgnoreCase);
 
-        return seats.Select(g => new Seat
+        return seats.Select(g =>
         {
-            Id = g.MaGhe,
-            RoomId = g.MaPhong,
-            Row = g.MaGhe.Length > 0 ? g.MaGhe.Substring(0, 1) : string.Empty,
-            Column = g.MaGhe.Length > 1 ? g.MaGhe.Substring(1) : string.Empty,
-            SeatType = g.LoaiGhe,
-            IsBooked = blockedSeatIds.Contains(g.MaGhe) || seatStatusMap.ContainsKey(g.MaGhe),
-            Status = blockedSeatIds.Contains(g.MaGhe) ? "Blocked" : seatStatusMap.TryGetValue(g.MaGhe, out var status) ? status : "Available",
-            Price = showtime.GiaVe + (((g.LoaiGhe ?? string.Empty).ToUpper() == "VIP") ? 30000 : 0)
+            var status = blockedSeatIds.Contains(g.MaGhe)
+                ? "Blocked"
+                : seatStatusMap.TryGetValue(g.MaGhe, out var ticketStatus) ? ticketStatus : "Available";
+
+            return new Seat
+            {
+                Id = g.MaGhe,
+                RoomId = g.MaPhong,
+                Row = g.MaGhe.Length > 0 ? g.MaGhe.Substring(0, 1) : string.Empty,
+                Column = g.MaGhe.Length > 1 ? g.MaGhe.Substring(1) : string.Empty,
+                SeatType = g.LoaiGhe,
+                IsBooked = status is "Sold" or "CheckedIn",
+                Status = status,
+                Price = showtime.GiaVe + (((g.LoaiGhe ?? string.Empty).ToUpper() == "VIP") ? 30000 : 0)
+            };
         }).ToList();
     }
 

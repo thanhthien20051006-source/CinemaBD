@@ -102,6 +102,7 @@ public class AdminRoomService : IAdminRoomService
                 TrangThai = string.IsNullOrWhiteSpace(status) ? "Hoạt động" : status
             };
             _db.Rooms.Add(room);
+            await _db.SaveChangesAsync(ct);
         }
         else
         {

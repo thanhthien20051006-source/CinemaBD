@@ -23,11 +23,14 @@ public class JwtTokenService : ITokenService
         var audience = _configuration["Jwt:Audience"] ?? "CinemaBD.Client";
         var key = _configuration["Jwt:Key"] ?? throw new InvalidOperationException("Missing Jwt:Key");
 
+        var isAdmin = user.Id.StartsWith("admin:", StringComparison.OrdinalIgnoreCase);
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, user.Id),
             new(JwtRegisteredClaimNames.UniqueName, user.Username),
-            new("full_name", user.FullName)
+            new("full_name", user.FullName),
+            new(ClaimTypes.Role, isAdmin ? "Admin" : "Customer"),
+            new("account_type", isAdmin ? "admin" : "customer")
         };
 
         var credentials = new SigningCredentials(

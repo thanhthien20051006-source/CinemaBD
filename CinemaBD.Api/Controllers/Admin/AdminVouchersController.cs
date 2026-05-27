@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CinemaBD.Api.Controllers.Admin;
 
-[ApiController, Authorize, Route("api/admin/vouchers")]
+[ApiController, Authorize(Policy = "AdminOnly"), Route("api/admin/vouchers")]
 public class AdminVouchersController : ControllerBase
 {
     private readonly IAdminVoucherService _service;
@@ -18,7 +18,12 @@ public class AdminVouchersController : ControllerBase
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id, CancellationToken ct)
-        => Ok(new ApiResponse<object>(true, "OK", await _service.GetByIdAsync(id, ct)));
+    {
+        var voucher = await _service.GetByIdAsync(id, ct);
+        return voucher == null
+            ? NotFound(new ApiResponse<object>(false, "Không tìm thấy voucher.", null))
+            : Ok(new ApiResponse<object>(true, "OK", voucher));
+    }
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] VoucherRequest request, CancellationToken ct)
@@ -37,7 +42,12 @@ public class AdminVouchersController : ControllerBase
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(string id, CancellationToken ct)
-        => Ok(new ApiResponse<object>(await _service.DeleteAsync(id, ct), "OK", null));
+    {
+        var deleted = await _service.DeleteAsync(id, ct);
+        return deleted
+            ? Ok(new ApiResponse<object>(true, "Xóa voucher thành công", null))
+            : NotFound(new ApiResponse<object>(false, "Không tìm thấy voucher để xóa.", null));
+    }
 }
 
 public sealed record VoucherRequest(string Id, string CustomerId, bool IsGlobal, string Code, string? Description, DateTime ExpiredAt, decimal DiscountValue, string DiscountType, decimal MinOrderAmount, decimal MaxDiscountAmount);

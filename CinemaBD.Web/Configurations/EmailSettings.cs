@@ -11,6 +11,6 @@ public class EmailSettings
     public string SMTPAccount { get; set; } = string.Empty;
     public string SMTPPassword { get; set; } = string.Empty;
 
-    public string SenderEmail => string.IsNullOrWhiteSpace(FromEmail) ? SMTPAccount : FromEmail;
-    public string SenderPassword => string.IsNullOrWhiteSpace(FromPassword) ? SMTPPassword : FromPassword;
+    public string SenderEmail => string.IsNullOrWhiteSpace(SMTPAccount) ? FromEmail : SMTPAccount;
+    public string SenderPassword => string.IsNullOrWhiteSpace(SMTPPassword) ? FromPassword : SMTPPassword;
 }

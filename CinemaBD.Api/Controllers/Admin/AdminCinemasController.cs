@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CinemaBD.Api.Controllers.Admin;
 
-[ApiController, Authorize, Route("api/admin/cinemas")]
+[ApiController, Authorize(Policy = "AdminOnly"), Route("api/admin/cinemas")]
 public class AdminCinemasController : ControllerBase
 {
     private readonly IAdminCinemaService _service;
