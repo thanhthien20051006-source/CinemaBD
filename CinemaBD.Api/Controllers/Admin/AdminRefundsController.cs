@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CinemaBD.Api.Controllers.Admin;
 
-[ApiController, Authorize, Route("api/admin/refunds")]
+[ApiController, Authorize(Policy = "AdminOnly"), Route("api/admin/refunds")]
 public class AdminRefundsController : ControllerBase
 {
     private readonly IAdminRefundService _service;

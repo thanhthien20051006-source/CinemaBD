@@ -28,10 +28,9 @@ WORKDIR /app
 COPY --from=build /app/publish .
 
 ENV ASPNETCORE_ENVIRONMENT=Production
-ENV ASPNETCORE_URLS=http://+:8090
- # Gia lap ngay runtime ve 2026-05-17 de phim/suat chieu demo hien du lieu
+ENV ASPNETCORE_URLS=http://+:8080
 
-EXPOSE 8090
+EXPOSE 8080
 ENTRYPOINT ["dotnet", "CinemaBD.Web.dll"]
 
 

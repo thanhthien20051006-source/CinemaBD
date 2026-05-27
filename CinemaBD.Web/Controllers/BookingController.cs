@@ -327,7 +327,7 @@ public class BookingController : Controller
             return configured;
 
         return Url.Action(nameof(PaymentReturn), "Booking", null, Request.Scheme, Request.Host.ToString())
-               ?? "http://localhost:7188/booking/payment-return";
+               ?? "https://localhost:7188/booking/payment-return";
     }
     private async Task NormalizeCheckoutLoyaltyAsync(string token, CheckoutPageViewModel model, CancellationToken cancellationToken)
     {
@@ -394,7 +394,11 @@ public class BookingController : Controller
     [HttpGet("invoice/{txnRef}")]
     public async Task<IActionResult> Invoice(string txnRef, CancellationToken cancellationToken)
     {
-        var invoice = await _apiClient.GetInvoiceAsync(txnRef, cancellationToken);
+        var token = HttpContext.Session.GetString("UserToken");
+        if (string.IsNullOrWhiteSpace(token))
+            return RedirectToAction("Login", "Account", new { returnUrl = Url.Action(nameof(Invoice), new { txnRef }) });
+
+        var invoice = await _apiClient.GetInvoiceAsync(token, txnRef, cancellationToken);
         if (invoice == null) return NotFound();
 
         AddTicketQrCodes(invoice);
@@ -404,7 +408,11 @@ public class BookingController : Controller
     [HttpGet("invoice/{txnRef}/pdf")]
     public async Task<IActionResult> InvoicePdf(string txnRef, CancellationToken cancellationToken)
     {
-        var invoice = await _apiClient.GetInvoiceAsync(txnRef, cancellationToken);
+        var token = HttpContext.Session.GetString("UserToken");
+        if (string.IsNullOrWhiteSpace(token))
+            return Unauthorized();
+
+        var invoice = await _apiClient.GetInvoiceAsync(token, txnRef, cancellationToken);
         if (invoice == null) return NotFound();
 
         var pdf = _ticketPdfService.CreateInvoicePdf(invoice);

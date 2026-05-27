@@ -35,7 +35,7 @@ public class AuthService : IAuthService
         if (!isMatch)
             throw new InvalidOperationException("Sai mật khẩu.");
 
-        if (string.Equals(user.MatKhau, password, StringComparison.Ordinal))
+        if (_passwordHasher.NeedsRehash(user.MatKhau))
         {
             user.MatKhau = _passwordHasher.Hash(password);
             await _db.SaveChangesAsync(cancellationToken);

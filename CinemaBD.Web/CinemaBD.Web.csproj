@@ -1,9 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>CinemaBD.Web</RootNamespace>
+    <UserSecretsId>a53a8f9e-bc75-477f-a0cc-f2e3eed4ede2</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

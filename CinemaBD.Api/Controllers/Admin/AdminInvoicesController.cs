@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CinemaBD.Api.Controllers.Admin;
-[ApiController, Authorize, Route("api/admin/invoices")]
+[ApiController, Authorize(Policy = "AdminOnly"), Route("api/admin/invoices")]
 public class AdminInvoicesController : ControllerBase
 {
     private readonly IAdminInvoiceService _service;

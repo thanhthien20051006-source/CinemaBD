@@ -365,3 +365,22 @@ FodyWeavers.xsd
 .env
 !.env.example
 
+
+# Local OpenClaw/workspace artifacts
+.openclaw/
+AGENTS.md
+HEARTBEAT.md
+IDENTITY.md
+SOUL.md
+TOOLS.md
+USER.md
+
+# Temporary audit/build artifacts
+audit_actions.txt
+build_*.log
+tmp_*.js
+ticket-test.pdf
+sync.json
+
+# Local HTTPS certificates
+certs/

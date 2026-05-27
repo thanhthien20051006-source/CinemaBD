@@ -8,6 +8,6 @@ public interface IBookingService
     Task<IReadOnlyCollection<string>> GetBookedSeatsAsync(string showtimeId, CancellationToken cancellationToken = default);
     Task<SeatHoldResult> HoldSeatsAsync(string userId, string showtimeId, List<string> seats, CancellationToken cancellationToken = default);
     Task<SeatHoldResult> ReleaseSeatsAsync(string userId, string showtimeId, List<string> seats, CancellationToken cancellationToken = default);
-    Task<Invoice?> GetInvoiceAsync(string txnRef, CancellationToken cancellationToken = default);
+    Task<Invoice?> GetInvoiceAsync(string txnRef, string? userId = null, bool isAdmin = false, CancellationToken cancellationToken = default);
     Task<RefundRequestResult> CreateRefundRequestAsync(string userId, string txnRef, string? ticketId, string reason, CancellationToken cancellationToken = default);
 }

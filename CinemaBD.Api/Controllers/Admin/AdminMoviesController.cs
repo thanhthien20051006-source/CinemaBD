@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CinemaBD.Api.Controllers.Admin;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = "AdminOnly")]
 [Route("api/admin/movies")]
 public class AdminMoviesController : ControllerBase
 {

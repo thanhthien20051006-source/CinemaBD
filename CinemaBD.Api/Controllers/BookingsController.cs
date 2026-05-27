@@ -24,6 +24,9 @@ public class BookingsController : ControllerBase
     [HttpGet("showtimes/{showtimeId}/seats")]
     public async Task<IActionResult> GetSeats(string showtimeId, CancellationToken cancellationToken)
     {
+        if (!await _seatService.ShowtimeExistsAsync(showtimeId, cancellationToken))
+            return NotFound(new ApiResponse<object>(false, "Không tìm thấy suất chiếu.", null));
+
         var seats = await _seatService.GetSeatsByShowtimeAsync(showtimeId, cancellationToken);
         var response = seats.Select(s => new SeatResponse(s.Id, s.Row, s.Column, s.SeatType, s.IsBooked, s.Status, s.Price));
         return Ok(new ApiResponse<object>(true, "Lấy sơ đồ ghế thành công", response));
@@ -79,10 +82,15 @@ public class BookingsController : ControllerBase
         return Ok(new ApiResponse<object>(result.Success, result.Message, result));
     }
 
+    [Authorize]
     [HttpGet("invoice/{txnRef}")]
     public async Task<IActionResult> GetInvoice(string txnRef, CancellationToken cancellationToken)
     {
-        var data = await _bookingService.GetInvoiceAsync(txnRef, cancellationToken);
+        var userId = User.FindFirstValue(JwtRegisteredClaimNames.Sub) ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+            return Unauthorized(new ApiResponse<object>(false, "Không xác định được người dùng", null));
+
+        var data = await _bookingService.GetInvoiceAsync(txnRef, userId, cancellationToken: cancellationToken);
         if (data == null)
             return NotFound(new ApiResponse<object>(false, "Không tìm thấy hóa đơn", null));
 

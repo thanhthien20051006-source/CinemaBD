@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CinemaBD.Api.Controllers.Admin;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = "AdminOnly")]
 [Route("api/admin/dashboard")]
 public class AdminDashboardController : ControllerBase
 {

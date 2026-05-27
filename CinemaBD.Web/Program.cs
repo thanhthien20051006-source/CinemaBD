@@ -68,16 +68,27 @@ var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Home/Error");
+    app.UseExceptionHandler(errorApp =>
+    {
+        errorApp.Run(async context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            context.Response.ContentType = "text/plain; charset=utf-8";
+            await context.Response.WriteAsync("Đã xảy ra lỗi khi xử lý yêu cầu. Vui lòng thử lại sau.");
+        });
+    });
     app.UseHsts();
 }
-
 app.UseHttpsRedirection();
+
 app.UseStaticFiles();
 app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapGet("/Admin", () => Results.Redirect("/Admin/Dashboard"));
+app.MapGet("/Admin/Statistics", () => Results.Redirect("/Admin/AdminThongKe"));
 
 app.MapControllers();
 app.MapHub<SeatHub>("/hubs/seats");

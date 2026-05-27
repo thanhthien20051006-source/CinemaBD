@@ -6,3 +6,8 @@
 *.db
 *.db-shm
 *.db-wal
+.env
+build.log
+.git/
+.claude/
+certs/

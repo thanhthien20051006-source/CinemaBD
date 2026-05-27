@@ -40,6 +40,16 @@ public class BookingService : IBookingService
             return new SeatHoldResult { Success = false, ShowtimeId = showtimeId, Message = "Không tìm thấy suất chiếu." };
 
         var selectedSeats = seats.Select(s => s.Trim()).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var validSeats = await _db.Seats
+            .Where(g => g.MaPhong == showtime.MaPhong && selectedSeats.Contains(g.MaGhe))
+            .ToListAsync(cancellationToken);
+        var invalidSeats = selectedSeats.Except(validSeats.Select(g => g.MaGhe), StringComparer.OrdinalIgnoreCase).ToList();
+        if (invalidSeats.Any())
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return new SeatHoldResult { Success = false, ShowtimeId = showtimeId, Message = $"Ghế {string.Join(", ", invalidSeats)} không tồn tại trong phòng chiếu." };
+        }
+
         var unavailableSeats = await _db.Tickets
             .Where(v => v.MaSuatChieu == showtimeId
                 && selectedSeats.Contains(v.MaGhe)
@@ -62,12 +72,11 @@ public class BookingService : IBookingService
 
         foreach (var seatCode in selectedSeats.Except(existingOwnHolds.Select(x => x.MaGhe), StringComparer.OrdinalIgnoreCase))
         {
-            var seat = await _db.Seats.FirstOrDefaultAsync(g => g.MaGhe == seatCode && g.MaPhong == showtime.MaPhong, cancellationToken);
-            if (seat == null) continue;
+            var seat = validSeats.First(g => string.Equals(g.MaGhe, seatCode, StringComparison.OrdinalIgnoreCase));
             var price = showtime.GiaVe + (((seat.LoaiGhe ?? string.Empty).ToUpper() == "VIP") ? 30000 : 0);
             _db.Tickets.Add(new LegacyTicket
             {
-                MaVe = "VE" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper(),
+                MaVe = "VE" + Guid.NewGuid().ToString("N").Substring(0, 12).ToUpper(),
                 MaKH = userId,
                 MaSuatChieu = showtimeId,
                 MaGhe = seatCode,
@@ -121,6 +130,13 @@ public class BookingService : IBookingService
             throw new InvalidOperationException("Không tìm thấy suất chiếu.");
 
         var selectedSeats = seats.Select(s => s.Trim()).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var validSeats = await _db.Seats
+            .Where(g => g.MaPhong == showtime.MaPhong && selectedSeats.Contains(g.MaGhe))
+            .ToListAsync(cancellationToken);
+        var invalidSeats = selectedSeats.Except(validSeats.Select(g => g.MaGhe), StringComparer.OrdinalIgnoreCase).ToList();
+        if (invalidSeats.Any())
+            throw new InvalidOperationException($"Ghế {string.Join(", ", invalidSeats)} không tồn tại trong phòng chiếu.");
+
         var unavailableSeats = await _db.Tickets
             .Where(v => v.MaSuatChieu == showtimeId
                 && selectedSeats.Contains(v.MaGhe)
@@ -136,10 +152,7 @@ public class BookingService : IBookingService
 
         foreach (var seatCode in selectedSeats)
         {
-            var seat = await _db.Seats.FirstOrDefaultAsync(g => g.MaGhe == seatCode && g.MaPhong == showtime.MaPhong, cancellationToken);
-            if (seat == null)
-                continue;
-
+            var seat = validSeats.First(g => string.Equals(g.MaGhe, seatCode, StringComparison.OrdinalIgnoreCase));
             var price = showtime.GiaVe + (((seat.LoaiGhe ?? string.Empty).ToUpper() == "VIP") ? 30000 : 0);
             ticketTotal += price;
 
@@ -154,7 +167,7 @@ public class BookingService : IBookingService
             {
                 _db.Tickets.Add(new LegacyTicket
                 {
-                    MaVe = "VE" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper(),
+                    MaVe = "VE" + Guid.NewGuid().ToString("N").Substring(0, 12).ToUpper(),
                     MaKH = userId,
                     MaSuatChieu = showtimeId,
                     MaGhe = seatCode,
@@ -418,7 +431,7 @@ public class BookingService : IBookingService
         };
     }
 
-    public async Task<Invoice?> GetInvoiceAsync(string txnRef, CancellationToken cancellationToken = default)
+    public async Task<Invoice?> GetInvoiceAsync(string txnRef, string? userId = null, bool isAdmin = false, CancellationToken cancellationToken = default)
     {
         var payment = await _db.Payments.AsNoTracking().FirstOrDefaultAsync(t => t.GatewayTxnRef == txnRef, cancellationToken);
         var invoice = await _db.Invoices.AsNoTracking().FirstOrDefaultAsync(h => h.GatewayTxnRef == txnRef, cancellationToken);
@@ -443,6 +456,9 @@ public class BookingService : IBookingService
             .Where(v => v.GatewayTxnRef == txnRef || lineTicketIds.Contains(v.MaVe))
             .ToListAsync(cancellationToken);
         if (!tickets.Any())
+            return null;
+
+        if (!isAdmin && (string.IsNullOrWhiteSpace(userId) || !tickets.Any(t => t.MaKH == userId)))
             return null;
 
         var firstTicket = tickets.First();

@@ -241,7 +241,6 @@ public class CinemaApiClient
         if (!string.IsNullOrWhiteSpace(returnUrl))
             request.Headers.TryAddWithoutValidation("X-Return-Url", returnUrl);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        request.Headers.TryAddWithoutValidation("X-User-Id", token);
         request.Content = new StringContent(JsonSerializer.Serialize(new
         {
             showtimeId,
@@ -267,7 +266,6 @@ public class CinemaApiClient
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, "api/account/profile");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        request.Headers.TryAddWithoutValidation("X-User-Id", token);
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
             return null;
@@ -280,7 +278,6 @@ public class CinemaApiClient
     {
         using var request = new HttpRequestMessage(HttpMethod.Put, "api/account/profile");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        request.Headers.TryAddWithoutValidation("X-User-Id", token);
         request.Content = JsonContent.Create(new
         {
             fullName = model.FullName,
@@ -301,7 +298,6 @@ public class CinemaApiClient
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, "api/account/history");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        request.Headers.TryAddWithoutValidation("X-User-Id", token);
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
             return Array.Empty<InvoiceHistoryItem>();
