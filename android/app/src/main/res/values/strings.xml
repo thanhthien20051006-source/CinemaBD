@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CinemaBD</string>
+    <string name="hello_title">Xin chào từ CinemaBD!</string>
+    <string name="hello_subtitle">Khung ứng dụng đã sẵn sàng.</string>
+    <string name="loading">Đang tải...</string>
+    <string name="error">Đã xảy ra lỗi.</string>
+</resources>
