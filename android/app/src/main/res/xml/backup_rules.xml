@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Sample backup rules. See https://developer.android.com/guide/topics/data/autobackup
+   for details.
+-->
+<full-backup-content>
+    <!-- Do not backup DataStore token to cloud -->
+    <exclude domain="sharedpref" path="."/>
+    <exclude domain="file" path="datastore/token_prefs.preferences_pb"/>
+</full-backup-content>
