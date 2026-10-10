@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -186,7 +187,7 @@ private fun CheckoutContent(
     onApplyVoucher: (String) -> Unit,
     onSelectPaymentMethod: (PaymentMethod) -> Unit
 ) {
-    var voucherInput by remember(state.voucherCode) { mutableStateOf(state.voucherCode) }
+    var voucherInput by rememberSaveable(state.voucherCode) { mutableStateOf(state.voucherCode) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),

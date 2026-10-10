@@ -92,6 +92,25 @@ fun ProfileScreen(
                         }
                     }
                 }
+                uiState.profile == null -> {
+                    // Empty state: not loading, no error, but profile is null
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.profile_empty),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = { viewModel.loadProfile() }) {
+                            Text(stringResource(id = R.string.retry))
+                        }
+                    }
+                }
                 else -> {
                     val scrollState = rememberScrollState()
                     Column(
