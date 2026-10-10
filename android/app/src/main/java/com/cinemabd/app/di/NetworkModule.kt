@@ -77,4 +77,10 @@ object NetworkModule {
     fun provideReviewsApi(retrofit: Retrofit): com.cinemabd.app.core.network.ReviewsApi {
         return retrofit.create(com.cinemabd.app.core.network.ReviewsApi::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideBookingsApi(retrofit: Retrofit): com.cinemabd.app.core.network.BookingsApi {
+        return retrofit.create(com.cinemabd.app.core.network.BookingsApi::class.java)
+    }
 }

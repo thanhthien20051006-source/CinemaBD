@@ -56,10 +56,8 @@ fun CinemaBdNavHost(
         composable(
             Routes.SELECT_SEATS,
             arguments = listOf(navArgument("showtimeId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val showtimeId = backStackEntry.arguments?.getString("showtimeId") ?: ""
+        ) {
             com.cinemabd.app.feature.booking.SelectSeatScreen(
-                showtimeId = showtimeId,
                 onBack = { navController.popBackStack() }
             )
         }
