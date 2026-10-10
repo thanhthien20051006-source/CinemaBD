@@ -26,9 +26,9 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             val token = tokenDataStore.tokenFlow.firstOrNull()
             if (!token.isNullOrEmpty()) {
-                _startDestination.value = "hello"
+                _startDestination.value = com.cinemabd.app.navigation.Destinations.MAIN
             } else {
-                _startDestination.value = "auth"
+                _startDestination.value = com.cinemabd.app.navigation.Destinations.AUTH
             }
             _isLoading.value = false
         }
