@@ -30,4 +30,17 @@
     <!-- Home -->
     <string name="now_showing">Đang chiếu</string>
     <string name="coming_soon">Sắp chiếu</string>
+
+    <!-- Movie Detail -->
+    <string name="movie_detail_title">Chi tiết phim</string>
+    <string name="movie_genre">Thể loại:</string>
+    <string name="movie_duration">Thời lượng:</string>
+    <string name="movie_duration_format">%d phút</string>
+    <string name="movie_release_date">Khởi chiếu:</string>
+    <string name="movie_description">Mô tả</string>
+    <string name="movie_reviews">Đánh giá</string>
+    <string name="book_ticket_btn">Đặt vé</string>
+    <string name="empty_reviews">Chưa có đánh giá.</string>
+    <string name="expand_text">Xem thêm</string>
+    <string name="collapse_text">Thu gọn</string>
 </resources>

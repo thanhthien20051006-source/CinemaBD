@@ -18,13 +18,14 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.cinemabd.app.R
 import com.cinemabd.app.feature.home.HomeScreen
 import com.cinemabd.app.navigation.Routes
 
 @Composable
-fun MainScreen() {
+fun MainScreen(rootNavController: NavHostController) {
     val navController = rememberNavController()
 
     Scaffold(
@@ -85,7 +86,7 @@ fun MainScreen() {
         ) {
             composable(Routes.HOME) {
                 HomeScreen(onMovieClick = { movieId ->
-                    // Handle movie click later (e.g. navigate to details)
+                    rootNavController.navigate(Routes.movieDetail(movieId))
                 })
             }
             composable(Routes.TICKETS) {

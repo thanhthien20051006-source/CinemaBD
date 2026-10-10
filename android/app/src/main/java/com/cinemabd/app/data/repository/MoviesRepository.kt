@@ -30,6 +30,22 @@ class MoviesRepository @Inject constructor(
         }
     }
 
+    suspend fun getMovieById(id: String): Result<MovieResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = moviesApi.getMovieById(id)
+            if (response.success && response.data != null) {
+                val movie = response.data.copy(
+                    posterUrl = fixImageUrl(response.data.posterUrl)
+                )
+                Result.success(movie)
+            } else {
+                Result.failure(Exception(response.message ?: "Failed to fetch movie details"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     private fun fixImageUrl(url: String?): String? {
         if (url.isNullOrBlank()) return null
 

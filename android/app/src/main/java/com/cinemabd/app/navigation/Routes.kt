@@ -9,4 +9,11 @@ object Routes {
     const val HOME = "home"
     const val TICKETS = "tickets"
     const val PROFILE = "profile"
+    
+    // Feature Nav
+    const val MOVIE_DETAIL = "movie_detail/{movieId}"
+    fun movieDetail(movieId: String) = "movie_detail/$movieId"
+    
+    const val SELECT_SHOWTIMES = "select_showtimes/{movieId}"
+    fun selectShowtimes(movieId: String) = "select_showtimes/$movieId"
 }

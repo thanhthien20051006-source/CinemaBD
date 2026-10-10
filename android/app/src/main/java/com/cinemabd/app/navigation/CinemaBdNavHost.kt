@@ -2,9 +2,11 @@ package com.cinemabd.app.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.cinemabd.app.feature.auth.AuthScreen
 import com.cinemabd.app.feature.main.MainScreen
 
@@ -27,7 +29,18 @@ fun CinemaBdNavHost(
             )
         }
         composable(Routes.MAIN) {
-            MainScreen()
+            MainScreen(rootNavController = navController)
+        }
+        composable(
+            Routes.MOVIE_DETAIL,
+            arguments = listOf(navArgument("movieId") { type = NavType.StringType })
+        ) {
+            com.cinemabd.app.feature.movies.MovieDetailScreen(
+                onBack = { navController.popBackStack() },
+                onBookTicket = { movieId ->
+                    navController.navigate(Routes.selectShowtimes(movieId))
+                }
+            )
         }
     }
 }
