@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cinemabd.app.core.network.model.InvoiceResponse
+import com.cinemabd.app.core.network.toUserFriendlyMessage
 import com.cinemabd.app.data.repository.BookingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,7 +50,7 @@ class PaymentSuccessViewModel @Inject constructor(
                 _uiState.update {
                     PaymentSuccessUiState.Error(
                         txnRef = txnRef,
-                        message = error.message ?: "Không thể tải chi tiết hóa đơn."
+                        message = error.toUserFriendlyMessage("Không thể tải chi tiết hóa đơn.")
                     )
                 }
             }

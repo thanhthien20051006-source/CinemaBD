@@ -3,6 +3,7 @@ package com.cinemabd.app.feature.auth
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cinemabd.app.core.network.toUserFriendlyMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -74,7 +75,7 @@ class AuthViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = result.exceptionOrNull()?.message ?: "Đã xảy ra lỗi"
+                            errorMessage = result.exceptionOrNull().toUserFriendlyMessage("Đăng nhập thất bại. Vui lòng thử lại.")
                         )
                     }
                 }
@@ -117,7 +118,7 @@ class AuthViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = result.exceptionOrNull()?.message ?: "Đã xảy ra lỗi"
+                            errorMessage = result.exceptionOrNull().toUserFriendlyMessage("Đăng ký thất bại. Vui lòng thử lại.")
                         )
                     }
                 }

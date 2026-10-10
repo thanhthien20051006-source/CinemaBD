@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cinemabd.app.core.datastore.ThemePreferences
 import com.cinemabd.app.core.datastore.TokenDataStore
+import com.cinemabd.app.core.network.AuthEventBus
 import com.cinemabd.app.navigation.Routes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +19,8 @@ import javax.inject.Inject
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val tokenDataStore: TokenDataStore,
-    private val themePreferences: ThemePreferences
+    private val themePreferences: ThemePreferences,
+    val authEventBus: AuthEventBus
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(true)

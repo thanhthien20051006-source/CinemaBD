@@ -3,6 +3,7 @@ package com.cinemabd.app.feature.booking
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cinemabd.app.core.network.model.ComboResponse
+import com.cinemabd.app.core.network.toUserFriendlyMessage
 import com.cinemabd.app.data.repository.CombosRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,7 +44,7 @@ class ComboViewModel @Inject constructor(
                 }
             }.onFailure { error ->
                 _uiState.update {
-                    ComboUiState.Error(error.message ?: "Không thể tải danh sách combo.")
+                    ComboUiState.Error(error.toUserFriendlyMessage("Không thể tải danh sách combo. Vui lòng thử lại."))
                 }
             }
         }

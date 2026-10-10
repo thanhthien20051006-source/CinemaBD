@@ -37,8 +37,15 @@ object NetworkModule {
             .addInterceptor(authInterceptor)
 
         if (BuildConfig.DEBUG) {
-            val logging = HttpLoggingInterceptor().apply {
+            val logging = HttpLoggingInterceptor { message ->
+                val sanitized = message
+                    .replace(Regex("\"password\"\\s*:\\s*\"[^\"]*\""), "\"password\":\"***\"")
+                    .replace(Regex("\"token\"\\s*:\\s*\"[^\"]*\""), "\"token\":\"***\"")
+                android.util.Log.d("OkHttp", sanitized)
+            }.apply {
                 level = HttpLoggingInterceptor.Level.BODY
+                redactHeader("Authorization")
+                redactHeader("Cookie")
             }
             builder.addInterceptor(logging)
         }

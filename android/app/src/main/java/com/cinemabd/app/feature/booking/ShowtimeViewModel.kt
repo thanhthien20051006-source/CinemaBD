@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cinemabd.app.core.network.model.ShowtimeResponse
+import com.cinemabd.app.core.network.toUserFriendlyMessage
 import com.cinemabd.app.data.repository.MoviesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -98,7 +99,7 @@ class ShowtimeViewModel @Inject constructor(
                 }
             }.onFailure { error ->
                 _uiState.update {
-                    ShowtimeUiState.Error(error.message ?: "Đã xảy ra lỗi")
+                    ShowtimeUiState.Error(error.toUserFriendlyMessage("Không thể tải lịch chiếu. Vui lòng thử lại."))
                 }
             }
         }

@@ -3,6 +3,7 @@ package com.cinemabd.app.feature.tickets
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cinemabd.app.core.utils.DateTimeUtils
+import com.cinemabd.app.core.network.toUserFriendlyMessage
 import com.cinemabd.app.data.repository.TicketsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -77,7 +78,7 @@ class TicketsViewModel @Inject constructor(
                 }
             }
         }.onFailure { err ->
-            _uiState.update { TicketsUiState.Error(err.message) }
+            _uiState.update { TicketsUiState.Error(err.toUserFriendlyMessage("Không thể tải danh sách vé. Vui lòng thử lại.")) }
         }
     }
 }
