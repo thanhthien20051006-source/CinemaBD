@@ -1,5 +1,6 @@
 package com.cinemabd.app.data.repository
 
+import com.cinemabd.app.BuildConfig
 import com.cinemabd.app.core.network.MoviesApi
 import com.cinemabd.app.core.network.model.MovieResponse
 import kotlinx.coroutines.Dispatchers
@@ -15,12 +16,39 @@ class MoviesRepository @Inject constructor(
         try {
             val response = moviesApi.getMovies()
             if (response.success && response.data != null) {
-                Result.success(response.data)
+                val mappedData = response.data.map { movie ->
+                    movie.copy(
+                        posterUrl = fixImageUrl(movie.posterUrl)
+                    )
+                }
+                Result.success(mappedData)
             } else {
                 Result.failure(Exception(response.message ?: "Failed to fetch movies"))
             }
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    private fun fixImageUrl(url: String?): String? {
+        if (url.isNullOrBlank()) return null
+
+        var fixedUrl = url
+        if (fixedUrl.contains("localhost", ignoreCase = true)) {
+            fixedUrl = fixedUrl.replace("localhost", "10.0.2.2", ignoreCase = true)
+        }
+
+        if (fixedUrl.startsWith("http", ignoreCase = true)) {
+            return fixedUrl
+        }
+
+        val baseUrl = BuildConfig.API_BASE_URL.trimEnd('/')
+        val relativeUrl = fixedUrl.trimStart('/')
+
+        return if (!relativeUrl.contains("/")) {
+            "$baseUrl/legacy/Content/img/Posters/$relativeUrl"
+        } else {
+            "$baseUrl/$relativeUrl"
         }
     }
 }
