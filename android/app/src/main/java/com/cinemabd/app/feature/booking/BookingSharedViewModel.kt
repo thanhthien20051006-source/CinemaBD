@@ -10,9 +10,14 @@ import javax.inject.Inject
 
 data class BookingCartState(
     val showtimeId: String = "",
+    val movieTitle: String = "",
+    val showDate: String = "",
+    val startTime: String = "",
+    val roomName: String = "",
     val selectedSeats: List<String> = emptyList(),
     val ticketTotal: Double = 0.0,
     val selectedCombos: Map<String, Int> = emptyMap(),
+    val comboNames: Map<String, String> = emptyMap(),
     val comboPrices: Map<String, Double> = emptyMap(),
     val comboTotal: Double = 0.0,
     val totalAmount: Double = 0.0
@@ -28,6 +33,24 @@ class BookingSharedViewModel @Inject constructor() : ViewModel() {
     private val _cartState = MutableStateFlow(BookingCartState())
     val cartState: StateFlow<BookingCartState> = _cartState.asStateFlow()
 
+    fun setShowtimeInfo(
+        showtimeId: String,
+        movieTitle: String = "",
+        showDate: String = "",
+        startTime: String = "",
+        roomName: String = ""
+    ) {
+        _cartState.update { current ->
+            current.copy(
+                showtimeId = showtimeId,
+                movieTitle = movieTitle.ifBlank { current.movieTitle },
+                showDate = showDate.ifBlank { current.showDate },
+                startTime = startTime.ifBlank { current.startTime },
+                roomName = roomName.ifBlank { current.roomName }
+            )
+        }
+    }
+
     fun updateSeats(showtimeId: String, seats: List<String>, ticketTotal: Double) {
         _cartState.update { current ->
             val comboTotal = calculateComboTotal(current.selectedCombos, current.comboPrices)
@@ -41,21 +64,32 @@ class BookingSharedViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    fun updateComboQuantity(comboId: String, delta: Int, unitPrice: Double) {
+    fun updateComboQuantity(
+        comboId: String,
+        delta: Int,
+        unitPrice: Double,
+        comboName: String? = null
+    ) {
         _cartState.update { current ->
             val currentQty = current.selectedCombos[comboId] ?: 0
             val targetQty = (currentQty + delta).coerceIn(0, MAX_COMBO_QUANTITY)
             val updatedCombos = current.selectedCombos.toMutableMap()
+            val updatedNames = current.comboNames.toMutableMap()
             if (targetQty <= 0) {
                 updatedCombos.remove(comboId)
+                updatedNames.remove(comboId)
             } else {
                 updatedCombos[comboId] = targetQty
+                if (!comboName.isNullOrBlank()) {
+                    updatedNames[comboId] = comboName
+                }
             }
 
             val updatedPrices = current.comboPrices + (comboId to unitPrice)
             val comboTotal = calculateComboTotal(updatedCombos, updatedPrices)
             current.copy(
                 selectedCombos = updatedCombos,
+                comboNames = updatedNames,
                 comboPrices = updatedPrices,
                 comboTotal = comboTotal,
                 totalAmount = current.ticketTotal + comboTotal
@@ -67,16 +101,28 @@ class BookingSharedViewModel @Inject constructor() : ViewModel() {
         _cartState.update { current ->
             current.copy(
                 selectedCombos = emptyMap(),
+                comboNames = emptyMap(),
                 comboTotal = 0.0,
                 totalAmount = current.ticketTotal
             )
         }
     }
 
-    fun getFormattedCombosQuery(): String {
-        return _cartState.value.selectedCombos.entries
+    fun clearCart() {
+        _cartState.value = BookingCartState()
+    }
+
+    fun getFormattedCombosQuery(voucherCode: String? = null): String {
+        val comboParts = _cartState.value.selectedCombos.entries
             .filter { it.value > 0 }
-            .joinToString(",") { "${it.key}:${it.value}" }
+            .map { "${it.key}:${it.value}" }
+            .toMutableList()
+
+        if (!voucherCode.isNullOrBlank()) {
+            comboParts.add("voucher:${voucherCode.trim().uppercase()}")
+        }
+
+        return comboParts.joinToString(",")
     }
 
     private fun calculateComboTotal(

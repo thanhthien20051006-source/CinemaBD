@@ -128,7 +128,8 @@ fun SelectComboScreen(
                             bookingSharedViewModel.updateComboQuantity(
                                 comboId = combo.id,
                                 delta = delta,
-                                unitPrice = combo.price
+                                unitPrice = combo.price,
+                                comboName = combo.name
                             )
                         }
                     )

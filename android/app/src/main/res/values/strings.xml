@@ -88,4 +88,45 @@
     <string name="combo_unit_price">%s đ / phần</string>
     <string name="combo_selected_seats">Ghế đã chọn: %s</string>
     <string name="combo_none_selected">Chưa chọn combo</string>
+
+    <!-- Booking - Checkout -->
+    <string name="checkout_title">Xác nhận thanh toán</string>
+    <string name="checkout_hold_notice">Ghế đang được giữ tạm thời trong 5 phút. Vui lòng hoàn tất thanh toán.</string>
+    <string name="order_summary_title">Thông tin đơn đặt</string>
+    <string name="order_movie_label">Phim:</string>
+    <string name="order_showtime_label">Suất chiếu:</string>
+    <string name="order_room_label">Phòng chiếu:</string>
+    <string name="order_seats_label">Ghế:</string>
+    <string name="order_combos_label">Combo:</string>
+    <string name="no_combos_selected">Không có combo</string>
+    <string name="price_details_title">Chi tiết giá</string>
+    <string name="price_tickets_label">Tiền vé:</string>
+    <string name="price_combos_label">Tiền combo:</string>
+    <string name="voucher_discount_label">Giảm giá voucher:</string>
+    <string name="total_payment_label">Tổng thanh toán:</string>
+    <string name="voucher_input_label">Mã voucher</string>
+    <string name="voucher_input_placeholder">Nhập mã voucher (VD: GIAM10, SALE20)</string>
+    <string name="apply_voucher_btn">Áp dụng</string>
+    <string name="voucher_applied_msg">Đã tạm áp dụng mã %1$s, giảm %2$s đ</string>
+    <string name="voucher_note">Hệ thống sẽ xác thực mã voucher khi tạo đơn thanh toán.</string>
+    <string name="payment_method_title">Phương thức thanh toán</string>
+    <string name="payment_method_demo">Thanh toán demo</string>
+    <string name="payment_method_demo_desc">Mô phỏng thanh toán thành công (Môi trường phát triển)</string>
+    <string name="payment_method_vnpay">VNPay (sandbox)</string>
+    <string name="payment_method_vnpay_desc">Thanh toán qua cổng VNPay (ATM / QR / Visa)</string>
+    <string name="pay_btn">Xác nhận thanh toán</string>
+    <string name="pay_processing">Đang xử lý giao dịch...</string>
+
+    <!-- Booking - Payment Success -->
+    <string name="payment_success_title">Thanh toán thành công!</string>
+    <string name="payment_success_subtitle">Vé của bạn đã được xác nhận. Vui lòng xuất trình mã hóa đơn tại quầy.</string>
+    <string name="invoice_code_label">Mã hóa đơn</string>
+    <string name="invoice_status_label">Trạng thái:</string>
+    <string name="invoice_movie_label">Phim:</string>
+    <string name="invoice_room_label">Phòng chiếu:</string>
+    <string name="invoice_seats_label">Ghế đã đặt:</string>
+    <string name="invoice_total_label">Tổng tiền:</string>
+    <string name="back_to_home_btn">Về trang chủ</string>
+    <string name="currency_format">%s đ</string>
+    <string name="discount_currency_format">-%s đ</string>
 </resources>
