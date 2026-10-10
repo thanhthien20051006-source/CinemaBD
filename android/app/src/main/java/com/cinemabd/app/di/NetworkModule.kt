@@ -83,4 +83,10 @@ object NetworkModule {
     fun provideBookingsApi(retrofit: Retrofit): com.cinemabd.app.core.network.BookingsApi {
         return retrofit.create(com.cinemabd.app.core.network.BookingsApi::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideCombosApi(retrofit: Retrofit): com.cinemabd.app.core.network.CombosApi {
+        return retrofit.create(com.cinemabd.app.core.network.CombosApi::class.java)
+    }
 }

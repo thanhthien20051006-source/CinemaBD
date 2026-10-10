@@ -73,4 +73,19 @@
     <string name="seat_empty">Không có dữ liệu ghế.</string>
     <string name="seat_hold_success">Giữ ghế thành công!</string>
     <string name="seat_hold_failed">Không giữ được ghế. Vui lòng chọn ghế khác.</string>
+
+    <!-- Booking - Select Combo -->
+    <string name="select_combo_title">Chọn combo</string>
+    <string name="combo_subtitle">Thêm bắp nước cho buổi xem phim</string>
+    <string name="combo_empty">Không có dữ liệu combo.</string>
+    <string name="combo_ticket_total">Tiền vé (%d ghế):</string>
+    <string name="combo_ticket_total_simple">Tiền vé:</string>
+    <string name="combo_total_label">Combo:</string>
+    <string name="combo_total_amount_label">Tổng cộng:</string>
+    <string name="combo_skip_btn">Bỏ qua</string>
+    <string name="combo_continue_btn">Tiếp tục</string>
+    <string name="combo_price_format">%s đ</string>
+    <string name="combo_unit_price">%s đ / phần</string>
+    <string name="combo_selected_seats">Ghế đã chọn: %s</string>
+    <string name="combo_none_selected">Chưa chọn combo</string>
 </resources>
