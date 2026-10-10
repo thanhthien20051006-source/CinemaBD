@@ -23,6 +23,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleStartEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cinemabd.app.R
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
@@ -35,10 +37,17 @@ fun SelectSeatScreen(
     showtimeId: String? = null,
     viewModel: SeatMapViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    LifecycleStartEffect(viewModel) {
+        viewModel.startPolling()
+        onStopOrDispose {
+            viewModel.stopPolling()
+        }
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.eventFlow.collect { message ->
