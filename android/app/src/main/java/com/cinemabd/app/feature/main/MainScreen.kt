@@ -21,12 +21,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.cinemabd.app.R
 import com.cinemabd.app.feature.home.HomeScreen
-
-object MainDestinations {
-    const val HOME = "home"
-    const val TICKETS = "tickets"
-    const val PROFILE = "profile"
-}
+import com.cinemabd.app.navigation.Routes
 
 @Composable
 fun MainScreen() {
@@ -41,9 +36,9 @@ fun MainScreen() {
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Home, contentDescription = null) },
                     label = { Text(stringResource(id = R.string.nav_home)) },
-                    selected = currentDestination?.hierarchy?.any { it.route == MainDestinations.HOME } == true,
+                    selected = currentDestination?.hierarchy?.any { it.route == Routes.HOME } == true,
                     onClick = {
-                        navController.navigate(MainDestinations.HOME) {
+                        navController.navigate(Routes.HOME) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
                             }
@@ -55,9 +50,9 @@ fun MainScreen() {
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = null) },
                     label = { Text(stringResource(id = R.string.nav_tickets)) },
-                    selected = currentDestination?.hierarchy?.any { it.route == MainDestinations.TICKETS } == true,
+                    selected = currentDestination?.hierarchy?.any { it.route == Routes.TICKETS } == true,
                     onClick = {
-                        navController.navigate(MainDestinations.TICKETS) {
+                        navController.navigate(Routes.TICKETS) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
                             }
@@ -69,9 +64,9 @@ fun MainScreen() {
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Person, contentDescription = null) },
                     label = { Text(stringResource(id = R.string.nav_profile)) },
-                    selected = currentDestination?.hierarchy?.any { it.route == MainDestinations.PROFILE } == true,
+                    selected = currentDestination?.hierarchy?.any { it.route == Routes.PROFILE } == true,
                     onClick = {
-                        navController.navigate(MainDestinations.PROFILE) {
+                        navController.navigate(Routes.PROFILE) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
                             }
@@ -85,20 +80,20 @@ fun MainScreen() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = MainDestinations.HOME,
+            startDestination = Routes.HOME,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(MainDestinations.HOME) {
+            composable(Routes.HOME) {
                 HomeScreen(onMovieClick = { movieId ->
                     // Handle movie click later (e.g. navigate to details)
                 })
             }
-            composable(MainDestinations.TICKETS) {
+            composable(Routes.TICKETS) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(stringResource(id = R.string.nav_tickets))
                 }
             }
-            composable(MainDestinations.PROFILE) {
+            composable(Routes.PROFILE) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(stringResource(id = R.string.nav_profile))
                 }

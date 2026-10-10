@@ -3,6 +3,7 @@ package com.cinemabd.app
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cinemabd.app.core.datastore.TokenDataStore
+import com.cinemabd.app.navigation.Routes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,9 +27,9 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             val token = tokenDataStore.tokenFlow.firstOrNull()
             if (!token.isNullOrEmpty()) {
-                _startDestination.value = com.cinemabd.app.navigation.Destinations.MAIN
+                _startDestination.value = Routes.MAIN
             } else {
-                _startDestination.value = com.cinemabd.app.navigation.Destinations.AUTH
+                _startDestination.value = Routes.AUTH
             }
             _isLoading.value = false
         }
