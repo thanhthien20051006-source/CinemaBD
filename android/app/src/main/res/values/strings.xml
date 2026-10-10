@@ -43,4 +43,18 @@
     <string name="empty_reviews">Chưa có đánh giá.</string>
     <string name="expand_text">Xem thêm</string>
     <string name="collapse_text">Thu gọn</string>
+
+    <!-- Booking - Select Showtimes -->
+    <string name="select_showtime_title">Chọn suất chiếu</string>
+    <string name="showtime_today">Hôm nay</string>
+    <string name="showtime_room">Phòng: %s</string>
+    <string name="showtime_price">%s đ</string>
+    <string name="showtime_available_seats">%d ghế trống</string>
+    <string name="showtime_empty">Không có suất chiếu cho ngày này.</string>
+    <string name="showtime_select_btn">Chọn ghế</string>
+
+    <!-- Booking - Select Seats (placeholder) -->
+    <string name="select_seat_title">Chọn ghế</string>
+    <string name="select_seat_placeholder">Suất chiếu: %s</string>
+    <string name="back_btn">Quay lại</string>
 </resources>
