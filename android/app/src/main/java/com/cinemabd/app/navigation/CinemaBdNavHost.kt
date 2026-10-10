@@ -20,6 +20,7 @@ import com.cinemabd.app.feature.booking.SelectSeatScreen
 import com.cinemabd.app.feature.booking.SelectShowtimeScreen
 import com.cinemabd.app.feature.main.MainScreen
 import com.cinemabd.app.feature.movies.MovieDetailScreen
+import com.cinemabd.app.feature.tickets.TicketDetailScreen
 
 @Composable
 fun CinemaBdNavHost(
@@ -142,6 +143,14 @@ fun CinemaBdNavHost(
                         popUpTo(Routes.MAIN) { inclusive = true }
                     }
                 }
+            )
+        }
+        composable(
+            route = Routes.TICKET_DETAIL,
+            arguments = listOf(navArgument("invoiceId") { type = NavType.StringType })
+        ) {
+            TicketDetailScreen(
+                onBack = { navController.popBackStack() }
             )
         }
     }

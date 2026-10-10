@@ -28,10 +28,10 @@ data class PaymentCallbackResponse(
 
 @Serializable
 data class InvoiceResponse(
-    val transactionRef: String,
-    val paymentId: String,
-    val paymentStatus: String,
-    val totalAmount: Double,
+    val transactionRef: String = "",
+    val paymentId: String = "",
+    val paymentStatus: String = "",
+    val totalAmount: Double = 0.0,
     val movieId: String? = null,
     val movieTitle: String? = null,
     val moviePosterUrl: String? = null,
@@ -45,9 +45,9 @@ data class InvoiceResponse(
 
 @Serializable
 data class InvoiceTicketResponse(
-    val ticketId: String,
-    val seatId: String,
-    val price: Double,
+    val ticketId: String = "",
+    val seatId: String = "",
+    val price: Double = 0.0,
     val status: String? = null,
     val isCheckedIn: Boolean = false,
     val checkedInAt: String? = null

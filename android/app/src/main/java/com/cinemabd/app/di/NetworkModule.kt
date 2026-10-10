@@ -95,4 +95,10 @@ object NetworkModule {
     fun providePaymentsApi(retrofit: Retrofit): com.cinemabd.app.core.network.PaymentsApi {
         return retrofit.create(com.cinemabd.app.core.network.PaymentsApi::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideAccountApi(retrofit: Retrofit): com.cinemabd.app.core.network.AccountApi {
+        return retrofit.create(com.cinemabd.app.core.network.AccountApi::class.java)
+    }
 }

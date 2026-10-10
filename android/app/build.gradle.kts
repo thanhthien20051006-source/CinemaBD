@@ -97,6 +97,9 @@ dependencies {
     // Chrome Custom Tabs
     implementation(libs.androidx.browser)
 
+    // QR Code
+    implementation(libs.zxing.core)
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.ext)

@@ -20,6 +20,7 @@ junit = "4.13.2"
 androidx-test-ext = "1.2.1"
 espresso = "3.6.1"
 browser = "1.8.0"
+zxing = "3.5.3"
 
 [libraries]
 # Compose BOM
@@ -70,6 +71,9 @@ androidx-browser = { group = "androidx.browser", name = "browser", version.ref =
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-test-ext = { group = "androidx.test.ext", name = "junit", version.ref = "androidx-test-ext" }
 espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
+
+# ZXing QR Code
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
