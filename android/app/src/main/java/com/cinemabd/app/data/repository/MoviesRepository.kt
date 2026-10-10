@@ -3,6 +3,7 @@ package com.cinemabd.app.data.repository
 import com.cinemabd.app.BuildConfig
 import com.cinemabd.app.core.network.MoviesApi
 import com.cinemabd.app.core.network.model.MovieResponse
+import com.cinemabd.app.core.network.model.ShowtimeResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -45,6 +46,20 @@ class MoviesRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun getShowtimes(movieId: String, date: String? = null): Result<List<ShowtimeResponse>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val response = moviesApi.getShowtimes(movieId, date)
+                if (response.success && response.data != null) {
+                    Result.success(response.data)
+                } else {
+                    Result.failure(Exception(response.message ?: "Failed to fetch showtimes"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
 
     private fun fixImageUrl(url: String?): String? {
         if (url.isNullOrBlank()) return null
