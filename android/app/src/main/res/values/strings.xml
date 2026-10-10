@@ -186,4 +186,9 @@
     <string name="profile_error_phone_invalid">Số điện thoại không hợp lệ</string>
     <string name="profile_update_success">Cập nhật thông tin cá nhân thành công!</string>
     <string name="profile_saving">Đang lưu thay đổi...</string>
+
+    <!-- Empty / Not Found States -->
+    <string name="movie_not_found">Không tìm thấy thông tin phim.</string>
+    <string name="go_back">Quay lại</string>
+    <string name="profile_empty">Không có thông tin hồ sơ.</string>
 </resources>

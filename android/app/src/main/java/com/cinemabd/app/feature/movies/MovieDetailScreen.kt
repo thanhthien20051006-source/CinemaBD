@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -90,6 +91,22 @@ fun MovieDetailScreen(
                         modifier = Modifier.fillMaxSize()
                     )
                 }
+                else -> {
+                    // Empty state: not loading, no error, but movie is null
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.movie_not_found),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(onClick = onBack) {
+                            Text(stringResource(id = R.string.go_back))
+                        }
+                    }
+                }
             }
         }
     }
@@ -146,7 +163,7 @@ fun MovieDetailContent(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                var isDescriptionExpanded by remember { mutableStateOf(false) }
+                var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
 
                 Column(modifier = Modifier.animateContentSize()) {
                     Text(
