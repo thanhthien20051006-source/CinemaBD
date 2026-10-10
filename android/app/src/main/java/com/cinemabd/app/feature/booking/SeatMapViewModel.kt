@@ -7,6 +7,8 @@ import com.cinemabd.app.core.network.model.SeatHoldResult
 import com.cinemabd.app.core.network.model.SeatResponse
 import com.cinemabd.app.data.repository.BookingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -14,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -57,16 +60,42 @@ class SeatMapViewModel @Inject constructor(
     private val bookingsRepository: BookingsRepository
 ) : ViewModel() {
 
+    companion object {
+        const val POLL_INTERVAL_MS = 4000L
+    }
+
     val showtimeId: String = checkNotNull(savedStateHandle["showtimeId"])
 
     private val _uiState = MutableStateFlow<SeatMapUiState>(SeatMapUiState.Loading)
     val uiState: StateFlow<SeatMapUiState> = _uiState.asStateFlow()
 
-    private val _eventFlow = MutableSharedFlow<String>()
+    private val _eventFlow = MutableSharedFlow<String>(extraBufferCapacity = 64)
     val eventFlow: SharedFlow<String> = _eventFlow.asSharedFlow()
+
+    private var pollingJob: Job? = null
 
     init {
         loadSeats()
+    }
+
+    fun startPolling() {
+        if (pollingJob?.isActive == true) return
+        pollingJob = viewModelScope.launch {
+            while (isActive) {
+                delay(POLL_INTERVAL_MS)
+                pollSeats()
+            }
+        }
+    }
+
+    fun stopPolling() {
+        pollingJob?.cancel()
+        pollingJob = null
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopPolling()
     }
 
     fun retry() {
@@ -103,13 +132,15 @@ class SeatMapViewModel @Inject constructor(
             item.copy(displayStatus = resolveDisplayStatus(item, newSelected))
         }
 
-        _uiState.update {
-            currentState.copy(
-                seats = updatedSeats,
-                selectedSeats = newSelected,
-                totalAmount = newTotal,
-                errorMessage = null
-            )
+        _uiState.update { current ->
+            if (current is SeatMapUiState.Success) {
+                current.copy(
+                    seats = updatedSeats,
+                    selectedSeats = newSelected,
+                    totalAmount = newTotal,
+                    errorMessage = null
+                )
+            } else current
         }
     }
 
@@ -144,26 +175,7 @@ class SeatMapViewModel @Inject constructor(
 
             val result = bookingsRepository.getSeats(showtimeId)
             result.onSuccess { seatResponses ->
-                val sorted = seatResponses.sortedWith(
-                    compareBy<SeatResponse> { it.row }
-                        .thenBy { it.column.toIntOrNull() ?: 0 }
-                )
-                val maxCols = sorted.mapNotNull { it.column.toIntOrNull() }.maxOrNull() ?: 6
-
-                val seatUiModels = sorted.map { seat ->
-                    val isVip = seat.seatType?.equals("VIP", ignoreCase = true) == true
-                    SeatUiModel(
-                        id = seat.id,
-                        row = seat.row,
-                        column = seat.column,
-                        seatType = seat.seatType,
-                        isVip = isVip,
-                        isBooked = seat.isBooked,
-                        status = seat.status,
-                        price = seat.price,
-                        displayStatus = resolveDisplayStatus(seat.isBooked, seat.status, isVip, false)
-                    )
-                }
+                val (seatUiModels, maxCols) = mapSeats(seatResponses, emptySet())
 
                 _uiState.update {
                     SeatMapUiState.Success(
@@ -182,40 +194,69 @@ class SeatMapViewModel @Inject constructor(
         }
     }
 
+    private suspend fun pollSeats() {
+        val currentState = _uiState.value as? SeatMapUiState.Success ?: return
+        if (currentState.isHolding) return
+
+        val result = bookingsRepository.getSeats(showtimeId)
+        result.onSuccess { seatResponses ->
+            val latestState = _uiState.value as? SeatMapUiState.Success ?: return@onSuccess
+            if (latestState.isHolding) return@onSuccess
+
+            val currentSelected = latestState.selectedSeats
+            val stillSelected = mutableSetOf<String>()
+            val lostSeats = mutableListOf<String>()
+
+            for (seatId in currentSelected) {
+                val matching = seatResponses.firstOrNull { it.id == seatId }
+                if (matching != null && !matching.isBooked && matching.status.equals("Available", ignoreCase = true)) {
+                    stillSelected.add(seatId)
+                } else {
+                    lostSeats.add(seatId)
+                }
+            }
+
+            if (lostSeats.isNotEmpty()) {
+                val seatNames = lostSeats.joinToString(", ")
+                val message = if (lostSeats.size == 1) {
+                    "Ghế $seatNames đã có người mua hoặc giữ chỗ, hệ thống đã tự động bỏ chọn."
+                } else {
+                    "Các ghế $seatNames đã có người mua hoặc giữ chỗ, hệ thống đã tự động bỏ chọn."
+                }
+                _eventFlow.emit(message)
+            }
+
+            val (seatUiModels, maxCols) = mapSeats(seatResponses, stillSelected)
+            val newTotal = seatUiModels.filter { it.id in stillSelected }.sumOf { it.price }
+
+            _uiState.update { current ->
+                if (current is SeatMapUiState.Success && !current.isHolding) {
+                    current.copy(
+                        seats = seatUiModels,
+                        maxColumns = maxCols,
+                        selectedSeats = stillSelected,
+                        totalAmount = newTotal
+                    )
+                } else current
+            }
+        }.onFailure {
+            // Im lặng bỏ qua lỗi polling mạng để không làm gián đoạn trải nghiệm người dùng
+        }
+    }
+
     private suspend fun refreshSeatsAfterError(errorMessage: String) {
         val currentState = _uiState.value as? SeatMapUiState.Success
         val result = bookingsRepository.getSeats(showtimeId)
 
         result.onSuccess { seatResponses ->
-            val sorted = seatResponses.sortedWith(
-                compareBy<SeatResponse> { it.row }
-                    .thenBy { it.column.toIntOrNull() ?: 0 }
-            )
-            val maxCols = sorted.mapNotNull { it.column.toIntOrNull() }.maxOrNull() ?: 6
-
             // Giữ lại các ghế đã chọn nếu chúng vẫn Available
             val oldSelected = currentState?.selectedSeats ?: emptySet()
             val validSelected = oldSelected.filter { id ->
-                val matching = sorted.firstOrNull { it.id == id }
+                val matching = seatResponses.firstOrNull { it.id == id }
                 matching != null && !matching.isBooked && matching.status.equals("Available", ignoreCase = true)
             }.toSet()
 
-            val seatUiModels = sorted.map { seat ->
-                val isVip = seat.seatType?.equals("VIP", ignoreCase = true) == true
-                val isSelected = seat.id in validSelected
-                SeatUiModel(
-                    id = seat.id,
-                    row = seat.row,
-                    column = seat.column,
-                    seatType = seat.seatType,
-                    isVip = isVip,
-                    isBooked = seat.isBooked,
-                    status = seat.status,
-                    price = seat.price,
-                    displayStatus = resolveDisplayStatus(seat.isBooked, seat.status, isVip, isSelected)
-                )
-            }
-
+            val (seatUiModels, maxCols) = mapSeats(seatResponses, validSelected)
             val newTotal = seatUiModels.filter { it.id in validSelected }.sumOf { it.price }
 
             _uiState.update {
@@ -236,6 +277,35 @@ class SeatMapViewModel @Inject constructor(
                 } else it
             }
         }
+    }
+
+    private fun mapSeats(
+        seatResponses: List<SeatResponse>,
+        selectedSeats: Set<String>
+    ): Pair<List<SeatUiModel>, Int> {
+        val sorted = seatResponses.sortedWith(
+            compareBy<SeatResponse> { it.row }
+                .thenBy { it.column.toIntOrNull() ?: 0 }
+        )
+        val maxCols = sorted.mapNotNull { it.column.toIntOrNull() }.maxOrNull() ?: 6
+
+        val seatUiModels = sorted.map { seat ->
+            val isVip = seat.seatType?.equals("VIP", ignoreCase = true) == true
+            val isSelected = seat.id in selectedSeats
+            SeatUiModel(
+                id = seat.id,
+                row = seat.row,
+                column = seat.column,
+                seatType = seat.seatType,
+                isVip = isVip,
+                isBooked = seat.isBooked,
+                status = seat.status,
+                price = seat.price,
+                displayStatus = resolveDisplayStatus(seat.isBooked, seat.status, isVip, isSelected)
+            )
+        }
+
+        return Pair(seatUiModels, maxCols)
     }
 
     private fun resolveDisplayStatus(
