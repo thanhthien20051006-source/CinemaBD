@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">CinemaBD</string>
-    <string name="hello_title">Xin chào từ CinemaBD!</string>
-    <string name="hello_subtitle">Khung ứng dụng đã sẵn sàng.</string>
     <string name="loading">Đang tải...</string>
     <string name="error">Đã xảy ra lỗi.</string>
+    <string name="retry">Thử lại</string>
+    <string name="empty_data">Không có dữ liệu.</string>
 
     <!-- Auth -->
     <string name="login_title">Đăng nhập CinemaBD</string>
@@ -21,4 +21,13 @@
     <string name="switch_to_login">Đã có tài khoản? Đăng nhập</string>
     <string name="show_password">Hiển thị mật khẩu</string>
     <string name="hide_password">Ẩn mật khẩu</string>
+
+    <!-- Main Navigation -->
+    <string name="nav_home">Trang chủ</string>
+    <string name="nav_tickets">Vé của tôi</string>
+    <string name="nav_profile">Hồ sơ</string>
+
+    <!-- Home -->
+    <string name="now_showing">Đang chiếu</string>
+    <string name="coming_soon">Sắp chiếu</string>
 </resources>
