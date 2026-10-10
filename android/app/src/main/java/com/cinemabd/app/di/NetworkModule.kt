@@ -59,4 +59,10 @@ object NetworkModule {
             .addConverterFactory(json.asConverterFactory(contentType))
             .build()
     }
+
+    @Provides
+    @Singleton
+    fun provideAuthApi(retrofit: Retrofit): com.cinemabd.app.feature.auth.AuthApi {
+        return retrofit.create(com.cinemabd.app.feature.auth.AuthApi::class.java)
+    }
 }

@@ -5,4 +5,20 @@
     <string name="hello_subtitle">Khung ứng dụng đã sẵn sàng.</string>
     <string name="loading">Đang tải...</string>
     <string name="error">Đã xảy ra lỗi.</string>
+
+    <!-- Auth -->
+    <string name="login_title">Đăng nhập CinemaBD</string>
+    <string name="login_subtitle">Dùng chung cho khách hàng và admin</string>
+    <string name="register_title">Tạo tài khoản</string>
+    <string name="full_name">Họ tên</string>
+    <string name="username">Tài khoản</string>
+    <string name="password">Mật khẩu</string>
+    <string name="email">Email</string>
+    <string name="phone_number">Số điện thoại</string>
+    <string name="login_btn">Đăng nhập</string>
+    <string name="register_btn">Đăng ký</string>
+    <string name="switch_to_register">Chưa có tài khoản? Đăng ký ngay</string>
+    <string name="switch_to_login">Đã có tài khoản? Đăng nhập</string>
+    <string name="show_password">Hiển thị mật khẩu</string>
+    <string name="hide_password">Ẩn mật khẩu</string>
 </resources>
