@@ -25,4 +25,10 @@ object Routes {
 
     const val SELECT_COMBO = "select_combo/{showtimeId}"
     fun selectCombo(showtimeId: String) = "select_combo/$showtimeId"
+
+    const val CHECKOUT = "checkout/{showtimeId}"
+    fun checkout(showtimeId: String) = "checkout/$showtimeId"
+
+    const val PAYMENT_SUCCESS = "payment_success/{txnRef}"
+    fun paymentSuccess(txnRef: String) = "payment_success/$txnRef"
 }

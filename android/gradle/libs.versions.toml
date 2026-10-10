@@ -19,6 +19,7 @@ core-ktx = "1.15.0"
 junit = "4.13.2"
 androidx-test-ext = "1.2.1"
 espresso = "3.6.1"
+browser = "1.8.0"
 
 [libraries]
 # Compose BOM
@@ -63,6 +64,7 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 
 # Core
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
+androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }

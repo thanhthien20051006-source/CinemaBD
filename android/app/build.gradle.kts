@@ -94,6 +94,9 @@ dependencies {
     // Image Loading
     implementation(libs.coil.compose)
 
+    // Chrome Custom Tabs
+    implementation(libs.androidx.browser)
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.ext)

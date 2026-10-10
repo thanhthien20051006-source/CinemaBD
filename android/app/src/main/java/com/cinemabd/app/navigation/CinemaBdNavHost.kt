@@ -10,8 +10,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.cinemabd.app.feature.auth.AuthScreen
 import com.cinemabd.app.feature.booking.BookingSharedViewModel
+import com.cinemabd.app.feature.booking.CheckoutScreen
+import com.cinemabd.app.feature.booking.PaymentSuccessScreen
 import com.cinemabd.app.feature.booking.SelectComboScreen
 import com.cinemabd.app.feature.booking.SelectSeatScreen
 import com.cinemabd.app.feature.booking.SelectShowtimeScreen
@@ -97,12 +100,49 @@ fun CinemaBdNavHost(
                 SelectComboScreen(
                     onBack = { navController.popBackStack() },
                     onContinue = {
-                        // Màn thanh toán để P4.1, tạm thời chưa có đích đến
+                        navController.navigate(Routes.checkout(showtimeId))
                     },
                     showtimeId = showtimeId,
                     bookingSharedViewModel = bookingSharedViewModel
                 )
             }
+            composable(
+                route = Routes.CHECKOUT,
+                arguments = listOf(navArgument("showtimeId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val showtimeId = backStackEntry.arguments?.getString("showtimeId") ?: ""
+                val parentEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(Routes.BOOKING_GRAPH)
+                }
+                val bookingSharedViewModel: BookingSharedViewModel = hiltViewModel(parentEntry)
+
+                CheckoutScreen(
+                    onBack = { navController.popBackStack() },
+                    onPaymentSuccess = { txnRef ->
+                        bookingSharedViewModel.clearCart()
+                        navController.navigate(Routes.paymentSuccess(txnRef)) {
+                            popUpTo(Routes.BOOKING_GRAPH) { inclusive = true }
+                        }
+                    },
+                    showtimeId = showtimeId,
+                    bookingSharedViewModel = bookingSharedViewModel
+                )
+            }
+        }
+        composable(
+            route = Routes.PAYMENT_SUCCESS,
+            arguments = listOf(navArgument("txnRef") { type = NavType.StringType }),
+            deepLinks = listOf(
+                navDeepLink { uriPattern = "cinemabd://payment-result?txnRef={txnRef}" }
+            )
+        ) {
+            PaymentSuccessScreen(
+                onBackToHome = {
+                    navController.navigate(Routes.MAIN) {
+                        popUpTo(Routes.MAIN) { inclusive = true }
+                    }
+                }
+            )
         }
     }
 }

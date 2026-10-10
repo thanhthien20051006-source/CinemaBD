@@ -1,6 +1,9 @@
 package com.cinemabd.app.data.repository
 
 import com.cinemabd.app.core.network.BookingsApi
+import com.cinemabd.app.core.network.model.CheckoutRequest
+import com.cinemabd.app.core.network.model.CheckoutResponse
+import com.cinemabd.app.core.network.model.InvoiceResponse
 import com.cinemabd.app.core.network.model.SeatHoldRequest
 import com.cinemabd.app.core.network.model.SeatHoldResult
 import com.cinemabd.app.core.network.model.SeatResponse
@@ -37,6 +40,44 @@ class BookingsRepository @Inject constructor(
                     ?: response.message.takeIf { it.isNotBlank() }
                     ?: "Không thể giữ ghế. Vui lòng chọn ghế khác."
                 Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun checkout(
+        showtimeId: String,
+        seats: List<String>,
+        combos: String?,
+        totalAmount: Double,
+        returnUrl: String? = null
+    ): Result<CheckoutResponse> = withContext(Dispatchers.IO) {
+        try {
+            val request = CheckoutRequest(
+                showtimeId = showtimeId,
+                seats = seats,
+                combos = combos,
+                totalAmount = totalAmount
+            )
+            val response = bookingsApi.checkout(returnUrl = returnUrl, request = request)
+            if (response.success && response.data != null) {
+                Result.success(response.data)
+            } else {
+                Result.failure(Exception(response.message.ifBlank { "Không thể tạo phiên thanh toán" }))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getInvoice(txnRef: String): Result<InvoiceResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = bookingsApi.getInvoice(txnRef)
+            if (response.success && response.data != null) {
+                Result.success(response.data)
+            } else {
+                Result.failure(Exception(response.message.ifBlank { "Không tìm thấy hóa đơn" }))
             }
         } catch (e: Exception) {
             Result.failure(e)
