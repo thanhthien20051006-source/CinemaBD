@@ -22,6 +22,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.cinemabd.app.R
 import com.cinemabd.app.feature.home.HomeScreen
+import com.cinemabd.app.feature.profile.ProfileScreen
 import com.cinemabd.app.feature.tickets.TicketsScreen
 import com.cinemabd.app.navigation.Routes
 
@@ -98,9 +99,13 @@ fun MainScreen(rootNavController: NavHostController) {
                 )
             }
             composable(Routes.PROFILE) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(stringResource(id = R.string.nav_profile))
-                }
+                ProfileScreen(
+                    onLogout = {
+                        rootNavController.navigate(Routes.AUTH) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                )
             }
         }
     }

@@ -24,14 +24,15 @@ data class BookingCartState(
 )
 
 @HiltViewModel
-class BookingSharedViewModel @Inject constructor() : ViewModel() {
+class BookingSharedViewModel @Inject constructor(
+    private val cartManager: BookingCartManager
+) : ViewModel() {
 
     companion object {
-        const val MAX_COMBO_QUANTITY = 20
+        const val MAX_COMBO_QUANTITY = BookingCartManager.MAX_COMBO_QUANTITY
     }
 
-    private val _cartState = MutableStateFlow(BookingCartState())
-    val cartState: StateFlow<BookingCartState> = _cartState.asStateFlow()
+    val cartState: StateFlow<BookingCartState> = cartManager.cartState
 
     fun setShowtimeInfo(
         showtimeId: String,
@@ -40,28 +41,11 @@ class BookingSharedViewModel @Inject constructor() : ViewModel() {
         startTime: String = "",
         roomName: String = ""
     ) {
-        _cartState.update { current ->
-            current.copy(
-                showtimeId = showtimeId,
-                movieTitle = movieTitle.ifBlank { current.movieTitle },
-                showDate = showDate.ifBlank { current.showDate },
-                startTime = startTime.ifBlank { current.startTime },
-                roomName = roomName.ifBlank { current.roomName }
-            )
-        }
+        cartManager.setShowtimeInfo(showtimeId, movieTitle, showDate, startTime, roomName)
     }
 
     fun updateSeats(showtimeId: String, seats: List<String>, ticketTotal: Double) {
-        _cartState.update { current ->
-            val comboTotal = calculateComboTotal(current.selectedCombos, current.comboPrices)
-            current.copy(
-                showtimeId = showtimeId,
-                selectedSeats = seats,
-                ticketTotal = ticketTotal,
-                comboTotal = comboTotal,
-                totalAmount = ticketTotal + comboTotal
-            )
-        }
+        cartManager.updateSeats(showtimeId, seats, ticketTotal)
     }
 
     fun updateComboQuantity(
@@ -70,67 +54,18 @@ class BookingSharedViewModel @Inject constructor() : ViewModel() {
         unitPrice: Double,
         comboName: String? = null
     ) {
-        _cartState.update { current ->
-            val currentQty = current.selectedCombos[comboId] ?: 0
-            val targetQty = (currentQty + delta).coerceIn(0, MAX_COMBO_QUANTITY)
-            val updatedCombos = current.selectedCombos.toMutableMap()
-            val updatedNames = current.comboNames.toMutableMap()
-            if (targetQty <= 0) {
-                updatedCombos.remove(comboId)
-                updatedNames.remove(comboId)
-            } else {
-                updatedCombos[comboId] = targetQty
-                if (!comboName.isNullOrBlank()) {
-                    updatedNames[comboId] = comboName
-                }
-            }
-
-            val updatedPrices = current.comboPrices + (comboId to unitPrice)
-            val comboTotal = calculateComboTotal(updatedCombos, updatedPrices)
-            current.copy(
-                selectedCombos = updatedCombos,
-                comboNames = updatedNames,
-                comboPrices = updatedPrices,
-                comboTotal = comboTotal,
-                totalAmount = current.ticketTotal + comboTotal
-            )
-        }
+        cartManager.updateComboQuantity(comboId, delta, unitPrice, comboName)
     }
 
     fun clearCombos() {
-        _cartState.update { current ->
-            current.copy(
-                selectedCombos = emptyMap(),
-                comboNames = emptyMap(),
-                comboTotal = 0.0,
-                totalAmount = current.ticketTotal
-            )
-        }
+        cartManager.clearCombos()
     }
 
     fun clearCart() {
-        _cartState.value = BookingCartState()
+        cartManager.clearCart()
     }
 
     fun getFormattedCombosQuery(voucherCode: String? = null): String {
-        val comboParts = _cartState.value.selectedCombos.entries
-            .filter { it.value > 0 }
-            .map { "${it.key}:${it.value}" }
-            .toMutableList()
-
-        if (!voucherCode.isNullOrBlank()) {
-            comboParts.add("voucher:${voucherCode.trim().uppercase()}")
-        }
-
-        return comboParts.joinToString(",")
-    }
-
-    private fun calculateComboTotal(
-        combos: Map<String, Int>,
-        prices: Map<String, Double>
-    ): Double {
-        return combos.entries.sumOf { (id, qty) ->
-            (prices[id] ?: 0.0) * qty
-        }
+        return cartManager.getFormattedCombosQuery(voucherCode)
     }
 }

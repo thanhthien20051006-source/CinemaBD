@@ -2,19 +2,23 @@ package com.cinemabd.app
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cinemabd.app.core.datastore.ThemePreferences
 import com.cinemabd.app.core.datastore.TokenDataStore
 import com.cinemabd.app.navigation.Routes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    private val tokenDataStore: TokenDataStore
+    private val tokenDataStore: TokenDataStore,
+    private val themePreferences: ThemePreferences
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(true)
@@ -22,6 +26,13 @@ class MainViewModel @Inject constructor(
 
     private val _startDestination = MutableStateFlow<String?>(null)
     val startDestination: StateFlow<String?> = _startDestination.asStateFlow()
+
+    val isDarkTheme: StateFlow<Boolean> = themePreferences.isDarkThemeFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = true
+        )
 
     init {
         viewModelScope.launch {
