@@ -129,4 +129,30 @@
     <string name="back_to_home_btn">Về trang chủ</string>
     <string name="currency_format">%s đ</string>
     <string name="discount_currency_format">-%s đ</string>
+
+    <!-- Tickets -->
+    <string name="tickets_title">Vé của tôi</string>
+    <string name="tickets_tab_upcoming">Sắp tới</string>
+    <string name="tickets_tab_past">Đã xem</string>
+    <string name="tickets_empty">Bạn chưa có vé nào</string>
+    <string name="tickets_empty_subtitle">Đặt vé xong, vé và mã QR check-in sẽ xuất hiện tại đây.</string>
+    <string name="tickets_empty_upcoming">Chưa có vé xem phim sắp tới</string>
+    <string name="tickets_empty_past">Chưa có vé đã xem</string>
+    <string name="tickets_offline_banner">Đang dùng dữ liệu offline</string>
+    <string name="ticket_code_label">Mã hóa đơn</string>
+    <string name="ticket_showtime_label">Suất chiếu</string>
+    <string name="ticket_room_label">Phòng chiếu</string>
+    <string name="ticket_seats_label">Ghế</string>
+    <string name="ticket_status_paid">Đã thanh toán</string>
+    <string name="ticket_view_detail">Xem chi tiết</string>
+    <string name="ticket_detail_title">Chi tiết vé</string>
+    <string name="ticket_qr_title">Mã QR Check-in</string>
+    <string name="ticket_qr_guide">Đưa mã QR này cho nhân viên soát vé tại rạp để nhận vé.</string>
+    <string name="ticket_qr_error">Không thể tạo mã QR</string>
+    <string name="ticket_combos_label">Combo</string>
+    <string name="ticket_no_combo">Không có combo</string>
+    <string name="ticket_total_label">Tổng tiền</string>
+    <string name="ticket_transaction_label">Mã giao dịch</string>
+    <string name="ticket_single_id_label">Mã vé</string>
+    <string name="ticket_seat_prefix">Ghế</string>
 </resources>

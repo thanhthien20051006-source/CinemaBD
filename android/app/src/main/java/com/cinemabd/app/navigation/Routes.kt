@@ -31,4 +31,7 @@ object Routes {
 
     const val PAYMENT_SUCCESS = "payment_success/{txnRef}"
     fun paymentSuccess(txnRef: String) = "payment_success/$txnRef"
+
+    const val TICKET_DETAIL = "ticket_detail/{invoiceId}"
+    fun ticketDetail(invoiceId: String) = "ticket_detail/$invoiceId"
 }

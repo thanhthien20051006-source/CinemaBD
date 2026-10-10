@@ -22,6 +22,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.cinemabd.app.R
 import com.cinemabd.app.feature.home.HomeScreen
+import com.cinemabd.app.feature.tickets.TicketsScreen
 import com.cinemabd.app.navigation.Routes
 
 @Composable
@@ -90,9 +91,11 @@ fun MainScreen(rootNavController: NavHostController) {
                 })
             }
             composable(Routes.TICKETS) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(stringResource(id = R.string.nav_tickets))
-                }
+                TicketsScreen(
+                    onTicketClick = { invoiceId ->
+                        rootNavController.navigate(Routes.ticketDetail(invoiceId))
+                    }
+                )
             }
             composable(Routes.PROFILE) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
