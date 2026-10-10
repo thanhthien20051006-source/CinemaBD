@@ -53,8 +53,24 @@
     <string name="showtime_empty">Không có suất chiếu cho ngày này.</string>
     <string name="showtime_select_btn">Chọn ghế</string>
 
-    <!-- Booking - Select Seats (placeholder) -->
+    <!-- Booking - Select Seats -->
     <string name="select_seat_title">Chọn ghế</string>
     <string name="select_seat_placeholder">Suất chiếu: %s</string>
     <string name="back_btn">Quay lại</string>
+    <string name="cinema_screen">MÀN HÌNH</string>
+    <string name="seat_legend_normal">Ghế thường</string>
+    <string name="seat_legend_vip">Ghế VIP</string>
+    <string name="seat_legend_selected">Đang chọn</string>
+    <string name="seat_legend_sold">Đã bán</string>
+    <string name="seat_legend_held">Đang giữ</string>
+    <string name="seat_selected_title">Thông tin chọn ghế</string>
+    <string name="seat_selected_label">Ghế đã chọn:</string>
+    <string name="seat_none_selected">Chưa chọn</string>
+    <string name="seat_total_label">Tạm tính:</string>
+    <string name="seat_total_format">%s đ</string>
+    <string name="seat_continue_btn">Tiếp tục</string>
+    <string name="seat_holding">Đang giữ ghế...</string>
+    <string name="seat_empty">Không có dữ liệu ghế.</string>
+    <string name="seat_hold_success">Giữ ghế thành công!</string>
+    <string name="seat_hold_failed">Không giữ được ghế. Vui lòng chọn ghế khác.</string>
 </resources>
