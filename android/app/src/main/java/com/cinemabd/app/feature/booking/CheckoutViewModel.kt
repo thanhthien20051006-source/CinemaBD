@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cinemabd.app.core.network.toUserFriendlyMessage
 import com.cinemabd.app.data.repository.BookingsRepository
 import com.cinemabd.app.data.repository.PaymentsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -149,7 +150,7 @@ class CheckoutViewModel @Inject constructor(
                             _uiState.update {
                                 state.copy(
                                     isProcessing = false,
-                                    errorMessage = err.message ?: "Xác nhận thanh toán demo thất bại."
+                                    errorMessage = err.toUserFriendlyMessage("Xác nhận thanh toán demo thất bại.")
                                 )
                             }
                         }
@@ -172,7 +173,7 @@ class CheckoutViewModel @Inject constructor(
                 _uiState.update {
                     state.copy(
                         isProcessing = false,
-                        errorMessage = err.message ?: "Không thể tạo phiên thanh toán."
+                        errorMessage = err.toUserFriendlyMessage("Không thể tạo phiên thanh toán.")
                     )
                 }
             }

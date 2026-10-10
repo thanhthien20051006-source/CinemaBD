@@ -10,10 +10,12 @@ import javax.inject.Singleton
 
 @Singleton
 class AuthInterceptor @Inject constructor(
-    private val tokenDataStore: TokenDataStore
+    private val tokenDataStore: TokenDataStore,
+    private val authEventBus: AuthEventBus
 ) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
+        val path = originalRequest.url.encodedPath
 
         // We use runBlocking here because Interceptor is synchronous and OkHttp
         // calls this on a background thread.
@@ -24,6 +26,19 @@ class AuthInterceptor @Inject constructor(
             requestBuilder.header("Authorization", "Bearer $token")
         }
 
-        return chain.proceed(requestBuilder.build())
+        val response = chain.proceed(requestBuilder.build())
+
+        // If an authenticated request returns 401 Unauthorized, automatically invalidate token
+        // and notify app to return to Login (excluding auth requests like login/register)
+        if (response.code == 401 && !token.isNullOrEmpty() &&
+            !path.contains("/api/account/login") && !path.contains("/api/account/register")
+        ) {
+            runBlocking {
+                tokenDataStore.clearToken()
+            }
+            authEventBus.emitSessionExpired()
+        }
+
+        return response
     }
 }

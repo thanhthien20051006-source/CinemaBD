@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cinemabd.app.core.network.model.SeatHoldResult
 import com.cinemabd.app.core.network.model.SeatResponse
+import com.cinemabd.app.core.network.toUserFriendlyMessage
 import com.cinemabd.app.data.repository.BookingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -162,7 +163,7 @@ class SeatMapViewModel @Inject constructor(
                 }
                 onSuccess(holdResult)
             }.onFailure { error ->
-                val errorMsg = error.message ?: "Không thể giữ ghế. Vui lòng chọn ghế khác."
+                val errorMsg = error.toUserFriendlyMessage("Không thể giữ ghế. Vui lòng chọn ghế khác.")
                 _eventFlow.emit(errorMsg)
                 refreshSeatsAfterError(errorMsg)
             }
@@ -188,7 +189,7 @@ class SeatMapViewModel @Inject constructor(
                 }
             }.onFailure { error ->
                 _uiState.update {
-                    SeatMapUiState.Error(error.message ?: "Không thể tải sơ đồ ghế.")
+                    SeatMapUiState.Error(error.toUserFriendlyMessage("Không thể tải sơ đồ ghế. Vui lòng thử lại."))
                 }
             }
         }

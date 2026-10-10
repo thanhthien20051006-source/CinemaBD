@@ -4,6 +4,7 @@ import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cinemabd.app.core.network.model.UpdateCustomerProfileRequest
+import com.cinemabd.app.core.network.toUserFriendlyMessage
 import com.cinemabd.app.data.repository.ProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -59,7 +60,7 @@ class ProfileViewModel @Inject constructor(
                     _uiState.update { current ->
                         current.copy(
                             isLoading = false,
-                            errorMessage = error.message ?: "Không thể tải thông tin tài khoản"
+                            errorMessage = error.toUserFriendlyMessage("Không thể tải thông tin tài khoản")
                         )
                     }
                 }
@@ -184,7 +185,7 @@ class ProfileViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isSaving = false,
-                            errorMessage = error.message ?: "Cập nhật không thành công. Vui lòng thử lại."
+                            errorMessage = error.toUserFriendlyMessage("Cập nhật không thành công. Vui lòng thử lại.")
                         )
                     }
                 }

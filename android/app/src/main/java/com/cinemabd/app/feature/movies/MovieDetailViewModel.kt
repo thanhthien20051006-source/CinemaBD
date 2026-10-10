@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cinemabd.app.core.network.model.MovieResponse
 import com.cinemabd.app.core.network.model.ReviewResponse
+import com.cinemabd.app.core.network.toUserFriendlyMessage
 import com.cinemabd.app.data.repository.MoviesRepository
 import com.cinemabd.app.data.repository.ReviewsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -62,7 +63,7 @@ class MovieDetailViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        error = movieResult.exceptionOrNull()?.message ?: "An error occurred"
+                        error = movieResult.exceptionOrNull().toUserFriendlyMessage("Không thể tải thông tin phim. Vui lòng thử lại.")
                     )
                 }
             }
