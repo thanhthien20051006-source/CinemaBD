@@ -6,10 +6,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.cinemabd.app.feature.auth.AuthScreen
-import com.cinemabd.app.feature.hello.HelloScreen
+import com.cinemabd.app.feature.main.MainScreen
 
 object Destinations {
-    const val HELLO = "hello"
+    const val MAIN = "main"
     const val AUTH = "auth"
 }
 
@@ -25,14 +25,14 @@ fun CinemaBdNavHost(
         composable(Destinations.AUTH) {
             AuthScreen(
                 onAuthSuccess = {
-                    navController.navigate(Destinations.HELLO) {
+                    navController.navigate(Destinations.MAIN) {
                         popUpTo(Destinations.AUTH) { inclusive = true }
                     }
                 }
             )
         }
-        composable(Destinations.HELLO) {
-            HelloScreen()
+        composable(Destinations.MAIN) {
+            MainScreen()
         }
     }
 }

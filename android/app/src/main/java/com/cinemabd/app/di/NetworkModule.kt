@@ -65,4 +65,10 @@ object NetworkModule {
     fun provideAuthApi(retrofit: Retrofit): com.cinemabd.app.feature.auth.AuthApi {
         return retrofit.create(com.cinemabd.app.feature.auth.AuthApi::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideMoviesApi(retrofit: Retrofit): com.cinemabd.app.core.network.MoviesApi {
+        return retrofit.create(com.cinemabd.app.core.network.MoviesApi::class.java)
+    }
 }
