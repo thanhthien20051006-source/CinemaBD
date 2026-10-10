@@ -8,30 +8,25 @@ import androidx.navigation.compose.rememberNavController
 import com.cinemabd.app.feature.auth.AuthScreen
 import com.cinemabd.app.feature.main.MainScreen
 
-object Destinations {
-    const val MAIN = "main"
-    const val AUTH = "auth"
-}
-
 @Composable
 fun CinemaBdNavHost(
     navController: NavHostController = rememberNavController(),
-    startDestination: String = Destinations.AUTH
+    startDestination: String = Routes.AUTH
 ) {
     NavHost(
         navController = navController,
         startDestination = startDestination
     ) {
-        composable(Destinations.AUTH) {
+        composable(Routes.AUTH) {
             AuthScreen(
                 onAuthSuccess = {
-                    navController.navigate(Destinations.MAIN) {
-                        popUpTo(Destinations.AUTH) { inclusive = true }
+                    navController.navigate(Routes.MAIN) {
+                        popUpTo(Routes.AUTH) { inclusive = true }
                     }
                 }
             )
         }
-        composable(Destinations.MAIN) {
+        composable(Routes.MAIN) {
             MainScreen()
         }
     }
