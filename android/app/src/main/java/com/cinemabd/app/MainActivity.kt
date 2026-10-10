@@ -29,9 +29,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
             val startDestination by viewModel.startDestination.collectAsStateWithLifecycle()
+            val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
             val nc = rememberNavController().also { navController = it }
 
-            CinemaBDTheme {
+            CinemaBDTheme(darkTheme = isDarkTheme) {
                 if (isLoading || startDestination == null) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()

@@ -2,6 +2,7 @@ package com.cinemabd.app.ui.theme
 
 import android.app.Activity
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -35,11 +36,27 @@ private val DarkColorScheme = darkColorScheme(
     onError = Color.White
 )
 
+private val LightColorScheme = lightColorScheme(
+    primary = CinemaRed,
+    secondary = CinemaOrange,
+    tertiary = CinemaYellow,
+    background = Color(0xFFF1F5F9),
+    surface = Color.White,
+    onPrimary = Color.White,
+    onSecondary = Color.White,
+    onTertiary = CinemaDark,
+    onBackground = Color(0xFF0F172A),
+    onSurface = Color(0xFF0F172A),
+    error = CinemaRed,
+    onError = Color.White
+)
+
 @Composable
 fun CinemaBDTheme(
+    darkTheme: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = DarkColorScheme
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -47,8 +64,8 @@ fun CinemaBDTheme(
             window.statusBarColor = colorScheme.background.toArgb()
             window.navigationBarColor = colorScheme.background.toArgb()
             WindowCompat.getInsetsController(window, view).apply {
-                isAppearanceLightStatusBars = false
-                isAppearanceLightNavigationBars = false
+                isAppearanceLightStatusBars = !darkTheme
+                isAppearanceLightNavigationBars = !darkTheme
             }
         }
     }
