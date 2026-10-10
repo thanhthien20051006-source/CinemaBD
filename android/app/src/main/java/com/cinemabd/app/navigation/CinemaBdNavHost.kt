@@ -1,14 +1,22 @@
 package com.cinemabd.app.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.cinemabd.app.feature.auth.AuthScreen
+import com.cinemabd.app.feature.booking.BookingSharedViewModel
+import com.cinemabd.app.feature.booking.SelectComboScreen
+import com.cinemabd.app.feature.booking.SelectSeatScreen
+import com.cinemabd.app.feature.booking.SelectShowtimeScreen
 import com.cinemabd.app.feature.main.MainScreen
+import com.cinemabd.app.feature.movies.MovieDetailScreen
 
 @Composable
 fun CinemaBdNavHost(
@@ -35,7 +43,7 @@ fun CinemaBdNavHost(
             Routes.MOVIE_DETAIL,
             arguments = listOf(navArgument("movieId") { type = NavType.StringType })
         ) {
-            com.cinemabd.app.feature.movies.MovieDetailScreen(
+            MovieDetailScreen(
                 onBack = { navController.popBackStack() },
                 onBookTicket = { movieId ->
                     navController.navigate(Routes.selectShowtimes(movieId))
@@ -46,20 +54,55 @@ fun CinemaBdNavHost(
             Routes.SELECT_SHOWTIMES,
             arguments = listOf(navArgument("movieId") { type = NavType.StringType })
         ) {
-            com.cinemabd.app.feature.booking.SelectShowtimeScreen(
+            SelectShowtimeScreen(
                 onBack = { navController.popBackStack() },
                 onSelectShowtime = { showtimeId ->
                     navController.navigate(Routes.selectSeats(showtimeId))
                 }
             )
         }
-        composable(
-            Routes.SELECT_SEATS,
-            arguments = listOf(navArgument("showtimeId") { type = NavType.StringType })
+        navigation(
+            route = Routes.BOOKING_GRAPH,
+            startDestination = Routes.SELECT_SEATS
         ) {
-            com.cinemabd.app.feature.booking.SelectSeatScreen(
-                onBack = { navController.popBackStack() }
-            )
+            composable(
+                route = Routes.SELECT_SEATS,
+                arguments = listOf(navArgument("showtimeId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val showtimeId = backStackEntry.arguments?.getString("showtimeId") ?: ""
+                val parentEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(Routes.BOOKING_GRAPH)
+                }
+                val bookingSharedViewModel: BookingSharedViewModel = hiltViewModel(parentEntry)
+
+                SelectSeatScreen(
+                    onBack = { navController.popBackStack() },
+                    onContinue = { sid ->
+                        navController.navigate(Routes.selectCombo(sid))
+                    },
+                    showtimeId = showtimeId,
+                    bookingSharedViewModel = bookingSharedViewModel
+                )
+            }
+            composable(
+                route = Routes.SELECT_COMBO,
+                arguments = listOf(navArgument("showtimeId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val showtimeId = backStackEntry.arguments?.getString("showtimeId") ?: ""
+                val parentEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(Routes.BOOKING_GRAPH)
+                }
+                val bookingSharedViewModel: BookingSharedViewModel = hiltViewModel(parentEntry)
+
+                SelectComboScreen(
+                    onBack = { navController.popBackStack() },
+                    onContinue = {
+                        // Màn thanh toán để P4.1, tạm thời chưa có đích đến
+                    },
+                    showtimeId = showtimeId,
+                    bookingSharedViewModel = bookingSharedViewModel
+                )
+            }
         }
     }
 }

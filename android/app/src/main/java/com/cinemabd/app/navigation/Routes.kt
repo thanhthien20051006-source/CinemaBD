@@ -17,6 +17,12 @@ object Routes {
     const val SELECT_SHOWTIMES = "select_showtimes/{movieId}"
     fun selectShowtimes(movieId: String) = "select_showtimes/$movieId"
 
+    // Booking Flow
+    const val BOOKING_GRAPH = "booking_flow"
+
     const val SELECT_SEATS = "select_seats/{showtimeId}"
     fun selectSeats(showtimeId: String) = "select_seats/$showtimeId"
+
+    const val SELECT_COMBO = "select_combo/{showtimeId}"
+    fun selectCombo(showtimeId: String) = "select_combo/$showtimeId"
 }

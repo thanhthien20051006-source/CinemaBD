@@ -34,8 +34,10 @@ import java.util.Locale
 @Composable
 fun SelectSeatScreen(
     onBack: () -> Unit,
+    onContinue: (String) -> Unit = {},
     showtimeId: String? = null,
-    viewModel: SeatMapViewModel = hiltViewModel()
+    viewModel: SeatMapViewModel = hiltViewModel(),
+    bookingSharedViewModel: BookingSharedViewModel? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -78,11 +80,12 @@ fun SelectSeatScreen(
                     state = state,
                     onContinueClick = {
                         viewModel.holdSeats {
-                            scope.launch {
-                                snackbarHostState.showSnackbar(
-                                    context.getString(R.string.seat_hold_success)
-                                )
-                            }
+                            bookingSharedViewModel?.updateSeats(
+                                showtimeId = state.showtimeId,
+                                seats = state.selectedSeats.sorted(),
+                                ticketTotal = state.totalAmount
+                            )
+                            onContinue(state.showtimeId)
                         }
                     }
                 )
