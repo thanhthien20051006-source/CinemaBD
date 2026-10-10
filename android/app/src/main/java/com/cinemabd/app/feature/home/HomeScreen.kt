@@ -20,16 +20,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.cinemabd.app.BuildConfig
 import com.cinemabd.app.R
 import com.cinemabd.app.core.network.model.MovieResponse
+import com.cinemabd.app.core.utils.formatImageUrl
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -178,15 +180,29 @@ fun BannerSection(
             modifier = Modifier.fillMaxSize()
         ) { page ->
             val movie = bannerMovies[page]
-            AsyncImage(
+            SubcomposeAsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    .data(normalizeUrl(movie.posterUrl))
+                    .data(formatImageUrl(movie.posterUrl))
                     .crossfade(true)
                     .build(),
                 contentDescription = movie.title,
                 contentScale = ContentScale.Crop,
-                placeholder = androidx.compose.ui.graphics.painter.ColorPainter(Color.LightGray),
-                error = androidx.compose.ui.graphics.painter.ColorPainter(Color.LightGray),
+                loading = {
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(Color.LightGray),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(painter = painterResource(id = R.drawable.ic_image_placeholder), contentDescription = "Loading", tint = Color.Gray)
+                    }
+                },
+                error = {
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(Color.LightGray),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(painter = painterResource(id = R.drawable.ic_image_placeholder), contentDescription = "Error", tint = Color.Gray)
+                    }
+                },
                 modifier = Modifier
                     .fillMaxSize()
                     .clickable { onMovieClick(movie.id) }
@@ -251,15 +267,29 @@ fun MovieCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column {
-            AsyncImage(
+            SubcomposeAsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    .data(normalizeUrl(movie.posterUrl))
+                    .data(formatImageUrl(movie.posterUrl))
                     .crossfade(true)
                     .build(),
                 contentDescription = movie.title,
                 contentScale = ContentScale.Crop,
-                placeholder = androidx.compose.ui.graphics.painter.ColorPainter(Color.LightGray),
-                error = androidx.compose.ui.graphics.painter.ColorPainter(Color.LightGray),
+                loading = {
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(Color.LightGray),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(painter = painterResource(id = R.drawable.ic_image_placeholder), contentDescription = "Loading", tint = Color.Gray)
+                    }
+                },
+                error = {
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(Color.LightGray),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(painter = painterResource(id = R.drawable.ic_image_placeholder), contentDescription = "Error", tint = Color.Gray)
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(0.7f)
@@ -282,19 +312,4 @@ fun MovieCard(
             }
         }
     }
-}
-
-fun normalizeUrl(url: String?): String {
-    if (url.isNullOrBlank()) return ""
-    if (url.startsWith("http", ignoreCase = true)) return url
-
-    val baseUrl = BuildConfig.API_BASE_URL.trimEnd('/')
-    val relativeUrl = url.trimStart('/')
-
-    // If it's a legacy poster, it typically sits in /legacy/Content/img/Posters/
-    if (!relativeUrl.contains("/")) {
-        return "$baseUrl/legacy/Content/img/Posters/$relativeUrl"
-    }
-
-    return "$baseUrl/$relativeUrl"
 }
