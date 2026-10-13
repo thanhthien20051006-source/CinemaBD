@@ -108,4 +108,10 @@ object NetworkModule {
     fun provideAccountApi(retrofit: Retrofit): com.cinemabd.app.core.network.AccountApi {
         return retrofit.create(com.cinemabd.app.core.network.AccountApi::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideAdminApi(retrofit: Retrofit): com.cinemabd.app.feature.admin.AdminApi {
+        return retrofit.create(com.cinemabd.app.feature.admin.AdminApi::class.java)
+    }
 }

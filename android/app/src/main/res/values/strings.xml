@@ -191,4 +191,33 @@
     <string name="movie_not_found">Không tìm thấy thông tin phim.</string>
     <string name="go_back">Quay lại</string>
     <string name="profile_empty">Không có thông tin hồ sơ.</string>
+
+    <!-- Admin Login & Check-in -->
+    <string name="login_admin_link">Đăng nhập quản trị viên</string>
+    <string name="login_customer_link">Đăng nhập khách hàng</string>
+    <string name="login_admin_title">Đăng nhập Quản trị viên</string>
+    <string name="login_admin_subtitle">Dành cho nhân viên soát vé và quản lý hệ thống</string>
+    <string name="login_admin_failed">Đăng nhập quản trị viên thất bại. Vui lòng thử lại.</string>
+
+    <string name="nav_check_in">Soát vé</string>
+    <string name="check_in_title">Soát vé xem phim</string>
+    <string name="check_in_subtitle">Quét mã QR hoặc nhập chuỗi kiểm tra</string>
+    <string name="check_in_input_label">Chuỗi mã QR vé</string>
+    <string name="check_in_input_placeholder">Nhập hoặc quét mã QR (VD: CinemaBD|CHECKIN|...)</string>
+    <string name="check_in_scan_btn">Quét QR (Camera)</string>
+    <string name="check_in_submit_btn">Soát vé</string>
+    <string name="check_in_checking">Đang kiểm tra vé...</string>
+
+    <string name="check_in_camera_permission_required">Cần cấp quyền camera để quét mã QR vé xem phim.</string>
+    <string name="check_in_camera_permission_grant">Cấp quyền camera</string>
+
+    <string name="check_in_success_title">Soát vé thành công</string>
+    <string name="check_in_already_title">Vé đã check-in trước đó</string>
+    <string name="check_in_invalid_qr_title">Mã QR không hợp lệ</string>
+    <string name="check_in_not_found_title">Không tìm thấy vé</string>
+    <string name="check_in_error_forbidden">Tài khoản không có quyền soát vé</string>
+    <string name="check_in_ticket_id_label">Mã vé:</string>
+    <string name="check_in_movie_label">Phim:</string>
+    <string name="check_in_seat_label">Ghế:</string>
+    <string name="check_in_customer_label">Khách hàng:</string>
 </resources>

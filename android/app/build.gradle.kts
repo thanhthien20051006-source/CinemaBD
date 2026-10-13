@@ -99,6 +99,7 @@ dependencies {
 
     // QR Code
     implementation(libs.zxing.core)
+    implementation(libs.zxing.android.embedded)
 
     // Testing
     testImplementation(libs.junit)
