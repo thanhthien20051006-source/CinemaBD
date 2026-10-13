@@ -21,6 +21,7 @@ androidx-test-ext = "1.2.1"
 espresso = "3.6.1"
 browser = "1.8.0"
 zxing = "3.5.3"
+zxing-android-embedded = "4.3.0"
 
 [libraries]
 # Compose BOM
@@ -74,6 +75,7 @@ espresso-core = { group = "androidx.test.espresso", name = "espresso-core", vers
 
 # ZXing QR Code
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
+zxing-android-embedded = { group = "com.journeyapps", name = "zxing-android-embedded", version.ref = "zxing-android-embedded" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

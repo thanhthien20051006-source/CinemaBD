@@ -24,3 +24,12 @@ data class AuthResponse(
     val fullName: String,
     val token: String
 )
+
+@Serializable
+data class AdminAuthResponse(
+    val adminId: Int = 0,
+    val username: String = "",
+    val fullName: String = "",
+    val role: String? = null,
+    val token: String = ""
+)

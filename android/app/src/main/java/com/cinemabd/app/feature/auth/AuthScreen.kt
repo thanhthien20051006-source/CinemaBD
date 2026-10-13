@@ -69,13 +69,22 @@ fun AuthScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = if (uiState.isLoginMode) stringResource(R.string.login_title) else stringResource(R.string.register_title),
+                text = when {
+                    uiState.isAdminMode -> stringResource(R.string.login_admin_title)
+                    uiState.isLoginMode -> stringResource(R.string.login_title)
+                    else -> stringResource(R.string.register_title)
+                },
                 color = MaterialTheme.colorScheme.error, // Assuming matching web's danger color
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(8.dp))
-            if (uiState.isLoginMode) {
+            if (uiState.isAdminMode) {
+                Text(
+                    text = stringResource(R.string.login_admin_subtitle),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else if (uiState.isLoginMode) {
                 Text(
                     text = stringResource(R.string.login_subtitle),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -180,11 +189,33 @@ fun AuthScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            TextButton(onClick = viewModel::toggleAuthMode) {
-                Text(
-                    text = if (uiState.isLoginMode) stringResource(R.string.switch_to_register) else stringResource(R.string.switch_to_login),
-                    color = MaterialTheme.colorScheme.primary
-                )
+            if (uiState.isLoginMode) {
+                TextButton(onClick = viewModel::toggleAdminMode) {
+                    Text(
+                        text = if (uiState.isAdminMode) {
+                            stringResource(R.string.login_customer_link)
+                        } else {
+                            stringResource(R.string.login_admin_link)
+                        },
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                if (!uiState.isAdminMode) {
+                    TextButton(onClick = viewModel::toggleAuthMode) {
+                        Text(
+                            text = stringResource(R.string.switch_to_register),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            } else {
+                TextButton(onClick = viewModel::toggleAuthMode) {
+                    Text(
+                        text = stringResource(R.string.switch_to_login),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }

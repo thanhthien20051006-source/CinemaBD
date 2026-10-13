@@ -9,6 +9,7 @@ object Routes {
     const val HOME = "home"
     const val TICKETS = "tickets"
     const val PROFILE = "profile"
+    const val CHECK_IN = "check_in"
     
     // Feature Nav
     const val MOVIE_DETAIL = "movie_detail/{movieId}"

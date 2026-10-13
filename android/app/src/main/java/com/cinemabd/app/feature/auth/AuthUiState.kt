@@ -2,6 +2,7 @@ package com.cinemabd.app.feature.auth
 
 data class AuthUiState(
     val isLoginMode: Boolean = true,
+    val isAdminMode: Boolean = false,
     val username: String = "",
     val password: String = "",
     val fullName: String = "",

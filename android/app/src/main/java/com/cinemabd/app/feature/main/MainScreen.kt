@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -13,6 +14,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -21,14 +24,19 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.cinemabd.app.R
+import com.cinemabd.app.feature.admin.CheckInScreen
 import com.cinemabd.app.feature.home.HomeScreen
 import com.cinemabd.app.feature.profile.ProfileScreen
 import com.cinemabd.app.feature.tickets.TicketsScreen
 import com.cinemabd.app.navigation.Routes
 
 @Composable
-fun MainScreen(rootNavController: NavHostController) {
+fun MainScreen(
+    rootNavController: NavHostController,
+    viewModel: MainScreenViewModel = hiltViewModel()
+) {
     val navController = rememberNavController()
+    val isAdmin by viewModel.isAdmin.collectAsStateWithLifecycle()
 
     Scaffold(
         bottomBar = {
@@ -64,6 +72,22 @@ fun MainScreen(rootNavController: NavHostController) {
                         }
                     }
                 )
+                if (isAdmin) {
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Filled.Done, contentDescription = null) },
+                        label = { Text(stringResource(id = R.string.nav_check_in)) },
+                        selected = currentDestination?.hierarchy?.any { it.route == Routes.CHECK_IN } == true,
+                        onClick = {
+                            navController.navigate(Routes.CHECK_IN) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
+                }
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Person, contentDescription = null) },
                     label = { Text(stringResource(id = R.string.nav_profile)) },
@@ -97,6 +121,11 @@ fun MainScreen(rootNavController: NavHostController) {
                         rootNavController.navigate(Routes.ticketDetail(invoiceId))
                     }
                 )
+            }
+            if (isAdmin) {
+                composable(Routes.CHECK_IN) {
+                    CheckInScreen()
+                }
             }
             composable(Routes.PROFILE) {
                 ProfileScreen(

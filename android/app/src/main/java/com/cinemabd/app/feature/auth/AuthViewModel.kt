@@ -44,6 +44,21 @@ class AuthViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 isLoginMode = !it.isLoginMode,
+                isAdminMode = false,
+                errorMessage = null,
+                password = "",
+                fullName = "",
+                email = "",
+                phoneNumber = ""
+            )
+        }
+    }
+
+    fun toggleAdminMode() {
+        _uiState.update {
+            it.copy(
+                isLoginMode = true,
+                isAdminMode = !it.isAdminMode,
                 errorMessage = null,
                 password = "",
                 fullName = "",
@@ -68,14 +83,24 @@ class AuthViewModel @Inject constructor(
 
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             viewModelScope.launch {
-                val result = authRepository.login(LoginRequest(state.username, state.password))
+                val result = if (state.isAdminMode) {
+                    authRepository.adminLogin(LoginRequest(state.username, state.password))
+                } else {
+                    authRepository.login(LoginRequest(state.username, state.password))
+                }
+
                 if (result.isSuccess) {
                     _uiState.update { it.copy(isLoading = false, isSuccess = true) }
                 } else {
+                    val defaultMsg = if (state.isAdminMode) {
+                        "Đăng nhập quản trị viên thất bại. Vui lòng thử lại."
+                    } else {
+                        "Đăng nhập thất bại. Vui lòng thử lại."
+                    }
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = result.exceptionOrNull().toUserFriendlyMessage("Đăng nhập thất bại. Vui lòng thử lại.")
+                            errorMessage = result.exceptionOrNull().toUserFriendlyMessage(defaultMsg)
                         )
                     }
                 }
