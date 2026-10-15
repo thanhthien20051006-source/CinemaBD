@@ -38,6 +38,14 @@ fun MainScreen(
     val navController = rememberNavController()
     val isAdmin by viewModel.isAdmin.collectAsStateWithLifecycle()
 
+    if (isAdmin == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+    val isAdminUser = isAdmin == true
+
     Scaffold(
         bottomBar = {
             NavigationBar {
@@ -72,7 +80,7 @@ fun MainScreen(
                         }
                     }
                 )
-                if (isAdmin) {
+                if (isAdminUser) {
                     NavigationBarItem(
                         icon = { Icon(Icons.Filled.Done, contentDescription = null) },
                         label = { Text(stringResource(id = R.string.nav_check_in)) },
@@ -107,7 +115,7 @@ fun MainScreen(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Routes.HOME,
+            startDestination = if (isAdminUser) Routes.CHECK_IN else Routes.HOME,
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Routes.HOME) {
@@ -122,7 +130,7 @@ fun MainScreen(
                     }
                 )
             }
-            if (isAdmin) {
+            if (isAdminUser) {
                 composable(Routes.CHECK_IN) {
                     CheckInScreen()
                 }
