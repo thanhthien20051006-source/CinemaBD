@@ -1,14 +1,15 @@
 package com.cinemabd.app.feature.auth
 
+import com.cinemabd.app.core.database.CinemaDatabase
 import com.cinemabd.app.core.datastore.TokenDataStore
-import com.cinemabd.app.core.utils.JwtUtils
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class AuthRepository @Inject constructor(
     private val authApi: AuthApi,
-    private val tokenDataStore: TokenDataStore
+    private val tokenDataStore: TokenDataStore,
+    private val cinemaDatabase: CinemaDatabase
 ) {
     suspend fun login(request: LoginRequest): Result<AuthResponse> {
         return try {
@@ -29,8 +30,8 @@ class AuthRepository @Inject constructor(
             val response = authApi.adminLogin(request)
             if (response.success && response.data != null) {
                 val token = response.data.token
-                val isAdmin = JwtUtils.isRoleAdmin(token, response.data.role)
-                tokenDataStore.saveToken(token, isAdmin = isAdmin)
+                cinemaDatabase.clearAllTables()
+                tokenDataStore.saveToken(token, isAdmin = true)
                 Result.success(response.data)
             } else {
                 Result.failure(Exception(response.message))

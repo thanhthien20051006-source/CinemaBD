@@ -39,10 +39,10 @@ class MainViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             val token = tokenDataStore.tokenFlow.firstOrNull()
-            if (!token.isNullOrEmpty()) {
-                _startDestination.value = Routes.MAIN
+            _startDestination.value = if (token.isNullOrEmpty()) {
+                Routes.AUTH
             } else {
-                _startDestination.value = Routes.AUTH
+                Routes.MAIN
             }
             _isLoading.value = false
         }

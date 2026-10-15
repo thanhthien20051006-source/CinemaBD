@@ -13,10 +13,10 @@ import javax.inject.Inject
 class MainScreenViewModel @Inject constructor(
     private val tokenDataStore: TokenDataStore
 ) : ViewModel() {
-    val isAdmin: StateFlow<Boolean> = tokenDataStore.isAdminFlow
+    val isAdmin: StateFlow<Boolean?> = tokenDataStore.isAdminFlow
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = false
+            initialValue = null
         )
 }
