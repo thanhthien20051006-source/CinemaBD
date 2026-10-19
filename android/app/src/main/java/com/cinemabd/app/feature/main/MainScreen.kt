@@ -25,11 +25,14 @@ import androidx.navigation.navArgument
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navDeepLink
+import com.cinemabd.app.feature.admin.AdminComboScreen
 import com.cinemabd.app.feature.admin.AdminManagementScreen
 import com.cinemabd.app.feature.admin.AdminMovieDetailScreen
 import com.cinemabd.app.feature.admin.AdminMovieListScreen
+import com.cinemabd.app.feature.admin.AdminRefundScreen
 import com.cinemabd.app.feature.admin.AdminShowtimeDetailScreen
 import com.cinemabd.app.feature.admin.AdminShowtimeListScreen
+import com.cinemabd.app.feature.admin.AdminVoucherScreen
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
@@ -114,7 +117,10 @@ fun MainScreen(
                                 it.route == Routes.ADMIN_SHOWTIMES ||
                                 it.route == Routes.ADMIN_SHOWTIME_DETAIL ||
                                 it.route == Routes.ADMIN_MOVIES ||
-                                it.route == Routes.ADMIN_MOVIE_DETAIL
+                                it.route == Routes.ADMIN_MOVIE_DETAIL ||
+                                it.route == Routes.ADMIN_COMBOS ||
+                                it.route == Routes.ADMIN_VOUCHERS ||
+                                it.route == Routes.ADMIN_REFUNDS
                         } == true,
                         onClick = {
                             navController.navigate(Routes.ADMIN_MANAGEMENT) {
@@ -205,8 +211,20 @@ fun MainScreen(
                 composable(Routes.ADMIN_MANAGEMENT) {
                     AdminManagementScreen(
                         onShowtimesClick = { navController.navigate(Routes.ADMIN_SHOWTIMES) },
-                        onMoviesClick = { navController.navigate(Routes.ADMIN_MOVIES) }
+                        onMoviesClick = { navController.navigate(Routes.ADMIN_MOVIES) },
+                        onCombosClick = { navController.navigate(Routes.ADMIN_COMBOS) },
+                        onVouchersClick = { navController.navigate(Routes.ADMIN_VOUCHERS) },
+                        onRefundsClick = { navController.navigate(Routes.ADMIN_REFUNDS) }
                     )
+                }
+                composable(Routes.ADMIN_COMBOS) {
+                    AdminComboScreen(onBack = { navController.popBackStack() })
+                }
+                composable(Routes.ADMIN_VOUCHERS) {
+                    AdminVoucherScreen(onBack = { navController.popBackStack() })
+                }
+                composable(Routes.ADMIN_REFUNDS) {
+                    AdminRefundScreen(onBack = { navController.popBackStack() })
                 }
                 composable(Routes.ADMIN_SHOWTIMES) {
                     AdminShowtimeListScreen(
