@@ -63,6 +63,10 @@ project.lock.json
 project.fragment.lock.json
 artifacts/
 
+# ASP.NET DataProtection Keys
+DataProtectionKeys/
+**/DataProtectionKeys/
+
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
 

@@ -221,7 +221,7 @@ public class BookingService : IBookingService
         {
             var normalizedCode = voucherCode.Trim().ToUpper();
             var voucher = await _db.Vouchers
-                .Where(v => v.MaCode.ToUpper() == normalizedCode && (v.MaKH == userId || v.MaKH == "ALL" || v.MaKH == "*") && v.DaSuDung != true)
+                .Where(v => v.MaCode.ToUpper() == normalizedCode && (v.MaKH == userId || v.MaKH == "ALL" || v.MaKH == "*"))
                 .OrderBy(v => v.MaKH == userId ? 0 : 1)
                 .FirstOrDefaultAsync(cancellationToken);
             if (voucher != null && voucher.MaKH != "ALL" && voucher.MaKH != "*")
@@ -289,7 +289,7 @@ public class BookingService : IBookingService
         var today = DateTime.Today;
         var voucher = await _db.Vouchers
             .AsNoTracking()
-            .Where(v => (v.MaKH == userId || v.MaKH == "ALL" || v.MaKH == "*") && v.NgayHetHan >= today && v.MaCode.ToUpper() == normalizedCode)
+            .Where(v => (v.MaKH == userId || v.MaKH == "ALL" || v.MaKH == "*") && v.MaCode.ToUpper() == normalizedCode)
             .OrderBy(v => v.MaKH == userId ? 0 : 1)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -297,6 +297,8 @@ public class BookingService : IBookingService
             return 0;
 
         if (voucher.DaSuDung == true)
+            return 0;
+        if (voucher.NgayHetHan.Date < today)
             return 0;
         if ((voucher.DonToiThieu ?? 0) > subtotal)
             return 0;
@@ -373,7 +375,8 @@ public class BookingService : IBookingService
 
         var invoice = await _db.Invoices.FirstOrDefaultAsync(x => (x.GatewayTxnRef == txnRef || x.MaHD == txnRef) && x.MaKH == userId, cancellationToken);
         var effectiveTxnRef = invoice?.GatewayTxnRef ?? txnRef;
-        var ticketsQuery = _db.Tickets.Where(x => x.MaKH == userId && x.GatewayTxnRef == effectiveTxnRef && PaymentStatuses.IsPaid(x.TrangThai));
+        var paidStatuses = new[] { PaymentStatuses.Paid, "Success", "Thành công", "Đã thanh toán" };
+        var ticketsQuery = _db.Tickets.Where(x => x.MaKH == userId && x.GatewayTxnRef == effectiveTxnRef && paidStatuses.Contains(x.TrangThai));
         if (!string.IsNullOrWhiteSpace(ticketId))
             ticketsQuery = ticketsQuery.Where(x => x.MaVe == ticketId);
 

@@ -53,7 +53,7 @@ h1, h2, h3, h4, h5, h6,
     overflow: hidden;
 }
 
-.cinema-hero { height: 560px; overflow: hidden; position: relative; }
+.cinema-hero { height: clamp(380px, 55vh, 560px); overflow: hidden; position: relative; }
 .cinema-hero-small { height: auto; margin: 0 12px 0; min-height: 220px; border-radius: 0 0 24px 24px; }
 .cinema-hero-carousel, .cinema-hero-img { height: 100%; width: 100%; }
 .cinema-hero-img { filter: brightness(.48); object-fit: cover; }
@@ -131,7 +131,7 @@ h1, h2, h3, h4, h5, h6,
 }
 .cinema-movie-card { overflow: hidden; transition: .22s ease; }
 .cinema-movie-card:hover, .combo-card:hover { border-color: rgba(250,204,21,.68); transform: translateY(-5px); }
-.cinema-poster-link { display: block; height: 400px; overflow: hidden; position: relative; }
+.cinema-poster-link { display: block; aspect-ratio: 2 / 3; overflow: hidden; position: relative; }
 .cinema-poster { background: #172033; height: 100%; object-fit: cover; width: 100%; }
 .cinema-status { background: var(--cinema-red); border-radius: 999px; color: #fff; font-size: 13px; font-weight: 900; left: 14px; padding: 7px 12px; position: absolute; top: 14px; }
 .cinema-status-upcoming { background: var(--cinema-yellow); color: #111827; }
@@ -181,21 +181,39 @@ h1, h2, h3, h4, h5, h6,
 .line-price { color: var(--cinema-yellow); text-align: right; }
 .remove-btn { border-radius: 10px; height: 38px; }
 
-@media (max-width: 1200px) {
+@media (max-width: 1199.98px) {
     .cinema-movie-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .cinema-workspace { grid-template-columns: 1fr; }
     .cinema-summary { position: static; }
 }
-@media (max-width: 768px) {
-    .app-main { padding-top: 76px; }
+@media (max-width: 991.98px) {
+    .combo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    /* Trang chọn combo: hero không đủ chỗ cho nội dung + vé ghế ở tablet/phone */
+    .cinema-hero-small { min-height: 460px; }
+    .cinema-hero-small .cinema-hero-content { top: 40%; }
+    .cinema-seat-ticket { bottom: 18px; right: 18px; top: auto; transform: rotate(2deg); }
+}
+@media (max-width: 767.98px) {
     .cinema-page { max-width: 100%; }
-    .cinema-hero { height: 480px; }
-    .cinema-hero-small { min-height: 360px; }
-    .cinema-hero-content { left: 22px; right: 22px; }
-    .cinema-seat-ticket { bottom: 24px; right: 24px; top: auto; transform: rotate(2deg); }
+    .cinema-hero { height: clamp(380px, 55vh, 470px); }
+    .cinema-hero-content { left: 18px; right: 18px; }
+    .cinema-section { padding: 38px 10px; }
     .cinema-section-heading { align-items: start; flex-direction: column; gap: 6px; }
     .cinema-movie-grid, .combo-grid { grid-template-columns: 1fr; }
-    .cinema-poster-link { height: 360px; }
+    .summary-row { flex-wrap: wrap; }
     .selected-item { grid-template-columns: 64px 1fr; }
     .qty-box, .line-price, .remove-btn { grid-column: 2; }
+}
+@media (max-width: 575.98px) {
+    .cinema-hero { height: clamp(360px, 55vh, 440px); }
+    .cinema-hero-small { min-height: 440px; }
+    .cinema-hero h1 { font-size: clamp(26px, 8vw, 34px); margin-bottom: 12px; }
+    .cinema-hero p { font-size: 15px; margin-bottom: 18px; }
+    .cinema-eyebrow { margin-bottom: 10px; padding: 6px 11px; font-size: 12px; }
+    .cinema-section { padding: 30px 8px; }
+    .cinema-section-heading h2 { font-size: 25px; }
+    .cinema-movie-info h3 { min-height: 0; }
+    .cinema-summary, .cinema-panel { padding: 16px; }
+    .summary-total strong { font-size: 22px; }
+    .cinema-seat-ticket { min-width: 0; padding: 14px 16px; }
 }

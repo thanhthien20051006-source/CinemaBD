@@ -43,7 +43,9 @@
 
     .cinema-seat {
         width: 48px;
-        height: 42px;
+        height: 48px;
+        min-width: 44px;
+        min-height: 44px;
         border: 0;
         border-radius: 10px 10px 5px 5px;
         color: #fff;
@@ -52,6 +54,9 @@
         box-shadow: 0 4px 10px rgba(15, 23, 42, .18);
         transition: .15s ease;
         position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .cinema-seat::after {
@@ -110,9 +115,11 @@
     .cinema-legend-booked { background:#dc2626; }
     .cinema-legend-maintenance { background:#f59e0b; }
 
-    @@media (max-width: 576px) {
-        .cinema-row-label { width: 34px; }
-        .cinema-seat { width: 40px; height: 38px; font-size: 11px; }
+    @@media (max-width: 575.98px) {
+        .cinema-row-label { width: 34px; font-size: 13px; }
+        .cinema-seat { width: 44px; height: 44px; font-size: 11px; }
         .cinema-row-seats { gap: 6px; }
+        .cinema-seat-row { gap: 8px; }
+        .cinema-screen { letter-spacing: 2px; }
     }
 </style>

@@ -69,7 +69,7 @@
         <form id="toComboForm" method="get" asp-controller="Booking" asp-action="SelectCombo">
             <input type="hidden" name="showtimeId" value="@Model.ShowtimeId" />
             <input type="hidden" id="seatsInput" name="seats" value="" />
-            <button type="submit" id="btnContinue" class="btn btn-danger" disabled>
+            <button type="submit" id="btnContinue" class="btn btn-danger w-100" disabled style="min-height: 44px;">
                 Tiếp tục chọn combo
             </button>
         </form>

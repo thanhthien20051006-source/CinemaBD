@@ -1,0 +1,458 @@
+/* =========================================================================
+   CinemaBD - Responsive layer
+   - MỌI quy tắc cho màn hình nhỏ đều nằm trong @media, nên giao diện
+     desktop (>= 769px) không bị ảnh hưởng.
+   - Nạp SAU CÙNG trong _Layout.cshtml và _AdminLayout.cshtml.
+   - Breakpoints dùng chung của Bootstrap: 575.98 / 767.98 / 991.98 / 1199.98
+   - Mục tiêu kiểm tra: 320 / 375 / 390 / 414 / 768 px
+   ========================================================================= */
+
+/* ---------- 0. An toàn chung: ảnh không bao giờ tràn container ---------- */
+img {
+    max-width: 100%;
+}
+
+.navbar-brand img.navbar-logo {
+    height: 55px;
+    width: auto;
+    max-height: 55px;
+    object-fit: contain;
+}
+
+/* =========================================================================
+   1. NAVBAR (khách hàng: #mainNav, admin: offcanvas drawer)
+   ========================================================================= */
+@media (max-width: 991.98px) {
+    /* Menu của navbar cố định phải cuộn được nếu quá dài */
+    #mainNav {
+        max-height: calc(100vh - 82px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 1rem;
+    }
+
+    /* Chạm dễ dàng cho các link trong menu mobile */
+    #mainNav .navbar-nav .nav-link {
+        padding-top: .85rem;
+        padding-bottom: .85rem;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+    }
+
+    /* Dropdown account trong navbar mobile: không bị chèn, vị trí đúng */
+    #mainNav .dropdown {
+        width: 100%;
+        text-align: right;
+        padding: 0.5rem 0;
+    }
+
+    #mainNav .dropdown-toggle {
+        justify-content: flex-end;
+        width: 100%;
+        padding-right: 0.5rem;
+    }
+
+    #mainNav .dropdown-menu {
+        position: static !important;
+        transform: none !important;
+        width: 100%;
+        border: none;
+        box-shadow: none;
+        background: transparent;
+        padding: 0;
+        margin: 0;
+    }
+
+    #mainNav .dropdown-item {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        color: #333;
+        border-radius: 8px;
+        margin: 2px 0;
+    }
+
+    #mainNav .dropdown-item:hover,
+    #mainNav .dropdown-item:focus {
+        background: #f5f7fb;
+        color: #e50914;
+    }
+
+    #mainNav .dropdown-divider {
+        border-color: #e2e8f0;
+        margin: 0.5rem 0;
+    }
+
+    /* Logo responsive */
+    .navbar-brand img.navbar-logo {
+        height: clamp(40px, 8vw, 55px);
+        width: auto;
+    }
+
+    /* Offcanvas drawer của khu vực Admin: nền tối đồng bộ navbar */
+    .navbar .offcanvas {
+        background-color: #0d1a59;
+    }
+
+    .navbar .offcanvas .offcanvas-title {
+        color: #fff;
+    }
+
+    .navbar .offcanvas .btn-close {
+        filter: invert(1) grayscale(100%) brightness(200%);
+    }
+
+    .offcanvas {
+        max-height: 100dvh;
+    }
+
+    .offcanvas .offcanvas-body {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 2rem;
+    }
+
+    .offcanvas .nav-link {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        padding-top: .7rem;
+        padding-bottom: .7rem;
+    }
+
+    .offcanvas .dropdown-item {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+    }
+}
+
+/* =========================================================================
+   2. LAYOUT CHUNG CỦA TỪNG TRANG
+   ========================================================================= */
+@media (max-width: 767.98px) {
+    /* Container của navbar + trang khách: 32px -> 16px mỗi bên */
+    .navbar > .container,
+    .app-main > .container,
+    .app-main > .container-sm,
+    .app-main > .container-md,
+    .app-main > .container-lg,
+    .app-main > .container-xl,
+    .app-main > .container-xxl {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    /* Header/toolbar có 2 đầu (tiêu đề | nút bấm): tự xuống dòng
+       Thay vì phải thêm flex-wrap vào từng view. */
+    .d-flex.justify-content-between {
+        flex-wrap: wrap;
+        row-gap: .5rem;
+    }
+
+    /* Hàng nút / bộ lọc: xuống dòng thay vì tràn ngang */
+    .d-flex.gap-2 {
+        flex-wrap: wrap;
+        row-gap: .5rem;
+    }
+
+    .d-flex.gap-3 {
+        flex-wrap: wrap;
+        row-gap: .5rem;
+    }
+
+    .d-flex.justify-content-center.gap-3 {
+        flex-wrap: wrap;
+        row-gap: .75rem;
+        justify-content: center;
+    }
+
+    /* Input/Select đủ cao để bấm bằng ngón tay */
+    .form-control:not(.form-control-sm),
+    .form-select:not(.form-select-sm) {
+        min-height: 44px;
+    }
+
+    .input-group > .form-control,
+    .input-group > .form-select {
+        min-height: 44px;
+    }
+
+    /* Nút bấm đủ lớn, không dính nhau */
+    .btn {
+        min-height: 44px;
+    }
+
+    .btn.btn-sm {
+        min-height: 40px;
+    }
+
+    /* Nút hamburger đủ lớn cho cảm ứng */
+    .navbar-toggler {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    /* Phân trang Bootstrap xuống dòng trên màn hình hẹp */
+    .pagination {
+        flex-wrap: wrap;
+        row-gap: .25rem;
+    }
+
+    .page-link {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Tiêu đề dài không tràn ngang (tên phim, tên bài viết...) */
+    h1, h2, h3, h4 {
+        overflow-wrap: break-word;
+    }
+
+    /* Card ảnh (Articles, Events): aspect-ratio responsive */
+    .card-img-top[style*="aspect-ratio"] {
+        width: 100%;
+        height: auto;
+    }
+}
+
+/* =========================================================================
+   3. BẢNG DỮ LIỆU
+   - Giữ nguyên .table-responsive (có sẵn) => không phá chiều rộng màn hình.
+   - Tiêu đề cột không bị bóp méo: bảng đủ rộng và CUỘN NGANG thay vì thu hẹp.
+   - Ô dữ liệu (td) vẫn wrap bình thường => không mất dữ liệu.
+   ========================================================================= */
+@media (max-width: 767.98px) {
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .table-responsive .table th {
+        white-space: nowrap;
+    }
+
+    .table-responsive .table td,
+    .table-responsive .table th {
+        padding: .55rem .5rem;
+        vertical-align: middle;
+    }
+}
+
+/* =========================================================================
+   4. TRANG KHÁCH HÀNG
+   ========================================================================= */
+
+/* 4.1. Chi tiết phim (Home/Details) */
+.movie-hero-poster {
+    object-fit: cover;
+    border-radius: 0;
+}
+
+@media (max-width: 767.98px) {
+    .movie-hero-poster {
+        border-bottom: 3px solid #e50914;
+        border-radius: 0;
+    }
+}
+
+/* 4.2. Checkout: cột giá có viền dọc trên desktop, viền ngang trên mobile */
+@media (max-width: 767.98px) {
+    .checkout-price-col {
+        border-left: 0 !important;
+        border-top: 1px solid #dee2e6;
+        padding-top: 1rem;
+    }
+}
+
+/* 4.3. Hóa đơn / vé QR (Booking/Invoice) */
+@media (max-width: 767.98px) {
+    .invoice-card .invoice-top {
+        padding: 22px 18px;
+    }
+
+    .invoice-card .info-line {
+        grid-template-columns: 1fr;
+        gap: 2px;
+        margin-bottom: 9px;
+    }
+
+    .invoice-card .info-line .label {
+        font-size: .82rem;
+        text-transform: uppercase;
+        letter-spacing: .02em;
+    }
+
+    .invoice-card .qr-box img {
+        width: 160px;
+        height: 160px;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .invoice-card .invoice-top {
+        padding: 18px 14px;
+    }
+
+    .invoice-card .success-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 26px;
+        margin-right: 10px;
+    }
+
+    .invoice-card .qr-box img {
+        width: 140px;
+        height: 140px;
+    }
+
+    .invoice-card .ticket-table th,
+    .invoice-card .ticket-table td {
+        padding: .5rem .45rem;
+        font-size: .88rem;
+    }
+}
+
+/* 4.4. Sơ đồ ghế legacy (Home/Seats): chặn tràn ngang toàn trang */
+@media (max-width: 767.98px) {
+    .seat-map {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        align-items: flex-start !important;
+        padding-bottom: 4px;
+    }
+
+    .seat-map .seat-row {
+        min-width: max-content;
+        justify-content: flex-start;
+        padding-right: 8px;
+    }
+
+    /* Nhãn hàng dính mép trái khi cuộn ngang, nền trùng màu card
+       để ghế đi qua không lòi ra sau chữ */
+    .seat-map .row-label {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        width: 56px;
+        margin-right: 6px;
+        background: #fff;
+        box-shadow: 8px 0 8px -8px rgba(0, 0, 0, .35);
+        font-size: .85rem;
+    }
+
+    .seat-map .seat {
+        width: 44px;
+        height: 44px;
+    }
+}
+
+@media (max-width: 575.98px) {
+    /* Nút Tiếp tục: bám full width để bấm dễ hơn (nút đang ở góc phải) */
+    .seat-actions .btn {
+        width: 100%;
+    }
+}
+
+/* 4.5. Card padding bớt rộng trên điện thoại */
+@media (max-width: 575.98px) {
+    .card.p-4 {
+        padding: 1rem !important;
+    }
+}
+
+/* 4.6. Trang chủ: hero, lưới phim, phân trang */
+/* Mũi tên carousel chiếm 15% bề ngang (Bootstrap), icon nằm ở giữa đoạn đó
+   => dịch nội dung sang phải để tiêu đề/CTA không nằm dưới mũi tên.
+   Không áp dụng cho hero nhỏ (trang chọn combo) vì trang đó không có carousel. */
+@media (max-width: 991.98px) {
+    .cinema-hero:not(.cinema-hero-small) .cinema-hero-content {
+        left: calc(7.5% + 24px);
+    }
+}
+
+/* Điện thoại/tablet: 2 cột phim thay vì 1 cột dài vô tận */
+@media (max-width: 767.98px) {
+    .cinema-movie-grid {
+        gap: 14px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 575.98px) {
+    .cinema-movie-info {
+        padding: 12px;
+    }
+
+    /* Card chỉ rộng ~140-170px: bớt padding/font để nút không bị xuống 2 dòng */
+    .cinema-card-btn {
+        font-size: .9rem;
+        padding: 10px 12px;
+    }
+
+    /* Nút trang đủ 44px để bấm bằng ngón tay */
+    .cinema-pagination a {
+        padding: 12px 16px;
+    }
+}
+
+/* 4.7. Chi tiết hóa đơn (Account/InvoiceDetail) */
+@media (max-width: 575.98px) {
+    /* TransactionRef dài + icon trong header */
+    .invoice-header h4 {
+        font-size: 1.15rem;
+    }
+
+    .invoice-footer .btn {
+        width: 100%;
+    }
+}
+
+/* 4.8. Demo thanh toán MoMo */
+@media (max-width: 575.98px) {
+    .momo-confirm-btn {
+        width: 100%;
+        padding-left: 1.25rem !important;
+        padding-right: 1.25rem !important;
+    }
+}
+
+/* =========================================================================
+   5. KHU VỰC ADMIN
+   ========================================================================= */
+
+/* 5.1. Thẻ số liệu (AdminThongKe): số dài không tràn thẻ.
+       Dùng selector đủ cụ thể để thắng <style> inline của view. */
+@media (max-width: 575.98px) {
+    main.admin-main .metric-card .value {
+        font-size: 1.3rem;
+        overflow-wrap: anywhere;
+    }
+}
+
+/* 5.2. Sơ đồ ghế admin (Showtimes/Seats): cuộn ngang trong khung */
+@media (max-width: 767.98px) {
+    .admin-seat-map {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .admin-seat-map .seat-row {
+        min-width: max-content;
+    }
+}
+
+/* 5.3. Modal form admin: bám sát mép màn hình trên điện thoại */
+@media (max-width: 575.98px) {
+    .modal-dialog {
+        margin: .5rem;
+    }
+
+    .modal-body {
+        padding: 1rem;
+    }
+}

@@ -86,6 +86,21 @@ app.UseGlobalExceptionHandling();
 app.UseSwagger();
 app.UseSwaggerUI();
 
+
+var webWwwrootPath = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "CinemaBD.Web", "wwwroot"));
+if (Directory.Exists(webWwwrootPath))
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(webWwwrootPath)
+        // Không set RequestPath, mặc định là rỗng để route "/legacy/Content/img/..." map chính xác thư mục thực tế
+    });
+}
+else
+{
+    app.Logger.LogWarning("Web wwwroot directory does not exist: {webWwwrootPath}", webWwwrootPath);
+}
+
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();

@@ -6,10 +6,10 @@
 <div class="container mt-4">
     <div class="card shadow-sm border-0 overflow-hidden">
         <div class="row g-0">
-            <div class="col-md-4">
-                <img src="@Model.Movie?.PosterUrl" class="img-fluid w-100 h-100" style="object-fit: cover; min-height: 500px;" onerror="this.src='https://placehold.co/400x600?text=No+Poster'">
+            <div class="col-12 col-md-4">
+                <img src="@Model.Movie?.PosterUrl" class="img-fluid w-100 movie-hero-poster" style="aspect-ratio: 2/3; object-fit: cover;" onerror="this.src='https://placehold.co/400x600?text=No+Poster'">
             </div>
-            <div class="col-md-8 p-4">
+            <div class="col-12 col-md-8 p-4">
                 <h2 class="text-danger fw-bold mb-3">@Model.Movie?.Title</h2>
                 
                 <div class="mb-3">
@@ -48,9 +48,9 @@
                     <p class="text-muted">@Model.Movie?.Description</p>
                 </div>
 
-                <div class="d-flex gap-2">
-                    <a href="@Model.Movie?.TrailerUrl" target="_blank" class="btn btn-outline-secondary px-4 rounded-pill">Xem trailer</a>
-                    <button onclick="document.getElementById('booking-section').scrollIntoView({behavior:'smooth'})" class="btn btn-danger px-4 rounded-pill">
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="@Model.Movie?.TrailerUrl" target="_blank" class="btn btn-outline-secondary px-4 rounded-pill" style="min-height: 44px;">Xem trailer</a>
+                    <button onclick="document.getElementById('booking-section').scrollIntoView({behavior:'smooth'})" class="btn btn-danger px-4 rounded-pill" style="min-height: 44px;">
                         <i class="bi bi-ticket-perforated"></i> ĐẶT VÉ NGAY
                     </button>
                 </div>
@@ -62,12 +62,12 @@
         <div class="card shadow-sm border-0 p-4">
             <h4 class="text-danger fw-bold mb-4">LỊCH CHIẾU</h4>
             
-            <div class="row align-items-end mb-4">
-                <div class="col-md-3">
+            <div class="row align-items-end mb-4 g-3">
+                <div class="col-12 col-md-6 col-lg-4">
                     <label class="form-label small fw-bold">CHỌN NGÀY</label>
                     <input type="date" id="show-date" class="form-control" value="@Model.SelectedDate.ToString("yyyy-MM-dd")" min="@DateTime.Now.ToString("yyyy-MM-dd")" />
                 </div>
-                <div class="col-md-3">
+                <div class="col-12 col-md-6 col-lg-3">
                     <button class="btn btn-danger w-100" onclick="loadShowtimes()">Xem suất chiếu</button>
                 </div>
             </div>
@@ -75,11 +75,11 @@
             <div id="showtimes-container">
                 @if (Model.Showtimes != null && Model.Showtimes.Any())
                 {
-                    <div class="row g-3">
+                    <div class="row g-2 g-md-3">
                         @foreach (var st in Model.Showtimes)
                         {
-                            <div class="col-auto">
-                                <a href="/booking/seats?showtimeId=@st.Id" class="btn btn-outline-danger px-4 py-2">
+                            <div class="col-6 col-md-4 col-lg-3">
+                                <a href="/booking/seats?showtimeId=@st.Id" class="btn btn-outline-danger w-100 py-3 d-flex flex-column align-items-center">
                                     <div class="fw-bold">@st.StartTime</div>
                                     <div class="small">@st.RoomName</div>
                                 </a>
@@ -112,7 +112,7 @@
                 <form method="post" asp-controller="Home" asp-action="CreateReview" asp-route-id="@Model.Movie?.Id" class="border rounded-4 p-3 mb-4 bg-light">
                     @Html.AntiForgeryToken()
                     <label class="form-label fw-bold">Chấm điểm</label>
-                    <select name="rating" class="form-select mb-3" style="max-width: 220px;">
+                    <select name="rating" class="form-select mb-3" style="max-width: 220px; min-height: 44px;">
                         <option value="5">★★★★★ - Rất hay</option>
                         <option value="4">★★★★☆ - Hay</option>
                         <option value="3">★★★☆☆ - Tạm ổn</option>
@@ -120,8 +120,8 @@
                         <option value="1">★☆☆☆☆ - Tệ</option>
                     </select>
                     <label class="form-label fw-bold">Nội dung đánh giá</label>
-                    <textarea name="content" class="form-control mb-3" rows="3" maxlength="1000" required placeholder="Viết cảm nhận của bạn sau khi xem phim..."></textarea>
-                    <button class="btn btn-danger rounded-pill px-4">Gửi đánh giá</button>
+                    <textarea name="content" class="form-control mb-3" rows="3" maxlength="1000" required placeholder="Viết cảm nhận của bạn sau khi xem phim..." style="min-height: 100px;"></textarea>
+                    <button class="btn btn-danger rounded-pill px-4" style="min-height: 44px;">Gửi đánh giá</button>
                 </form>
             }
             else

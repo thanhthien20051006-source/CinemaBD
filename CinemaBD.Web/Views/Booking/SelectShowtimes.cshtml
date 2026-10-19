@@ -3,32 +3,33 @@
     ViewData["Title"] = "Chọn suất chiếu";
 }
 
-<h2>Lịch chiếu - @(Model.Movie?.Title ?? "Phim")</h2>
+<div class="container">
+    <h2 class="mb-4">Lịch chiếu - @(Model.Movie?.Title ?? "Phim")</h2>
 
-<form method="get" asp-controller="Booking" asp-action="Select" class="mb-4 d-flex align-items-center">
-    <input type="hidden" name="movieId" value="@Model.Movie?.Id" />
-    <input type="date" name="date" value="@Model.SelectedDate.ToString("yyyy-MM-dd")" class="form-control me-2" style="width:200px;" />
-    <button type="submit" class="btn btn-danger">Xem suất chiếu</button>
-</form>
+    <form method="get" asp-controller="Booking" asp-action="Select" class="mb-4 d-flex flex-wrap align-items-center gap-2">
+        <input type="hidden" name="movieId" value="@Model.Movie?.Id" />
+        <input type="date" name="date" value="@Model.SelectedDate.ToString("yyyy-MM-dd")" class="form-control" style="width:200px; max-width:100%; min-height: 44px;" />
+        <button type="submit" class="btn btn-danger" style="min-height: 44px;">Xem suất chiếu</button>
+    </form>
 
 @if (!string.IsNullOrWhiteSpace(Model.Message))
 {
-    <div class="alert alert-warning d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
-        <div>
-            @Model.Message
-            @if (Model.SelectedDate.Date == DateTime.Today)
-            {
-                <span> Hôm nay có thể đã hết suất chiếu khả dụng.</span>
-            }
+<div class="alert alert-warning d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
+            <div>
+                @Model.Message
+                @if (Model.SelectedDate.Date == DateTime.Today)
+                {
+                    <span> Hôm nay có thể đã hết suất chiếu khả dụng.</span>
+                }
+            </div>
+            <a asp-controller="Booking"
+               asp-action="Select"
+               asp-route-movieId="@Model.Movie?.Id"
+               asp-route-date="@Model.SelectedDate.AddDays(1).ToString("yyyy-MM-dd")"
+               class="btn btn-sm btn-outline-danger" style="min-height: 40px;">
+                Xem suất ngày mai
+            </a>
         </div>
-        <a asp-controller="Booking"
-           asp-action="Select"
-           asp-route-movieId="@Model.Movie?.Id"
-           asp-route-date="@Model.SelectedDate.AddDays(1).ToString("yyyy-MM-dd")"
-           class="btn btn-sm btn-outline-danger">
-            Xem suất ngày mai
-        </a>
-    </div>
 }
 else if (Model.Showtimes.Any())
 {
@@ -36,33 +37,36 @@ else if (Model.Showtimes.Any())
         <h5><span class="badge bg-danger">2D</span> Suất chiếu trong ngày</h5>
         <p class="text-muted small mb-0">Chỉ hiển thị suất từ 08:00 đến 23:30. Suất đã qua giờ sẽ tự ẩn.</p>
 
-        <div class="d-flex flex-wrap mt-3">
-            @foreach (var s in Model.Showtimes.OrderBy(x => TimeSpan.TryParse(x.StartTime, out var t) ? t : TimeSpan.MaxValue))
-            {
-                <div class="card text-center m-2" style="width: 160px;">
-                    <div class="card-body p-2">
-                        <h6 class="text-danger fw-bold">@s.StartTime</h6>
-                        <p class="mb-1"><strong>@s.RoomName</strong></p>
-                        <p class="text-muted mb-1">@String.Format("{0:N0} đ", s.TicketPrice)</p>
-                        <hr class="my-2" />
-                        <a asp-controller="Booking" asp-action="SelectSeats" asp-route-showtimeId="@s.Id" class="btn btn-sm btn-outline-danger w-100">Chọn ghế</a>
+        <div class="row g-2 g-md-3 mt-3">
+                @foreach (var s in Model.Showtimes.OrderBy(x => TimeSpan.TryParse(x.StartTime, out var t) ? t : TimeSpan.MaxValue))
+                {
+                    <div class="col-6 col-md-4 col-lg-3">
+                        <div class="card text-center h-100">
+                            <div class="card-body p-3 d-flex flex-column">
+                                <h6 class="text-danger fw-bold">@s.StartTime</h6>
+                                <p class="mb-1"><strong>@s.RoomName</strong></p>
+                                <p class="text-muted mb-2">@String.Format("{0:N0} đ", s.TicketPrice)</p>
+                                <hr class="my-2" />
+                                <a asp-controller="Booking" asp-action="SelectSeats" asp-route-showtimeId="@s.Id" class="btn btn-outline-danger w-100 mt-auto" style="min-height: 44px;">Chọn ghế</a>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            }
-        </div>
+                }
+            </div>
     </div>
 }
 else
-{
-    <div class="alert alert-warning d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
-        <span>Không có suất chiếu cho ngày này.</span>
-        <a asp-controller="Booking"
-           asp-action="Select"
-           asp-route-movieId="@Model.Movie?.Id"
-           asp-route-date="@Model.SelectedDate.AddDays(1).ToString("yyyy-MM-dd")"
-           class="btn btn-sm btn-outline-danger">
-            Xem suất ngày mai
-        </a>
-    </div>
-}
+    {
+        <div class="alert alert-warning d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
+            <span>Không có suất chiếu cho ngày này.</span>
+            <a asp-controller="Booking"
+               asp-action="Select"
+               asp-route-movieId="@Model.Movie?.Id"
+               asp-route-date="@Model.SelectedDate.AddDays(1).ToString("yyyy-MM-dd")"
+               class="btn btn-sm btn-outline-danger" style="min-height: 40px;">
+                Xem suất ngày mai
+            </a>
+        </div>
+    }
+</div>
 
