@@ -10,7 +10,18 @@ object Routes {
     const val TICKETS = "tickets"
     const val PROFILE = "profile"
     const val CHECK_IN = "check_in"
-    
+    const val ADMIN_INVOICES = "admin_invoices"
+    const val ADMIN_STATISTICS = "admin_statistics"
+    const val ADMIN_MANAGEMENT = "admin_management"
+    const val ADMIN_SHOWTIMES = "admin_showtimes"
+    const val ADMIN_SHOWTIME_DETAIL = "admin_showtime_detail/{showtimeId}/{showDate}"
+    const val ADMIN_MOVIES = "admin_movies"
+    const val ADMIN_MOVIE_DETAIL = "admin_movie_detail/{movieId}"
+    const val ADMIN_INVOICE_DETAIL = "admin_invoice_detail/{invoiceId}"
+    fun adminInvoiceDetail(invoiceId: String) = "admin_invoice_detail/$invoiceId"
+    fun adminShowtimeDetail(showtimeId: String, showDate: String) = "admin_showtime_detail/$showtimeId/$showDate"
+    fun adminMovieDetail(movieId: String) = "admin_movie_detail/$movieId"
+
     // Feature Nav
     const val MOVIE_DETAIL = "movie_detail/{movieId}"
     fun movieDetail(movieId: String) = "movie_detail/$movieId"
