@@ -126,4 +126,22 @@ object NetworkModule {
     fun provideAdminMovieApi(retrofit: Retrofit): com.cinemabd.app.feature.admin.AdminMovieApi {
         return retrofit.create(com.cinemabd.app.feature.admin.AdminMovieApi::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideAdminComboApi(retrofit: Retrofit): com.cinemabd.app.feature.admin.AdminComboApi {
+        return retrofit.create(com.cinemabd.app.feature.admin.AdminComboApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAdminVoucherApi(retrofit: Retrofit): com.cinemabd.app.feature.admin.AdminVoucherApi {
+        return retrofit.create(com.cinemabd.app.feature.admin.AdminVoucherApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAdminRefundApi(retrofit: Retrofit): com.cinemabd.app.feature.admin.AdminRefundApi {
+        return retrofit.create(com.cinemabd.app.feature.admin.AdminRefundApi::class.java)
+    }
 }

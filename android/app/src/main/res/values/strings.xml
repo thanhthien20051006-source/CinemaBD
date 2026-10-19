@@ -4,6 +4,8 @@
     <string name="loading">Đang tải...</string>
     <string name="error">Đã xảy ra lỗi.</string>
     <string name="retry">Thử lại</string>
+    <string name="cancel">Hủy</string>
+    <string name="save">Lưu</string>
     <string name="empty_data">Không có dữ liệu.</string>
 
     <!-- Auth -->
@@ -293,6 +295,68 @@
         <item>@string/admin_movie_status_coming_soon</item>
         <item>@string/admin_movie_status_inactive</item>
     </string-array>
+
+    <!-- Admin Combo -->
+    <string name="admin_combos_title">Quản lý Combo bắp nước</string>
+    <string name="admin_combos_subtitle">Thêm, sửa, xóa các gói bắp nước ưu đãi</string>
+    <string name="admin_combos_empty">Chưa có combo bắp nước nào.</string>
+    <string name="admin_combo_add">Thêm combo mới</string>
+    <string name="admin_combo_edit">Chỉnh sửa combo</string>
+    <string name="admin_combo_delete">Xóa combo</string>
+    <string name="admin_combo_delete_confirm_title">Xác nhận xóa combo</string>
+    <string name="admin_combo_delete_confirm_message">Bạn có chắc chắn muốn xóa combo này không?</string>
+    <string name="admin_combo_id">Mã combo (VD: CB01)</string>
+    <string name="admin_combo_name">Tên combo</string>
+    <string name="admin_combo_price">Giá bán (VNĐ)</string>
+    <string name="admin_combo_desc">Mô tả combo</string>
+    <string name="admin_combo_image">Đường dẫn ảnh (tùy chọn)</string>
+    <string name="admin_combo_save">Lưu combo</string>
+    <string name="admin_combo_save_success">Đã lưu thông tin combo thành công.</string>
+    <string name="admin_combo_delete_success">Đã xóa combo thành công.</string>
+
+    <!-- Admin Voucher -->
+    <string name="admin_vouchers_title">Quản lý Voucher khuyến mãi</string>
+    <string name="admin_vouchers_subtitle">Xem danh sách, tạo voucher và vô hiệu hóa</string>
+    <string name="admin_vouchers_empty">Không tìm thấy voucher nào.</string>
+    <string name="admin_vouchers_search">Tìm theo mã code...</string>
+    <string name="admin_voucher_add">Tạo voucher mới</string>
+    <string name="admin_voucher_code">Mã voucher (VD: CHAOBANMOI)</string>
+    <string name="admin_voucher_desc">Mô tả chương trình</string>
+    <string name="admin_voucher_discount">Mức giảm giá</string>
+    <string name="admin_voucher_discount_type">Loại giảm giá</string>
+    <string name="admin_voucher_type_amount">Tiền mặt (VNĐ)</string>
+    <string name="admin_voucher_type_percent">Phần trăm (%)</string>
+    <string name="admin_voucher_min_order">Đơn tối thiểu (VNĐ)</string>
+    <string name="admin_voucher_max_discount">Giảm tối đa (VNĐ)</string>
+    <string name="admin_voucher_expire_date">Hạn sử dụng (yyyy-MM-dd)</string>
+    <string name="admin_voucher_status_active">Còn hạn</string>
+    <string name="admin_voucher_status_expired">Hết hạn</string>
+    <string name="admin_voucher_status_used">Đã dùng</string>
+    <string name="admin_voucher_delete">Vô hiệu hóa</string>
+    <string name="admin_voucher_delete_confirm_title">Xác nhận vô hiệu hóa</string>
+    <string name="admin_voucher_delete_confirm_message">Bạn có chắc chắn muốn vô hiệu hóa voucher này không?</string>
+    <string name="admin_voucher_create_success">Đã tạo voucher thành công.</string>
+    <string name="admin_voucher_delete_success">Đã vô hiệu hóa voucher thành công.</string>
+
+    <!-- Admin Refunds -->
+    <string name="admin_refunds_title">Yêu cầu hoàn tiền vé</string>
+    <string name="admin_refunds_subtitle">Xem xét và phê duyệt hoặc từ chối hoàn tiền</string>
+    <string name="admin_refunds_empty">Không có yêu cầu hoàn tiền nào.</string>
+    <string name="admin_refund_status_all">Tất cả</string>
+    <string name="admin_refund_status_pending">Chờ xử lý</string>
+    <string name="admin_refund_status_approved">Đã duyệt</string>
+    <string name="admin_refund_status_rejected">Đã từ chối</string>
+    <string name="admin_refund_amount">Tiền hoàn: %1$s</string>
+    <string name="admin_refund_reason">Lý do: %1$s</string>
+    <string name="admin_refund_approve">Duyệt hoàn tiền</string>
+    <string name="admin_refund_reject">Từ chối</string>
+    <string name="admin_refund_note">Ghi chú phản hồi</string>
+    <string name="admin_refund_note_placeholder">Nhập lý do hoặc lời nhắn cho khách...</string>
+    <string name="admin_refund_approve_confirm_title">Xác nhận duyệt hoàn tiền</string>
+    <string name="admin_refund_approve_confirm_message">Bạn có chắc chắn muốn duyệt yêu cầu hoàn tiền này không?</string>
+    <string name="admin_refund_reject_confirm_title">Xác nhận từ chối hoàn tiền</string>
+    <string name="admin_refund_reject_confirm_message">Bạn có chắc chắn muốn từ chối yêu cầu hoàn tiền này không?</string>
+    <string name="admin_refund_action_success">Đã xử lý yêu cầu hoàn tiền thành công.</string>
     <string name="check_in_title">Soát vé xem phim</string>
     <string name="check_in_subtitle">Quét mã QR hoặc nhập chuỗi kiểm tra</string>
     <string name="check_in_input_label">Chuỗi mã QR vé</string>

@@ -7,6 +7,12 @@ import com.cinemabd.app.feature.admin.model.CheckInRequest
 import com.cinemabd.app.feature.admin.model.CheckInResultData
 import com.cinemabd.app.feature.admin.model.AdminShowtime
 import com.cinemabd.app.feature.admin.model.AdminMovieUpsertRequest
+import com.cinemabd.app.feature.admin.model.AdminCombo
+import com.cinemabd.app.feature.admin.model.AdminComboRequest
+import com.cinemabd.app.feature.admin.model.AdminVoucher
+import com.cinemabd.app.feature.admin.model.AdminVoucherRequest
+import com.cinemabd.app.feature.admin.model.AdminRefundRequest
+import com.cinemabd.app.feature.admin.model.AdminRefundActionRequest
 import com.cinemabd.app.core.network.model.MovieResponse
 import retrofit2.HttpException
 import javax.inject.Inject
@@ -16,7 +22,10 @@ import javax.inject.Singleton
 class AdminRepository @Inject constructor(
     private val adminApi: AdminApi,
     private val showtimeApi: AdminShowtimeApi,
-    private val movieApi: AdminMovieApi
+    private val movieApi: AdminMovieApi,
+    private val comboApi: AdminComboApi,
+    private val voucherApi: AdminVoucherApi,
+    private val refundApi: AdminRefundApi
 ) {
     suspend fun getInvoices(): Result<ApiResponse<List<AdminInvoiceDetail>>> = request {
         adminApi.getInvoices()
@@ -86,6 +95,46 @@ class AdminRepository @Inject constructor(
                 status = status
             )
         )
+    }
+
+    suspend fun getCombos(): Result<ApiResponse<List<AdminCombo>>> = request {
+        comboApi.getCombos()
+    }
+
+    suspend fun createCombo(request: AdminComboRequest): Result<ApiResponse<AdminCombo>> = request {
+        comboApi.createCombo(request)
+    }
+
+    suspend fun updateCombo(id: String, request: AdminComboRequest): Result<ApiResponse<AdminCombo>> = request {
+        comboApi.updateCombo(id, request)
+    }
+
+    suspend fun deleteCombo(id: String): Result<ApiResponse<Unit>> = request {
+        comboApi.deleteCombo(id)
+    }
+
+    suspend fun getVouchers(search: String? = null): Result<ApiResponse<List<AdminVoucher>>> = request {
+        voucherApi.getVouchers(search?.takeIf(String::isNotBlank))
+    }
+
+    suspend fun createVoucher(request: AdminVoucherRequest): Result<ApiResponse<AdminVoucher>> = request {
+        voucherApi.createVoucher(request)
+    }
+
+    suspend fun deleteVoucher(id: String): Result<ApiResponse<Unit>> = request {
+        voucherApi.deleteVoucher(id)
+    }
+
+    suspend fun getRefunds(status: String? = null): Result<ApiResponse<List<AdminRefundRequest>>> = request {
+        refundApi.getRefunds(status?.takeIf(String::isNotBlank))
+    }
+
+    suspend fun approveRefund(id: Int, note: String? = null): Result<ApiResponse<Unit>> = request {
+        refundApi.approveRefund(id, note?.let { AdminRefundActionRequest(it) })
+    }
+
+    suspend fun rejectRefund(id: Int, note: String? = null): Result<ApiResponse<Unit>> = request {
+        refundApi.rejectRefund(id, note?.let { AdminRefundActionRequest(it) })
     }
 
     private suspend fun <T> request(block: suspend () -> T): Result<T> = try {
