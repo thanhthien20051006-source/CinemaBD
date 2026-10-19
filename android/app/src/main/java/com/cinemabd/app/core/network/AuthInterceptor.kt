@@ -1,6 +1,7 @@
 package com.cinemabd.app.core.network
 
 import com.cinemabd.app.core.datastore.TokenDataStore
+import com.cinemabd.app.core.session.SessionManager
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
@@ -11,8 +12,9 @@ import javax.inject.Singleton
 @Singleton
 class AuthInterceptor @Inject constructor(
     private val tokenDataStore: TokenDataStore,
-    private val authEventBus: AuthEventBus
+    private val sessionManager: SessionManager
 ) : Interceptor {
+
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
         val path = originalRequest.url.encodedPath
@@ -28,17 +30,24 @@ class AuthInterceptor @Inject constructor(
 
         val response = chain.proceed(requestBuilder.build())
 
-        // If an authenticated request returns 401 Unauthorized, automatically invalidate token
-        // and notify app to return to Login (excluding auth requests like login/register)
-        if (response.code == 401 && !token.isNullOrEmpty() &&
-            !path.contains("/api/account/login") && !path.contains("/api/account/register")
-        ) {
+        // If an authenticated request returns 401 Unauthorized, automatically clear session
+        // and notify session expired (excluding auth requests like login/register)
+        if (response.code == 401 && !token.isNullOrEmpty() && !isAuthEndpoint(path)) {
             runBlocking {
-                tokenDataStore.clearToken()
+                sessionManager.clearSession()
+                sessionManager.emitSessionExpired()
             }
-            authEventBus.emitSessionExpired()
         }
 
         return response
+    }
+
+    companion object {
+        fun isAuthEndpoint(path: String): Boolean {
+            val normalized = path.trimStart('/')
+            return normalized.contains("api/auth/login") ||
+                   normalized.contains("api/admin/auth/login") ||
+                   normalized.contains("api/auth/register")
+        }
     }
 }
