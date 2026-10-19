@@ -17,39 +17,39 @@
                     <div class="alert alert-success">@TempData["Success"]</div>
                 }
 
-                <form method="post" asp-controller="Account" asp-action="Register">
+<form method="post" asp-controller="Account" asp-action="Register">
                     @Html.AntiForgeryToken()
 
                     <div class="mb-3">
-                        <label asp-for="FullName">Họ tên</label>
-                        <input asp-for="FullName" class="form-control" required />
+                        <label asp-for="FullName" class="form-label">Họ tên</label>
+                        <input asp-for="FullName" class="form-control" required style="min-height: 44px;" />
                         <span asp-validation-for="FullName" class="text-danger"></span>
                     </div>
 
                     <div class="mb-3">
-                        <label asp-for="Username">Tài khoản</label>
-                        <input asp-for="Username" class="form-control" required />
+                        <label asp-for="Username" class="form-label">Tài khoản</label>
+                        <input asp-for="Username" class="form-control" required style="min-height: 44px;" />
                         <span asp-validation-for="Username" class="text-danger"></span>
                     </div>
 
                     <div class="mb-3">
-                        <label asp-for="Password">Mật khẩu</label>
-                        <input asp-for="Password" class="form-control" required />
+                        <label asp-for="Password" class="form-label">Mật khẩu</label>
+                        <input asp-for="Password" class="form-control" required style="min-height: 44px;" />
                         <span asp-validation-for="Password" class="text-danger"></span>
                     </div>
 
                     <div class="mb-3">
-                        <label asp-for="Email">Email</label>
-                        <input asp-for="Email" class="form-control" />
+                        <label asp-for="Email" class="form-label">Email</label>
+                        <input asp-for="Email" class="form-control" style="min-height: 44px;" />
                         <span asp-validation-for="Email" class="text-danger"></span>
                     </div>
 
                     <div class="mb-3">
-                        <label asp-for="PhoneNumber">Số điện thoại</label>
-                        <input asp-for="PhoneNumber" class="form-control" />
+                        <label asp-for="PhoneNumber" class="form-label">Số điện thoại</label>
+                        <input asp-for="PhoneNumber" class="form-control" style="min-height: 44px;" />
                     </div>
 
-                    <button class="btn btn-danger w-100" type="submit">Đăng ký</button>
+                    <button class="btn btn-danger w-100" type="submit" style="min-height: 44px;">Đăng ký</button>
                 </form>
             </div>
         </div>

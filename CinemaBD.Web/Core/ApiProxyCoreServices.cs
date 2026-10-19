@@ -15,17 +15,17 @@ public class ApiAuthCoreService : IAuthCoreService
     public async Task<AuthResponse?> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default)
         => await PostDataAsync<AuthResponse>("api/auth/register", request, cancellationToken);
 
-    public async Task<UserProfileViewModel?> GetProfileAsync(string userId, CancellationToken cancellationToken = default)
-        => await GetWithUserAsync<UserProfileViewModel>("api/account/profile", userId, cancellationToken);
+    public async Task<UserProfileViewModel?> GetProfileAsync(string token, CancellationToken cancellationToken = default)
+        => await GetWithUserAsync<UserProfileViewModel>("api/account/profile", token, cancellationToken);
 
-    public async Task<IReadOnlyList<InvoiceHistoryItem>> GetHistoryAsync(string userId, CancellationToken cancellationToken = default)
-        => await GetWithUserAsync<List<InvoiceHistoryItem>>("api/account/history", userId, cancellationToken) ?? new();
+    public async Task<IReadOnlyList<InvoiceHistoryItem>> GetHistoryAsync(string token, CancellationToken cancellationToken = default)
+        => await GetWithUserAsync<List<InvoiceHistoryItem>>("api/account/history", token, cancellationToken) ?? new();
 
-    private async Task<T?> GetWithUserAsync<T>(string url, string userId, CancellationToken ct)
+    private async Task<T?> GetWithUserAsync<T>(string url, string token, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userId);
-        request.Headers.TryAddWithoutValidation("X-User-Id", userId);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Headers.TryAddWithoutValidation("X-User-Id", token);
         using var response = await _http.SendAsync(request, ct);
         if (!response.IsSuccessStatusCode) return default;
         var payload = await response.Content.ReadFromJsonAsync<ApiResponse<T>>(cancellationToken: ct);
@@ -61,11 +61,11 @@ public class ApiBookingCoreService : IBookingCoreService
     public async Task<IReadOnlyList<ComboViewModel>> GetCombosAsync(CancellationToken cancellationToken = default)
         => await GetDataAsync<List<ComboViewModel>>("api/combos", cancellationToken) ?? new();
 
-    public async Task<CheckoutResponse?> CheckoutAsync(string userId, CheckoutRequest request, CancellationToken cancellationToken = default)
+    public async Task<CheckoutResponse?> CheckoutAsync(string token, CheckoutRequest request, CancellationToken cancellationToken = default)
     {
         using var message = new HttpRequestMessage(HttpMethod.Post, "api/bookings/checkout");
-        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userId);
-        message.Headers.TryAddWithoutValidation("X-User-Id", userId);
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        message.Headers.TryAddWithoutValidation("X-User-Id", token);
         message.Content = JsonContent.Create(request);
         using var response = await _http.SendAsync(message, cancellationToken);
         if (!response.IsSuccessStatusCode) return null;

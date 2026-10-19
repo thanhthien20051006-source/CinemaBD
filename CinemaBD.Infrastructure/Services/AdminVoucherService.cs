@@ -98,7 +98,7 @@ public class AdminVoucherService : IAdminVoucherService
             .FirstOrDefaultAsync(ct);
 
         if (voucher == null) return Fail("Mã voucher không tồn tại hoặc không thuộc tài khoản này.", subtotal, code);
-        if (voucher.DaSuDung == true) return Fail("Voucher đã được sử dụng.", subtotal, code);
+        if (voucher.DaSuDung == true) return Fail("Voucher đã bị vô hiệu hóa hoặc đã được sử dụng.", subtotal, code);
         if (voucher.NgayHetHan.Date < DateTime.Today) return Fail("Voucher đã hết hạn.", subtotal, code);
         if ((voucher.DonToiThieu ?? 0) > subtotal) return Fail($"Đơn tối thiểu {voucher.DonToiThieu:N0} đ để dùng voucher.", subtotal, code);
 
@@ -119,7 +119,10 @@ public class AdminVoucherService : IAdminVoucherService
     {
         var entity = await _db.Vouchers.FindAsync([id], ct);
         if (entity == null) return false;
-        _db.Vouchers.Remove(entity);
+
+        entity.DaSuDung = true;
+        entity.NgaySuDung ??= DateTime.Now;
+        entity.GatewayTxnRef ??= "DISABLED_BY_ADMIN";
         await _db.SaveChangesAsync(ct);
         return true;
     }

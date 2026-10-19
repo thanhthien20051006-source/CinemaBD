@@ -42,7 +42,7 @@
                     </tr>
                 </table>
             </div>
-            <div class="col-md-6 border-start">
+            <div class="col-md-6 border-start checkout-price-col">
                 <h6 class="fw-bold text-muted">CHI TIẾT GIÁ</h6>
                 <table class="table table-sm table-borderless">
                     <tr>
@@ -77,11 +77,11 @@
 
                 <input type="hidden" name="ShowtimeId" value="@Model.ShowtimeId" />
                 <div class="row justify-content-center mb-3">
-                    <div class="col-md-7">
+                    <div class="col-12 col-md-7">
                         <label class="form-label fw-bold">Mã voucher</label>
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="voucherCode" value="@Model.VoucherCode" placeholder="Nhập mã voucher nếu có" />
-                            <button type="button" class="btn btn-outline-success" id="applyVoucherBtn">Áp dụng</button>
+                        <div class="input-group flex-wrap gap-2">
+                            <input type="text" class="form-control" id="voucherCode" value="@Model.VoucherCode" placeholder="Nhập mã voucher nếu có" style="min-height: 44px; flex: 1; min-width: 200px;" />
+                            <button type="button" class="btn btn-outline-success" id="applyVoucherBtn" style="min-height: 44px; white-space: nowrap;">Áp dụng</button>
                         </div>
                         <div class="form-text" id="voucherMessage">Hỗ trợ mã dạng GIAM10 hoặc SALE50000. Server sẽ kiểm tra lại trước khi thanh toán.</div>
                     </div>
@@ -96,11 +96,11 @@
                 <input type="hidden" name="TotalAmount" class="total-amount-input" value="@Model.TotalAmount.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" />
 
                 <div class="row justify-content-center mb-3">
-                    <div class="col-md-7">
+                    <div class="col-12 col-md-7">
                         <label class="form-label fw-bold">Dùng điểm thưởng</label>
-                        <div class="input-group">
-                            <input type="number" min="0" max="@Model.AvailableLoyaltyPoints" class="form-control loyalty-points-input" value="@Model.LoyaltyPoints" placeholder="Bạn có @Model.AvailableLoyaltyPoints điểm" />
-                            <button type="button" class="btn btn-outline-primary applyPointsBtn">Áp dụng điểm</button>
+                        <div class="input-group flex-wrap gap-2">
+                            <input type="number" min="0" max="@Model.AvailableLoyaltyPoints" class="form-control loyalty-points-input" value="@Model.LoyaltyPoints" placeholder="Bạn có @Model.AvailableLoyaltyPoints điểm" style="min-height: 44px; flex: 1; min-width: 200px;" />
+                            <button type="button" class="btn btn-outline-primary applyPointsBtn" style="min-height: 44px; white-space: nowrap;">Áp dụng điểm</button>
                         </div>
                         <div class="form-text loyaltyMessage">1 điểm = @Model.LoyaltyPointValue.ToString("N0") đ. Tối đa hiện có: @Model.AvailableLoyaltyPoints điểm.</div>
                     </div>
@@ -120,9 +120,9 @@
                     <img src="https://vinadesign.vn/uploads/images/2023/05/vnpay-logo-vinadesign-25-12-57-55.jpg" height="36" alt="VNPAY" />
                 </div>
                 <p class="small text-muted mb-2">Thanh toán qua cổng VNPAY (ATM / QR / Visa).</p>
-                <div class="d-flex justify-content-center gap-3">
-                    <a href="javascript:history.back()" class="btn btn-outline-secondary px-4 rounded-pill">Quay lại</a>
-                    <button type="submit" class="btn btn-danger px-5 rounded-pill fw-bold">
+                <div class="d-flex flex-wrap justify-content-center gap-3">
+                    <a href="javascript:history.back()" class="btn btn-outline-secondary px-4 rounded-pill" style="min-height: 44px;">Quay lại</a>
+                    <button type="submit" class="btn btn-danger px-5 rounded-pill fw-bold" style="min-height: 44px;">
                         <img src="https://vinadesign.vn/uploads/images/2023/05/vnpay-logo-vinadesign-25-12-57-55.jpg" height="20" class="me-1" alt="" />
                         THANH TOÁN VNPAY
                     </button>
@@ -160,7 +160,7 @@
                 </div>
                 <p class="small text-muted mb-2">Thanh toán qua ví điện tử MoMo.</p>
                 <div class="d-flex justify-content-center">
-                    <button type="submit" class="btn px-5 rounded-pill fw-bold text-white" style="background-color:#ae2070;">
+                    <button type="submit" class="btn px-5 rounded-pill fw-bold text-white" style="background-color:#ae2070; min-height: 44px;">
                         <img src="https://seeklogo.com/images/M/momo-logo-ED8A3A0DF2-seeklogo.com.png" height="20" class="me-1" alt="" />
                         THANH TOÁN MOMO
                     </button>

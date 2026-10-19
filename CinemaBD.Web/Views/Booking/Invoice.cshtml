@@ -267,17 +267,17 @@
                 </div>
 
                 <div class="row align-items-center g-4">
-                    <div class="col-md-7 qr-panel">
+                    <div class="col-12 col-md-7 qr-panel">
                         <h4 class="fw-bold mb-1">Mã QR từng vé</h4>
                         <p class="text-muted mb-3">Mỗi ghế có một QR riêng để check-in chính xác.</p>
                         <div class="row g-3">
                             @foreach (var ticket in invoiceTickets)
                             {
-                                <div class="col-sm-6 col-lg-4">
+                                <div class="col-6 col-sm-6 col-lg-4">
                                     <div class="qr-box h-100 p-2">
                                         @if (!string.IsNullOrWhiteSpace(ticket.QrCodeDataUrl))
                                         {
-                                            <img src="@ticket.QrCodeDataUrl" alt="QR vé @ticket.TicketId" />
+                                            <img src="@ticket.QrCodeDataUrl" alt="QR vé @ticket.TicketId" style="max-width: 100%; height: auto;" />
                                         }
                                         <div class="small fw-bold mt-2">Ghế @ticket.SeatId</div>
                                         <div class="small text-muted">@ticket.TicketId</div>
@@ -287,16 +287,16 @@
                         </div>
                         <div class="small text-muted mt-2">@Model.TransactionRef</div>
                     </div>
-                    <div class="col-md-5">
+                    <div class="col-12 col-md-5">
                         <div class="total-box d-flex justify-content-between align-items-center mb-3">
                             <span>Tổng thanh toán</span>
                             <span>@Model.TotalAmount.ToString("N0") đ</span>
                         </div>
                         <div class="d-grid gap-2 no-print">
-                            <a asp-controller="Booking" asp-action="InvoicePdf" asp-route-txnRef="@Model.TransactionRef" class="btn btn-success btn-lg"><i class="bi bi-file-earmark-pdf me-1"></i> Tải vé PDF</a>
-                            <button type="button" onclick="window.print()" class="btn btn-danger btn-lg"><i class="bi bi-printer me-1"></i> In vé</button>
-                            <a href="/account/history" class="btn btn-outline-primary"><i class="bi bi-clock-history me-1"></i> Lịch sử giao dịch</a>
-                            <a href="/" class="btn btn-outline-secondary"><i class="bi bi-house-door me-1"></i> Về trang chủ</a>
+                            <a asp-controller="Booking" asp-action="InvoicePdf" asp-route-txnRef="@Model.TransactionRef" class="btn btn-success btn-lg" style="min-height: 44px;"><i class="bi bi-file-earmark-pdf me-1"></i> Tải vé PDF</a>
+                            <button type="button" onclick="window.print()" class="btn btn-danger btn-lg" style="min-height: 44px;"><i class="bi bi-printer me-1"></i> In vé</button>
+                            <a href="/account/history" class="btn btn-outline-primary" style="min-height: 44px;"><i class="bi bi-clock-history me-1"></i> Lịch sử giao dịch</a>
+                            <a href="/" class="btn btn-outline-secondary" style="min-height: 44px;"><i class="bi bi-house-door me-1"></i> Về trang chủ</a>
                         </div>
                     </div>
                 </div>

@@ -36,16 +36,23 @@
         .sys-dd .dropdown-item { display: flex; gap: 8px; align-items: center; }
         .sys-dd .marker { font-weight: 700; color: #64748b; }
     </style>
+    <link href="~/css/responsive.css" rel="stylesheet" asp-append-version="true" />
     @RenderSection("styles", required: false)
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark px-3">
     <a class="navbar-brand" asp-area="Admin" asp-controller="Dashboard" asp-action="Index">🎬 CINEMA</a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNav">
+    <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#adminNav"
+            aria-controls="adminNav" aria-expanded="false" aria-label="Mở menu">
         <span class="navbar-toggler-icon"></span>
     </button>
 
-    <div class="collapse navbar-collapse" id="adminNav">
+    <div class="offcanvas offcanvas-lg offcanvas-start" tabindex="-1" id="adminNav" aria-labelledby="adminNavLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="adminNavLabel"><i class="bi bi-film"></i> CINEMA - Quản trị</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Đóng"></button>
+        </div>
+        <div class="offcanvas-body">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
             @if (nav.Can("dichvu", "combo"))
             {
@@ -149,10 +156,11 @@
                 </li>
             </ul>
         </div>
+        </div>
     </div>
 </nav>
 
-<main class="container-fluid px-4 py-3">
+<main class="container-fluid px-3 px-md-4 py-3 admin-main">
     @if (TempData["SuccessMessage"] != null)
     {
         <div class="alert alert-success shadow-sm">@TempData["SuccessMessage"]</div>

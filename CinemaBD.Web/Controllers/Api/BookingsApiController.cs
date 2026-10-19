@@ -25,11 +25,11 @@ public class BookingsApiController : ControllerBase
     [HttpPost("checkout")]
     public async Task<IActionResult> Checkout([FromBody] CheckoutRequest request, CancellationToken cancellationToken)
     {
-        var userId = Request.Headers["X-User-Id"].FirstOrDefault();
-        if (string.IsNullOrWhiteSpace(userId))
+        var token = GetBearerToken();
+        if (string.IsNullOrWhiteSpace(token))
             return Unauthorized(new ApiResponse<object> { Success = false, Message = "Thiếu thông tin user" });
 
-        var data = await _booking.CheckoutAsync(userId, request, cancellationToken);
+        var data = await _booking.CheckoutAsync(token, request, cancellationToken);
         if (data is null)
             return BadRequest(new ApiResponse<object> { Success = false, Message = "Checkout thất bại" });
 
@@ -44,6 +44,15 @@ public class BookingsApiController : ControllerBase
             return NotFound(new ApiResponse<object> { Success = false, Message = "Không tìm thấy hóa đơn" });
 
         return Ok(new ApiResponse<InvoiceViewModel> { Success = true, Message = "OK", Data = data });
+    }
+
+    private string? GetBearerToken()
+    {
+        var authorization = Request.Headers.Authorization.FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(authorization) && authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            return authorization["Bearer ".Length..].Trim();
+
+        return Request.Headers["X-User-Id"].FirstOrDefault();
     }
 }
 

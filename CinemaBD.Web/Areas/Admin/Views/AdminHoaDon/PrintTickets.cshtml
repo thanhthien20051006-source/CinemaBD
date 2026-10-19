@@ -8,15 +8,26 @@
 <html lang="vi">
 <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>In vé - @Model.InvoiceId</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <style>
         body { background:#f1f5f9; font-family:Segoe UI,Arial,sans-serif; }
         .toolbar { position:sticky; top:0; background:#fff; padding:12px; box-shadow:0 2px 10px rgba(0,0,0,.08); z-index:10; }
-        .ticket { width:780px; margin:18px auto; background:#fff; border:2px dashed #0d6efd; border-radius:18px; overflow:hidden; page-break-inside:avoid; }
-        .ticket-head { background:#0d1a59; color:#fff; padding:18px 24px; display:flex; justify-content:space-between; }
+        .ticket { width:100%; max-width:780px; margin:18px auto; background:#fff; border:2px dashed #0d6efd; border-radius:18px; overflow:hidden; page-break-inside:avoid; }
+        .ticket-head { background:#0d1a59; color:#fff; padding:18px 24px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
         .ticket-body { padding:22px 24px; }
         .qr { width:110px; height:110px; background:#e2e8f0; display:flex; align-items:center; justify-content:center; font-weight:700; color:#334155; }
+        .qr-img { width:150px; height:150px; max-width:100%; }
+        @@media (max-width: 767.98px) {
+            .toolbar { padding:8px; }
+            .toolbar .btn { min-height:44px; margin:2px; }
+            .ticket { border-radius:12px; margin:10px auto; }
+            .ticket-head { padding:14px 14px; font-size:.92rem; }
+            .ticket-body { padding:16px 14px; }
+            .ticket-body h4 { font-size:1.1rem; overflow-wrap:anywhere; }
+            .qr-img { width:130px; height:130px; }
+        }
         @@media print { .toolbar { display:none; } body { background:#fff; } .ticket { margin:12px auto; } }
     </style>
 </head>
@@ -42,7 +53,7 @@
                 </div>
             </div>
             <div class="ticket-body row">
-                <div class="col-8">
+                <div class="col-12 col-md-8">
                     <h4>@(Model.MovieTitle ?? line.ItemName)</h4>
                     <p><b>Khách hàng:</b> @(Model.CustomerName ?? "Không rõ")</p>
                     <p><b>Ngày chiếu:</b> @(Model.ShowDate.HasValue ? Model.ShowDate.Value.ToString("dd/MM/yyyy") : "")</p>
@@ -51,12 +62,12 @@
                     <p><b>Nội dung:</b> @line.ItemName</p>
                     <h5 class="text-danger">@string.Format("{0:N0} đ", line.Total)</h5>
                 </div>
-                <div class="col-4 d-flex flex-column align-items-end justify-content-center">
+                <div class="col-12 col-md-4 d-flex flex-column align-items-start align-items-md-end justify-content-center mt-3 mt-md-0">
                     @{
                         var qrText = $"CinemaBD|CHECKIN|{Model.TransactionRef}|{Model.InvoiceId}|{line.TicketId}";
                         var qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" + Uri.EscapeDataString(qrText);
                     }
-                    <img src="@qrUrl" alt="QR check-in" class="border rounded p-1 bg-white" style="width:150px;height:150px" />
+                    <img src="@qrUrl" alt="QR check-in" class="border rounded p-1 bg-white qr-img" />
                     <small class="mt-2 text-muted text-end">Quét QR này để check-in</small>
                     <small class="text-muted text-end">@Model.InvoiceId</small>
                     <small class="text-muted text-end">Vé: @(line.TicketId ?? line.Id.ToString())</small>

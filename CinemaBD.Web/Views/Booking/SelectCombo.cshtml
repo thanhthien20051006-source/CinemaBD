@@ -44,7 +44,7 @@
                                 <div class="combo-body">
                                     <h3 class="card-title">@combo.Name</h3>
                                     <p>Combo chuẩn rạp phim, dùng kèm khi xem phim bom tấn.</p>
-                                    <button type="button" class="btnSelectCombo" data-id="@combo.Id"><i class="bi bi-plus-circle"></i> Thêm combo</button>
+                                    <button type="button" class="btnSelectCombo" data-id="@combo.Id" style="min-height: 44px; width: 100%;"><i class="bi bi-plus-circle"></i> Thêm combo</button>
                                 </div>
                             </article>
                         }
@@ -97,10 +97,10 @@
                 <input type="hidden" name="comboTotal" id="comboTotalInput" value="0" />
                 <input type="hidden" name="totalAmount" id="totalAmount" value="@Model.TicketTotal.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" />
                 <input type="hidden" name="combos" id="comboInput" value="" />
-                <button type="submit" class="cinema-primary-btn w-100 justify-content-center">Tiếp tục đặt vé <i class="bi bi-arrow-right-circle"></i></button>
+                <button type="submit" class="cinema-primary-btn w-100 justify-content-center" style="min-height: 44px;">Tiếp tục đặt vé <i class="bi bi-arrow-right-circle"></i></button>
             </form>
 
-            <a class="summary-back" asp-controller="Booking" asp-action="SelectSeats" asp-route-showtimeId="@Model.ShowtimeId"><i class="bi bi-arrow-left"></i> Quay lại chọn ghế</a>
+            <a class="summary-back d-block text-center" asp-controller="Booking" asp-action="SelectSeats" asp-route-showtimeId="@Model.ShowtimeId" style="min-height: 44px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-arrow-left"></i> Quay lại chọn ghế</a>
         </aside>
     </div>
 </div>
