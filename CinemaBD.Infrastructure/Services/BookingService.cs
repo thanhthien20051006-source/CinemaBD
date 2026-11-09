@@ -226,9 +226,14 @@ public class BookingService : IBookingService
                 .FirstOrDefaultAsync(cancellationToken);
             if (voucher != null && voucher.MaKH != "ALL" && voucher.MaKH != "*")
             {
-                voucher.DaSuDung = true;
-                voucher.NgaySuDung = now;
-                voucher.GatewayTxnRef = txnRef;
+                var reserved = await _db.Vouchers
+                    .Where(v => v.MaVoucher == voucher.MaVoucher && (v.DaSuDung == null || v.DaSuDung == false))
+                    .ExecuteUpdateAsync(update => update
+                        .SetProperty(v => v.DaSuDung, true)
+                        .SetProperty(v => v.NgaySuDung, now)
+                        .SetProperty(v => v.GatewayTxnRef, txnRef), cancellationToken);
+                if (reserved != 1)
+                    throw new InvalidOperationException("Voucher đã được sử dụng hoặc đang được giữ.");
             }
         }
 
@@ -503,7 +508,9 @@ public class BookingService : IBookingService
                     Price = v.GiaVe,
                     Status = v.TrangThai,
                     IsCheckedIn = v.TrangThai == "CheckedIn",
-                    CheckedInAt = v.TrangThai == "CheckedIn" ? v.NgayDat : null
+                    CheckedInAt = v.TrangThai == "CheckedIn" ? v.NgayDat : null,
+                    CustomerId = v.MaKH ?? string.Empty,
+                    ShowtimeId = v.MaSuatChieu
                 })
                 .ToList(),
             Combos = combos.Select(c =>

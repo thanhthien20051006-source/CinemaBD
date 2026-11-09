@@ -1,6 +1,4 @@
-﻿using CinemaBD.Api.Contracts.Common;
-using System.Net;
-using System.Text.Json;
+﻿using Microsoft.AspNetCore.Mvc;
 
 namespace CinemaBD.Api.Middleware;
 
@@ -23,28 +21,38 @@ public class ExceptionHandlingMiddleware
         }
         catch (ArgumentException ex)
         {
-            _logger.LogWarning(ex, "Bad request: {Message}", ex.Message);
-            await WriteErrorAsync(context, HttpStatusCode.BadRequest, ex.Message);
+            _logger.LogWarning(ex, "Bad request for {Path}.", context.Request.Path);
+            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, "Yêu cầu không hợp lệ.", "Kiểm tra dữ liệu gửi lên rồi thử lại.");
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Business error: {Message}", ex.Message);
-            await WriteErrorAsync(context, HttpStatusCode.BadRequest, ex.Message);
+            _logger.LogWarning(ex, "Request could not be processed for {Path}.", context.Request.Path);
+            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, "Không thể xử lý yêu cầu.", "Trạng thái hiện tại không cho phép thực hiện yêu cầu này.");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unhandled exception");
-            await WriteErrorAsync(context, HttpStatusCode.InternalServerError, "Đã xảy ra lỗi máy chủ.");
+            _logger.LogError(ex, "Unhandled exception for trace {TraceId}", context.TraceIdentifier);
+            await WriteErrorAsync(context, StatusCodes.Status500InternalServerError, "Đã xảy ra lỗi máy chủ.");
         }
     }
 
-    private static async Task WriteErrorAsync(HttpContext context, HttpStatusCode statusCode, string message)
+    private static async Task WriteErrorAsync(HttpContext context, int statusCode, string title, string? detail = null)
     {
-        context.Response.ContentType = "application/json";
-        context.Response.StatusCode = (int)statusCode;
+        if (context.Response.HasStarted)
+            return;
 
-        var payload = new ApiResponse<object>(false, message, null);
-        await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
+        context.Response.Clear();
+        context.Response.StatusCode = statusCode;
+        context.Response.ContentType = "application/problem+json";
+        var problem = new ProblemDetails
+        {
+            Status = statusCode,
+            Title = title,
+            Detail = detail,
+            Instance = context.Request.Path
+        };
+        problem.Extensions["traceId"] = context.TraceIdentifier;
+        await context.Response.WriteAsJsonAsync(problem, options: new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web), contentType: "application/problem+json");
     }
 }
 

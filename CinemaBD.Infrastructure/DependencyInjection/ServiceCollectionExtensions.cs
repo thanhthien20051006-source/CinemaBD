@@ -21,6 +21,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<VnPaySignatureValidator>();
         services.AddScoped<DatabaseInitializer>();
         services.AddScoped<ITokenService, JwtTokenService>();
+        services.AddScoped<IRevokedTokenService, RevokedTokenService>();
+        services.AddSingleton<IQrCodeSecurityService, HmacQrCodeSecurityService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAdminAuthApiService, AdminAuthApiService>();
         services.AddScoped<IAdminDashboardService, AdminDashboardService>();
@@ -39,6 +41,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAdminInvoiceService, AdminInvoiceService>();
         services.AddScoped<IAdminStatisticsService, AdminStatisticsService>();
         services.AddScoped<IAdminVoucherService, AdminVoucherService>();
+        services.AddScoped<IVoucherPreviewService, VoucherPreviewService>();
         services.AddScoped<IAdminLoyaltyPointService, AdminLoyaltyPointService>();
         services.AddScoped<IAdminRefundService, AdminRefundService>();
         services.AddScoped<ILoyaltyPointService, LoyaltyPointService>();

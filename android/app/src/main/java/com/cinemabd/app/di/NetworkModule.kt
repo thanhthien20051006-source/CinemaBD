@@ -41,6 +41,8 @@ object NetworkModule {
                 val sanitized = message
                     .replace(Regex("\"password\"\\s*:\\s*\"[^\"]*\""), "\"password\":\"***\"")
                     .replace(Regex("\"token\"\\s*:\\s*\"[^\"]*\""), "\"token\":\"***\"")
+                    .replace(Regex("\"qrPayload\"\\s*:\\s*\"[^\"]*\""), "\"qrPayload\":\"***\"")
+                    .replace(Regex("\"qrSignature\"\\s*:\\s*\"[^\"]*\""), "\"qrSignature\":\"***\"")
                 android.util.Log.d("OkHttp", sanitized)
             }.apply {
                 level = HttpLoggingInterceptor.Level.BODY
@@ -143,5 +145,11 @@ object NetworkModule {
     @Singleton
     fun provideAdminRefundApi(retrofit: Retrofit): com.cinemabd.app.feature.admin.AdminRefundApi {
         return retrofit.create(com.cinemabd.app.feature.admin.AdminRefundApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAdminRoomApi(retrofit: Retrofit): com.cinemabd.app.feature.admin.AdminRoomApi {
+        return retrofit.create(com.cinemabd.app.feature.admin.AdminRoomApi::class.java)
     }
 }

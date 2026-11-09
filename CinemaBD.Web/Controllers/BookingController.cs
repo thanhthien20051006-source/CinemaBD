@@ -1,4 +1,5 @@
-﻿using CinemaBD.Web.Core;
+﻿using CinemaBD.Application.Interfaces;
+using CinemaBD.Web.Core;
 using CinemaBD.Web.Infrastructure.Notifications;
 using CinemaBD.Web.Infrastructure.Payments;
 using CinemaBD.Web.Models;
@@ -18,6 +19,7 @@ public class BookingController : Controller
     private readonly ITicketPdfService _ticketPdfService;
     private readonly IWebHostEnvironment _environment;
     private readonly IConfiguration _configuration;
+    private readonly IQrCodeSecurityService _qrCodeSecurityService;
 
     public BookingController(
         CinemaApiClient apiClient,
@@ -25,7 +27,8 @@ public class BookingController : Controller
         IInvoiceNotificationService invoiceNotificationService,
         ITicketPdfService ticketPdfService,
         IWebHostEnvironment environment,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IQrCodeSecurityService qrCodeSecurityService)
     {
         _apiClient = apiClient;
         _momoService = momoService;
@@ -33,6 +36,7 @@ public class BookingController : Controller
         _ticketPdfService = ticketPdfService;
         _environment = environment;
         _configuration = configuration;
+        _qrCodeSecurityService = qrCodeSecurityService;
     }
 
     [HttpGet("select")]
@@ -419,13 +423,13 @@ public class BookingController : Controller
         return File(pdf, "application/pdf", $"ve-dien-tu-{txnRef}.pdf");
     }
 
-    private static void AddTicketQrCodes(InvoiceViewModel invoice)
+    private void AddTicketQrCodes(InvoiceViewModel invoice)
     {
         if (invoice.Tickets?.Any() == true)
         {
             foreach (var ticket in invoice.Tickets)
             {
-                var payload = $"CinemaBD|CHECKIN|{invoice.TransactionRef}|{invoice.PaymentId}|{ticket.TicketId}";
+                var payload = _qrCodeSecurityService.SignTicket(invoice.TransactionRef, invoice.PaymentId, ticket.TicketId, ticket.CustomerId, ticket.ShowtimeId);
                 ticket.QrCodeDataUrl = CreateQrCodeDataUrl(payload);
             }
 
@@ -433,7 +437,7 @@ public class BookingController : Controller
             return;
         }
 
-        invoice.QrCodeDataUrl = CreateQrCodeDataUrl($"CinemaBD|CHECKIN|{invoice.TransactionRef}|{invoice.PaymentId}|{string.Join(",", invoice.Seats)}");
+        invoice.QrCodeDataUrl = string.Empty;
     }
 
     private static string CreateQrCodeDataUrl(string payload)

@@ -47,13 +47,8 @@ class MainActivity : ComponentActivity() {
                                 Toast.LENGTH_LONG
                             ).show()
                             navController?.let { controller ->
-                                val graphId = runCatching { controller.graph.id }.getOrNull()
-                                controller.navigate(Routes.AUTH) {
-                                    if (graphId != null) {
-                                        popUpTo(graphId) { inclusive = true }
-                                    } else {
-                                        popUpTo(0) { inclusive = true }
-                                    }
+                                controller.navigate(Routes.LOGIN) {
+                                    popUpTo(0) { inclusive = true }
                                     launchSingleTop = true
                                 }
                             }

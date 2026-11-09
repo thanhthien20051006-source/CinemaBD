@@ -4,6 +4,7 @@ namespace CinemaBD.Application.Interfaces;
 
 public interface IPaymentService
 {
+    Task<VnPayCreatePaymentResult> CreateVnPayPaymentUrlAsync(string maHD, string currentUserId, bool isAdmin, string ipAddress, CancellationToken cancellationToken = default);
     Task<PaymentCallbackResult> HandleVnPayReturnAsync(IDictionary<string, string> query, CancellationToken cancellationToken = default);
     Task<VnPayIpnResult> HandleVnPayIpnAsync(IDictionary<string, string> query, CancellationToken cancellationToken = default);
     Task<PaymentCallbackResult> ConfirmDemoPaymentAsync(string txnRef, string gateway, CancellationToken cancellationToken = default);

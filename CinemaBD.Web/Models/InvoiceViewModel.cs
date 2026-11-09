@@ -28,6 +28,8 @@ public class InvoiceTicketViewModel
     public decimal Price { get; set; }
     public string? Status { get; set; }
     public bool IsCheckedIn { get; set; }
+    public string CustomerId { get; set; } = string.Empty;
+    public string ShowtimeId { get; set; } = string.Empty;
     public DateTime? CheckedInAt { get; set; }
     public string QrCodeDataUrl { get; set; } = string.Empty;
 }

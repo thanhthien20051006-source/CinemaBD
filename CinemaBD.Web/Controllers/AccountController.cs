@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authentication;
+﻿using CinemaBD.Application.Interfaces;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
 using System.Security.Claims;
 using CinemaBD.Web.Models;
@@ -12,10 +13,12 @@ namespace CinemaBD.Web.Controllers;
 public class AccountController : Controller
 {
     private readonly CinemaApiClient _apiClient;
+    private readonly IQrCodeSecurityService _qrCodeSecurityService;
 
-    public AccountController(CinemaApiClient apiClient)
+    public AccountController(CinemaApiClient apiClient, IQrCodeSecurityService qrCodeSecurityService)
     {
         _apiClient = apiClient;
+        _qrCodeSecurityService = qrCodeSecurityService;
     }
 
     [HttpGet("google-login")]
@@ -235,13 +238,13 @@ public class AccountController : Controller
         return RedirectToAction(nameof(History));
     }
 
-    private static void AddTicketQrCodes(InvoiceViewModel invoice)
+    private void AddTicketQrCodes(InvoiceViewModel invoice)
     {
         if (invoice.Tickets?.Any() == true)
         {
             foreach (var ticket in invoice.Tickets)
             {
-                var payload = $"CinemaBD|CHECKIN|{invoice.TransactionRef}|{invoice.PaymentId}|{ticket.TicketId}";
+                var payload = _qrCodeSecurityService.SignTicket(invoice.TransactionRef, invoice.PaymentId, ticket.TicketId, ticket.CustomerId, ticket.ShowtimeId);
                 ticket.QrCodeDataUrl = CreateQrCodeDataUrl(payload);
             }
 
@@ -258,8 +261,12 @@ public class AccountController : Controller
     }
 
     [HttpGet("logout")]
-    public IActionResult Logout()
+    public async Task<IActionResult> Logout(CancellationToken cancellationToken)
     {
+        var token = HttpContext.Session.GetString("UserToken");
+        if (!string.IsNullOrWhiteSpace(token))
+            await _apiClient.LogoutAsync(token, cancellationToken);
+
         HttpContext.Session.Clear();
         return RedirectToAction("Index", "Home");
     }

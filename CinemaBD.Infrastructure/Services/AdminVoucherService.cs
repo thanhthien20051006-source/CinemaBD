@@ -110,6 +110,7 @@ public class AdminVoucherService : IAdminVoucherService
             Success = true,
             Message = $"Áp dụng voucher thành công, giảm {discount:N0} đ.",
             Code = voucher.MaCode,
+            Subtotal = subtotal,
             DiscountAmount = discount,
             FinalAmount = Math.Max(0, subtotal - discount)
         };
@@ -179,7 +180,7 @@ public class AdminVoucherService : IAdminVoucherService
         UsedTransactionRef = v.GatewayTxnRef
     };
 
-    private static VoucherValidationResult Fail(string message, decimal subtotal, string? code = null) => new() { Success = false, Message = message, Code = code, FinalAmount = subtotal };
+    private static VoucherValidationResult Fail(string message, decimal subtotal, string? code = null) => new() { Success = false, Message = message, Code = code, Subtotal = subtotal, FinalAmount = subtotal };
 
     private static bool IsGlobalCustomer(string? customerId) => string.Equals(customerId, "ALL", StringComparison.OrdinalIgnoreCase) || customerId == "*";
 

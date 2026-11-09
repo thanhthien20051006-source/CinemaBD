@@ -19,6 +19,9 @@ interface BookingsApi {
     @POST("api/bookings/hold-seats")
     suspend fun holdSeats(@Body request: SeatHoldRequest): ApiResponse<SeatHoldResult>
 
+    @POST("api/bookings/release-seats")
+    suspend fun releaseSeats(@Body request: SeatHoldRequest): ApiResponse<SeatHoldResult>
+
     @POST("api/bookings/checkout")
     suspend fun checkout(
         @Header("X-Return-Url") returnUrl: String? = null,

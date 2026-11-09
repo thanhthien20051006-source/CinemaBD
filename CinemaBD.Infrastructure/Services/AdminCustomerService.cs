@@ -25,7 +25,6 @@ public class AdminCustomerService : IAdminCustomerService
                 Id = x.MaKH,
                 FullName = x.HoTen,
                 Username = x.TKhoan,
-                PasswordHash = x.MatKhau,
                 Email = x.Email,
                 PhoneNumber = x.SDT,
                 BirthDate = x.NgaySinh
@@ -40,7 +39,6 @@ public class AdminCustomerService : IAdminCustomerService
                 Id = x.MaKH,
                 FullName = x.HoTen,
                 Username = x.TKhoan,
-                PasswordHash = x.MatKhau,
                 Email = x.Email,
                 PhoneNumber = x.SDT,
                 BirthDate = x.NgaySinh

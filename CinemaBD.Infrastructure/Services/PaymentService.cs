@@ -3,6 +3,7 @@ using CinemaBD.Domain.Entities;
 using CinemaBD.Infrastructure.Payments;
 using CinemaBD.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace CinemaBD.Infrastructure.Services;
 
@@ -13,13 +14,162 @@ public class PaymentService : IPaymentService
     private readonly VnPaySignatureValidator _validator;
     private readonly ILoyaltyPointService _loyaltyPointService;
     private readonly IAdminVoucherService _voucherService;
+    private readonly VnPayUrlBuilder _vnPayUrlBuilder;
+    private readonly ILogger<PaymentService> _logger;
 
-    public PaymentService(AppDbContext db, VnPaySignatureValidator validator, ILoyaltyPointService loyaltyPointService, IAdminVoucherService voucherService)
+    public PaymentService(
+        AppDbContext db,
+        VnPaySignatureValidator validator,
+        ILoyaltyPointService loyaltyPointService,
+        IAdminVoucherService voucherService,
+        VnPayUrlBuilder vnPayUrlBuilder,
+        ILogger<PaymentService> logger)
     {
         _db = db;
         _validator = validator;
         _loyaltyPointService = loyaltyPointService;
         _voucherService = voucherService;
+        _vnPayUrlBuilder = vnPayUrlBuilder;
+        _logger = logger;
+    }
+
+    public async Task<VnPayCreatePaymentResult> CreateVnPayPaymentUrlAsync(
+        string maHD,
+        string currentUserId,
+        bool isAdmin,
+        string ipAddress,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(maHD))
+        {
+            return new VnPayCreatePaymentResult
+            {
+                Success = false,
+                Message = "Mã hóa đơn không hợp lệ."
+            };
+        }
+
+        // Thống nhất một khóa tra cứu:
+        // - Trong Database (bảng HoaDons, Payments, VE): GatewayTxnRef
+        // - Trong tham số VNPay và redirect/deep link: vnp_TxnRef / txnRef
+        var invoice = await _db.Invoices.FirstOrDefaultAsync(
+            h => h.MaHD == maHD || h.GatewayTxnRef == maHD,
+            cancellationToken);
+
+        if (invoice == null)
+        {
+            return new VnPayCreatePaymentResult
+            {
+                Success = false,
+                Message = "Không tìm thấy hóa đơn."
+            };
+        }
+
+        // 1. Kiểm tra hóa đơn thuộc khách đang đăng nhập (trừ admin)
+        if (!isAdmin && (string.IsNullOrWhiteSpace(currentUserId) || !string.Equals(invoice.MaKH, currentUserId, StringComparison.OrdinalIgnoreCase)))
+        {
+            return new VnPayCreatePaymentResult
+            {
+                Success = false,
+                Message = "Hóa đơn không thuộc về người dùng hiện tại."
+            };
+        }
+
+        // 2. Kiểm tra chưa Paid
+        if (PaymentStatuses.IsPaid(invoice.TrangThai))
+        {
+            return new VnPayCreatePaymentResult
+            {
+                Success = false,
+                Message = "Hóa đơn đã được thanh toán trước đó."
+            };
+        }
+
+        // 3. Kiểm tra còn trong hạn giữ ghế (quy ước 5 phút)
+        var holdCutoff = DateTime.Now.Subtract(SeatHoldDuration);
+        var tickets = await _db.Tickets
+            .Where(t => t.GatewayTxnRef == invoice.GatewayTxnRef)
+            .ToListAsync(cancellationToken);
+
+        bool isExpired = false;
+        if (tickets.Count > 0)
+        {
+            if (tickets.Any(t => t.NgayDat <= holdCutoff || string.Equals(t.TrangThai, PaymentStatuses.Expired, StringComparison.OrdinalIgnoreCase)))
+            {
+                isExpired = true;
+            }
+        }
+        else if (invoice.NgayThanhToan <= holdCutoff && string.Equals(invoice.TrangThai, PaymentStatuses.Pending, StringComparison.OrdinalIgnoreCase))
+        {
+            isExpired = true;
+        }
+
+        if (isExpired)
+        {
+            invoice.TrangThai = PaymentStatuses.Expired;
+            foreach (var t in tickets.Where(v => v.TrangThai == PaymentStatuses.Pending))
+            {
+                t.TrangThai = PaymentStatuses.Expired;
+            }
+            await _db.SaveChangesAsync(cancellationToken);
+
+            return new VnPayCreatePaymentResult
+            {
+                Success = false,
+                Message = "Đơn hàng đã hết thời gian giữ ghế."
+            };
+        }
+
+        // 4. Số tiền lấy từ DB, không lấy từ client; kiểm tra decimal nhân 100 không lệch
+        if (invoice.TongTien <= 0)
+        {
+            return new VnPayCreatePaymentResult
+            {
+                Success = false,
+                Message = "Số tiền hóa đơn không hợp lệ."
+            };
+        }
+
+        decimal amountX100 = invoice.TongTien * 100m;
+        if (amountX100 != Math.Truncate(amountX100) || amountX100 > long.MaxValue)
+        {
+            return new VnPayCreatePaymentResult
+            {
+                Success = false,
+                Message = "Số tiền hóa đơn không hợp lệ khi quy đổi sang định dạng VNPay."
+            };
+        }
+
+        long vnpAmountLong = (long)amountX100;
+        if ((decimal)vnpAmountLong / 100m != invoice.TongTien)
+        {
+            return new VnPayCreatePaymentResult
+            {
+                Success = false,
+                Message = "Sai lệch khi quy đổi số tiền thanh toán."
+            };
+        }
+
+        // 5. Thống nhất khóa tra cứu GatewayTxnRef
+        if (string.IsNullOrWhiteSpace(invoice.GatewayTxnRef))
+        {
+            invoice.GatewayTxnRef = "TXN" + DateTime.UtcNow.ToString("yyMMddHHmmssfff");
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
+        var paymentUrl = _vnPayUrlBuilder.Build(
+            invoice.TongTien,
+            invoice.GatewayTxnRef,
+            string.IsNullOrWhiteSpace(ipAddress) ? "127.0.0.1" : ipAddress);
+
+        return new VnPayCreatePaymentResult
+        {
+            Success = true,
+            Message = "Tạo URL thanh toán VNPay thành công.",
+            PaymentUrl = paymentUrl,
+            TxnRef = invoice.GatewayTxnRef,
+            MaHD = invoice.MaHD
+        };
     }
 
     public async Task<PaymentCallbackResult> HandleVnPayReturnAsync(IDictionary<string, string> query, CancellationToken cancellationToken = default)
@@ -30,6 +180,7 @@ public class PaymentService : IPaymentService
             Success = process.Success,
             SignatureValid = process.SignatureValid,
             TransactionRef = process.TransactionRef,
+            InvoiceId = process.InvoiceId,
             ResponseCode = process.ResponseCode,
             Message = process.Message
         };
@@ -136,30 +287,76 @@ public class PaymentService : IPaymentService
         var cardType = Get(query, "vnp_CardType");
         var secureHash = Get(query, "vnp_SecureHash");
         var payDateRaw = Get(query, "vnp_PayDate");
+        var vnpAmountRaw = Get(query, "vnp_Amount");
 
+        // 1. Xác minh chữ ký TRƯỚC (NIST CSF 1.1 Protect & Detect)
         var signatureValid = _validator.Validate(query);
         if (!signatureValid)
-            return CallbackProcessResult.Fail("97", "Invalid signature", txnRef, responseCode, false);
+        {
+            // Ghi log [SECURITY_AUDIT] KHÔNG chứa HashSecret hoặc TmnCode
+            _logger.LogWarning("[SECURITY_AUDIT] Chữ ký VNPay không hợp lệ. TxnRef: {TxnRef}, SecureHash: {SecureHash}, ResponseCode: {ResponseCode}",
+                txnRef, secureHash, responseCode);
+            // Không sửa DB
+            return CallbackProcessResult.Fail("97", "Chữ ký không hợp lệ.", txnRef, responseCode, signatureValid: false);
+        }
 
+        // 2. Tra cứu hóa đơn theo GatewayTxnRef thống nhất
+        var invoice = await _db.Invoices.FirstOrDefaultAsync(h => h.GatewayTxnRef == txnRef || h.MaHD == txnRef, cancellationToken);
         var payment = await _db.Payments.FirstOrDefaultAsync(t => t.GatewayTxnRef == txnRef, cancellationToken);
-        if (payment == null)
-            return CallbackProcessResult.Fail("01", "Order not found", txnRef, responseCode, true);
 
-        var vnpAmountRaw = Get(query, "vnp_Amount");
+        if (invoice == null && payment == null)
+            return CallbackProcessResult.Fail("01", "Không tìm thấy hóa đơn/đơn hàng.", txnRef, responseCode, signatureValid: true);
+
+        var invoiceId = invoice?.MaHD ?? string.Empty;
+        var totalAmount = invoice?.TongTien ?? payment?.SoTien ?? 0m;
+
+        // 3. Kiểm tra vnp_Amount / 100 khớp hóa đơn
         if (!long.TryParse(vnpAmountRaw, out var vnpAmountX100))
-            return CallbackProcessResult.Fail("04", "invalid amount", txnRef, responseCode, true);
+        {
+            _logger.LogWarning("[SECURITY_AUDIT] Định dạng vnp_Amount không hợp lệ: {RawAmount}, TxnRef: {TxnRef}", vnpAmountRaw, txnRef);
+            return CallbackProcessResult.Fail("04", "Số tiền không hợp lệ.", txnRef, responseCode, signatureValid: true, invoiceId: invoiceId);
+        }
 
         var vnpAmount = vnpAmountX100 / 100m;
-        if (payment.SoTien != vnpAmount)
-            return CallbackProcessResult.Fail("04", "invalid amount", txnRef, responseCode, true);
-
-        if (await ExpirePaymentIfHoldTimedOutAsync(payment, cancellationToken))
+        if (totalAmount != vnpAmount)
         {
+            _logger.LogWarning("[SECURITY_AUDIT] Số tiền thanh toán không khớp với hóa đơn. DB: {Expected}, VNPay: {Actual}, TxnRef: {TxnRef}", totalAmount, vnpAmount, txnRef);
+            return CallbackProcessResult.Fail("04", "Số tiền thanh toán không khớp với hóa đơn.", txnRef, responseCode, signatureValid: true, invoiceId: invoiceId);
+        }
+
+        var currentStatus = invoice?.TrangThai ?? payment?.TrangThai ?? string.Empty;
+
+        // 4. Nếu đã Paid: "Đã Paid thì không ghi lại."
+        if (PaymentStatuses.IsPaid(currentStatus))
+        {
+            return new CallbackProcessResult
+            {
+                Success = true,
+                SignatureValid = true,
+                TransactionRef = txnRef,
+                InvoiceId = invoiceId,
+                ResponseCode = responseCode,
+                RspCode = "00",
+                IpnMessage = "Order already confirmed",
+                Message = "Giao dịch đã được xác nhận trước đó."
+            };
+        }
+
+        // 5. Kiểm tra thời gian giữ ghế
+        if (payment != null && await ExpirePaymentIfHoldTimedOutAsync(payment, cancellationToken))
+        {
+            if (invoice != null && string.Equals(invoice.TrangThai, PaymentStatuses.Pending, StringComparison.OrdinalIgnoreCase))
+            {
+                invoice.TrangThai = PaymentStatuses.Expired;
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+
             return new CallbackProcessResult
             {
                 Success = false,
                 SignatureValid = true,
                 TransactionRef = txnRef,
+                InvoiceId = invoiceId,
                 ResponseCode = responseCode,
                 RspCode = "98",
                 IpnMessage = "Order expired",
@@ -167,56 +364,83 @@ public class PaymentService : IPaymentService
             };
         }
 
-        if (!string.Equals(payment.TrangThai, PaymentStatuses.Pending, StringComparison.OrdinalIgnoreCase))
-        {
-            return new CallbackProcessResult
-            {
-                Success = PaymentStatuses.IsPaid(payment.TrangThai),
-                SignatureValid = true,
-                TransactionRef = txnRef,
-                ResponseCode = responseCode,
-                RspCode = "02",
-                IpnMessage = "Order already confirmed",
-                Message = "Giao dịch đã được xác nhận trước đó."
-            };
-        }
-
-        var paid = responseCode == "00" && transactionStatus == "00";
+        var paid = responseCode == "00" && (string.IsNullOrWhiteSpace(transactionStatus) || transactionStatus == "00");
 
         if (updateDatabase)
         {
-            payment.GatewayTransNo = transactionNo;
-            payment.BankCode = bankCode;
-            payment.CardType = cardType;
-            payment.VnpResponseCode = responseCode;
-            payment.VnpTransactionStatus = transactionStatus;
-            payment.SecureHash = secureHash;
-
-            if (DateTime.TryParseExact(payDateRaw, "yyyyMMddHHmmss", null, System.Globalization.DateTimeStyles.None, out var payDate))
-                payment.PayDate = payDate;
-
-            var tickets = await _db.Tickets.Where(v => v.GatewayTxnRef == txnRef).ToListAsync(cancellationToken);
             if (paid)
             {
-                payment.TrangThai = PaymentStatuses.Paid;
-                foreach (var ticket in tickets)
-                    ticket.TrangThai = PaymentStatuses.Paid;
-            }
-            else
-            {
-                payment.TrangThai = PaymentStatuses.Failed;
-                foreach (var ticket in tickets)
-                    ticket.TrangThai = PaymentStatuses.Failed;
-            }
+                // Cập nhật Paid bằng UPDATE có điều kiện WHERE TrangThai = 'Pending' (kiểm tra số dòng ảnh hưởng)
+                int affectedInvoiceRows = 0;
+                if (invoice != null)
+                {
+                    affectedInvoiceRows = await _db.Invoices
+                        .Where(h => h.MaHD == invoice.MaHD && h.TrangThai == PaymentStatuses.Pending)
+                        .ExecuteUpdateAsync(s => s
+                            .SetProperty(h => h.TrangThai, PaymentStatuses.Paid)
+                            .SetProperty(h => h.NgayThanhToan, DateTime.Now)
+                            .SetProperty(h => h.GhiChu, $"Thanh toán VNPay {transactionNo}"),
+                            cancellationToken);
+                }
 
-            if (paid)
-                await EnsureInvoiceAsync(payment, tickets, cancellationToken);
+                if (payment != null)
+                {
+                    await _db.Payments
+                        .Where(p => p.GatewayTxnRef == txnRef && p.TrangThai == PaymentStatuses.Pending)
+                        .ExecuteUpdateAsync(s => s
+                            .SetProperty(p => p.TrangThai, PaymentStatuses.Paid)
+                            .SetProperty(p => p.PayDate, DateTime.Now)
+                            .SetProperty(p => p.GatewayTransNo, transactionNo)
+                            .SetProperty(p => p.BankCode, bankCode)
+                            .SetProperty(p => p.CardType, cardType)
+                            .SetProperty(p => p.VnpResponseCode, responseCode)
+                            .SetProperty(p => p.VnpTransactionStatus, transactionStatus ?? "00")
+                            .SetProperty(p => p.SecureHash, secureHash),
+                            cancellationToken);
+                }
 
-            await _db.SaveChangesAsync(cancellationToken);
-            if (paid)
+                await _db.Tickets
+                    .Where(v => v.GatewayTxnRef == txnRef && v.TrangThai == PaymentStatuses.Pending)
+                    .ExecuteUpdateAsync(s => s.SetProperty(v => v.TrangThai, PaymentStatuses.Paid), cancellationToken);
+
+                if (invoice == null && payment != null)
+                {
+                    var tickets = await _db.Tickets.Where(v => v.GatewayTxnRef == txnRef).ToListAsync(cancellationToken);
+                    await EnsureInvoiceAsync(payment, tickets, cancellationToken);
+                    invoice = await _db.Invoices.FirstOrDefaultAsync(h => h.GatewayTxnRef == txnRef, cancellationToken);
+                    invoiceId = invoice?.MaHD ?? string.Empty;
+                }
+
                 await TryEarnLoyaltyPointsAsync(txnRef, cancellationToken);
+            }
             else
             {
+                if (invoice != null)
+                {
+                    await _db.Invoices
+                        .Where(h => h.MaHD == invoice.MaHD && h.TrangThai == PaymentStatuses.Pending)
+                        .ExecuteUpdateAsync(s => s
+                            .SetProperty(h => h.TrangThai, PaymentStatuses.Failed)
+                            .SetProperty(h => h.GhiChu, $"VNPay thất bại ({responseCode})"),
+                            cancellationToken);
+                }
+
+                if (payment != null)
+                {
+                    await _db.Payments
+                        .Where(p => p.GatewayTxnRef == txnRef && p.TrangThai == PaymentStatuses.Pending)
+                        .ExecuteUpdateAsync(s => s
+                            .SetProperty(p => p.TrangThai, PaymentStatuses.Failed)
+                            .SetProperty(p => p.VnpResponseCode, responseCode)
+                            .SetProperty(p => p.VnpTransactionStatus, transactionStatus)
+                            .SetProperty(p => p.SecureHash, secureHash),
+                            cancellationToken);
+                }
+
+                await _db.Tickets
+                    .Where(v => v.GatewayTxnRef == txnRef && v.TrangThai == PaymentStatuses.Pending)
+                    .ExecuteUpdateAsync(s => s.SetProperty(v => v.TrangThai, PaymentStatuses.Failed), cancellationToken);
+
                 await TryRefundLoyaltyPointsAsync(txnRef, cancellationToken);
                 await _voucherService.ReopenVoucherForFailedPaymentAsync(txnRef, cancellationToken);
             }
@@ -227,6 +451,7 @@ public class PaymentService : IPaymentService
             Success = paid,
             SignatureValid = true,
             TransactionRef = txnRef,
+            InvoiceId = invoiceId,
             ResponseCode = responseCode,
             RspCode = "00",
             IpnMessage = "Confirm Success",
@@ -368,17 +593,19 @@ public class PaymentService : IPaymentService
         public bool Success { get; set; }
         public bool SignatureValid { get; set; }
         public string TransactionRef { get; set; } = string.Empty;
+        public string InvoiceId { get; set; } = string.Empty;
         public string ResponseCode { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
         public string RspCode { get; set; } = "99";
         public string IpnMessage { get; set; } = "Unknown error";
 
-        public static CallbackProcessResult Fail(string rspCode, string message, string txnRef = "", string responseCode = "", bool signatureValid = true)
+        public static CallbackProcessResult Fail(string rspCode, string message, string txnRef = "", string responseCode = "", bool signatureValid = true, string invoiceId = "")
             => new()
             {
                 Success = false,
                 SignatureValid = signatureValid,
                 TransactionRef = txnRef,
+                InvoiceId = invoiceId,
                 ResponseCode = responseCode,
                 Message = message,
                 RspCode = rspCode,

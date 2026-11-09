@@ -17,6 +17,12 @@ public class AppDbContext : DbContext
             .IsUnique()
             .HasFilter("[GatewayTxnRef] IS NOT NULL AND [GatewayTxnRef] <> ''");
 
+        modelBuilder.Entity<RevokedToken>()
+            .ToTable("RevokedTokens")
+            .HasKey(x => x.Jti);
+        modelBuilder.Entity<RevokedToken>()
+            .HasIndex(x => x.ExpiresAtUtc);
+
         modelBuilder.Entity<LegacySeat>()
             .HasKey(x => new { x.MaPhong, x.MaGhe });
 
@@ -24,10 +30,6 @@ public class AppDbContext : DbContext
             .Ignore(x => x.MaRap);
 
         modelBuilder.Entity<LegacyInvoice>()
-            .Ignore(x => x.DaCheckIn)
-            .Ignore(x => x.ThoiGianCheckIn);
-
-        modelBuilder.Entity<LegacyTicket>()
             .Ignore(x => x.DaCheckIn)
             .Ignore(x => x.ThoiGianCheckIn);
 
@@ -63,4 +65,5 @@ public class AppDbContext : DbContext
     public DbSet<LegacyVoucher> Vouchers => Set<LegacyVoucher>();
     public DbSet<LegacyLoyaltyPoints> LoyaltyPoints => Set<LegacyLoyaltyPoints>();
     public DbSet<LegacyRefundRequest> RefundRequests => Set<LegacyRefundRequest>();
+    public DbSet<RevokedToken> RevokedTokens => Set<RevokedToken>();
 }

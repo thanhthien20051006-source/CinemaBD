@@ -100,6 +100,43 @@ public class CustomerProfileService : ICustomerProfileService
             .ToList();
     }
 
+    public async Task<List<CustomerTicket>> GetTicketsAsync(string customerId, CancellationToken ct = default)
+    {
+        var paidStatuses = GetPaidStatuses();
+        var rows = await (
+            from payment in _db.Payments.AsNoTracking()
+            join ticket in _db.Tickets.AsNoTracking() on payment.GatewayTxnRef equals ticket.GatewayTxnRef
+            join showtime in _db.Showtimes.AsNoTracking() on ticket.MaSuatChieu equals showtime.MaSuatChieu
+            join movie in _db.Movies.AsNoTracking() on showtime.MaPhim equals movie.MaPhim
+            join room in _db.Rooms.AsNoTracking() on showtime.MaPhong equals room.MaPhong
+            where ticket.MaKH == customerId
+                && paidStatuses.Contains(payment.TrangThai ?? string.Empty)
+                && (ticket.TrangThai == "Paid" || ticket.TrangThai == "Success" || ticket.TrangThai == "CheckedIn"
+                    || ticket.TrangThai == "Thành công" || ticket.TrangThai == "Thanh cong"
+                    || ticket.TrangThai == "Đã thanh toán" || ticket.TrangThai == "Da thanh toan")
+            orderby payment.PayDate ?? payment.NgayDat descending
+            select new CustomerTicket
+            {
+                TicketId = ticket.MaVe,
+                TransactionRef = payment.GatewayTxnRef ?? string.Empty,
+                MovieTitle = movie.TenPhim,
+                MoviePosterUrl = movie.AnhDaiDien ?? string.Empty,
+                ShowDate = showtime.NgayChieu,
+                StartTime = showtime.GioBatDau,
+                RoomName = room.TenPhong,
+                SeatId = ticket.MaGhe,
+                Price = ticket.GiaVe,
+                Status = ticket.TrangThai ?? string.Empty,
+                CheckedInAt = ticket.ThoiGianCheckIn,
+                ShowtimeId = ticket.MaSuatChieu,
+                PaymentId = payment.MaTT,
+                CustomerId = ticket.MaKH ?? string.Empty
+            })
+            .ToListAsync(ct);
+
+        return rows;
+    }
+
     public async Task<decimal> GetTotalSpendingAsync(string customerId, int year, CancellationToken ct = default)
     {
         var paidStatuses = GetPaidStatuses();

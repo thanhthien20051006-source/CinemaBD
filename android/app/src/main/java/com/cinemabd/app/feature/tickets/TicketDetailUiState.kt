@@ -14,7 +14,7 @@ sealed interface TicketDetailUiState {
         val qrBitmap: Bitmap? = null
     ) : TicketDetailUiState {
         val currentQrBitmap: Bitmap?
-            get() = qrBitmaps[selectedTicketIndex] ?: qrBitmap
+            get() = qrBitmaps[selectedTicketIndex]
 
         val selectedTicket: InvoiceTicketResponse?
             get() = invoice.tickets.getOrNull(selectedTicketIndex)

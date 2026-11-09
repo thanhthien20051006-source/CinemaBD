@@ -168,6 +168,15 @@ public class CinemaApiClient
         return payload?.Data;
     }
 
+    public async Task LogoutAsync(string token, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/logout");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            _logger.LogWarning("API logout returned status {StatusCode}.", (int)response.StatusCode);
+    }
+
     public async Task<AdminLoyaltyPointViewModel?> GetLoyaltyAsync(string token, CancellationToken cancellationToken = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, "api/account/loyalty");

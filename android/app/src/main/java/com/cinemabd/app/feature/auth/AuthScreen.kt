@@ -44,15 +44,16 @@ import com.cinemabd.app.R
 @Composable
 fun AuthScreen(
     viewModel: AuthViewModel = hiltViewModel(),
-    onAuthSuccess: () -> Unit
+    onAuthSuccess: (role: String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) {
+            val role = uiState.role ?: "Customer"
             viewModel.resetSuccessState()
-            onAuthSuccess()
+            onAuthSuccess(role)
         }
     }
 
@@ -69,22 +70,13 @@ fun AuthScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = when {
-                    uiState.isAdminMode -> stringResource(R.string.login_admin_title)
-                    uiState.isLoginMode -> stringResource(R.string.login_title)
-                    else -> stringResource(R.string.register_title)
-                },
+                text = if (uiState.isLoginMode) stringResource(R.string.login_title) else stringResource(R.string.register_title),
                 color = MaterialTheme.colorScheme.error, // Assuming matching web's danger color
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            if (uiState.isAdminMode) {
-                Text(
-                    text = stringResource(R.string.login_admin_subtitle),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else if (uiState.isLoginMode) {
+            if (uiState.isLoginMode) {
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = stringResource(R.string.login_subtitle),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -190,24 +182,11 @@ fun AuthScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             if (uiState.isLoginMode) {
-                TextButton(onClick = viewModel::toggleAdminMode) {
+                TextButton(onClick = viewModel::toggleAuthMode) {
                     Text(
-                        text = if (uiState.isAdminMode) {
-                            stringResource(R.string.login_customer_link)
-                        } else {
-                            stringResource(R.string.login_admin_link)
-                        },
+                        text = stringResource(R.string.switch_to_register),
                         color = MaterialTheme.colorScheme.primary
                     )
-                }
-
-                if (!uiState.isAdminMode) {
-                    TextButton(onClick = viewModel::toggleAuthMode) {
-                        Text(
-                            text = stringResource(R.string.switch_to_register),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
                 }
             } else {
                 TextButton(onClick = viewModel::toggleAuthMode) {
@@ -219,4 +198,15 @@ fun AuthScreen(
             }
         }
     }
+}
+
+@Composable
+fun LoginScreen(
+    viewModel: AuthViewModel = hiltViewModel(),
+    onAuthSuccess: (role: String) -> Unit = {}
+) {
+    AuthScreen(
+        viewModel = viewModel,
+        onAuthSuccess = onAuthSuccess
+    )
 }

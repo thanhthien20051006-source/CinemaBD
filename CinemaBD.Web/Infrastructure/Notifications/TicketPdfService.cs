@@ -1,4 +1,6 @@
+using CinemaBD.Application.Interfaces;
 using CinemaBD.Web.Models;
+using Microsoft.Extensions.Configuration;
 using QRCoder;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -13,8 +15,11 @@ public interface ITicketPdfService
 
 public class TicketPdfService : ITicketPdfService
 {
-    public TicketPdfService()
+    private readonly IQrCodeSecurityService _qrCodeSecurityService;
+
+    public TicketPdfService(IQrCodeSecurityService qrCodeSecurityService)
     {
+        _qrCodeSecurityService = qrCodeSecurityService;
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
@@ -51,13 +56,11 @@ public class TicketPdfService : ITicketPdfService
                     });
 
                     col.Item().Text("QR check-in tung ve").Bold().FontSize(16);
-                    var tickets = invoice.Tickets.Any()
-                        ? invoice.Tickets
-                        : invoice.Seats.Select(seat => new InvoiceTicketViewModel { SeatId = seat, TicketId = seat }).ToList();
-                    foreach (var ticket in tickets)
+                    if (!invoice.Tickets.Any())
+                        col.Item().Text("Không có dữ liệu vé có thể xác thực để tạo QR. Vui lòng tải lại hóa đơn.").FontColor(Colors.Red.Darken2);
+                    foreach (var ticket in invoice.Tickets)
                     {
-                        var ticketToken = string.IsNullOrWhiteSpace(ticket.TicketId) ? ticket.SeatId : ticket.TicketId;
-                        var payload = $"CinemaBD|CHECKIN|{invoice.TransactionRef}|{invoice.PaymentId}|{ticketToken}";
+                        var payload = _qrCodeSecurityService.SignTicket(invoice.TransactionRef, invoice.PaymentId, ticket.TicketId, ticket.CustomerId, ticket.ShowtimeId);
                         var qrBytes = CreateQrPng(payload);
                         col.Item().Border(1).BorderColor(Colors.Grey.Lighten2).Padding(12).Row(row =>
                         {

@@ -2,6 +2,7 @@
 using CinemaBD.Domain.Entities;
 using CinemaBD.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 
 namespace CinemaBD.Infrastructure.Services;
 
@@ -58,7 +59,13 @@ public class AdminInvoiceService : IAdminInvoiceService
 {
     private const string CheckedInStatus = "CheckedIn";
     private readonly AppDbContext _db;
-    public AdminInvoiceService(AppDbContext db) => _db = db;
+    private readonly IQrCodeSecurityService _qrCodeSecurityService;
+
+    public AdminInvoiceService(AppDbContext db, IQrCodeSecurityService qrCodeSecurityService)
+    {
+        _db = db;
+        _qrCodeSecurityService = qrCodeSecurityService;
+    }
     public async Task<List<InvoiceDetail>> GetAllAsync(CancellationToken ct = default)
     {
         var invoices = await _db.Invoices.AsNoTracking()
@@ -90,80 +97,73 @@ public class AdminInvoiceService : IAdminInvoiceService
 
     public async Task<CheckInResult> CheckInAsync(string qrText, CancellationToken ct = default)
     {
-        var (txnRef, invoiceId, ticketId) = ParseCheckInPayload(qrText);
-        if (string.IsNullOrWhiteSpace(txnRef) && string.IsNullOrWhiteSpace(invoiceId) && string.IsNullOrWhiteSpace(ticketId))
-            return new CheckInResult { Success = false, Message = "Mã QR không đúng định dạng." };
+        if (!_qrCodeSecurityService.TryVerifyTicket(qrText, out var verifiedQr) || verifiedQr == null)
+            return new CheckInResult { Success = false, Message = "Mã QR không hợp lệ hoặc đã hết hạn." };
+
+        var txnRef = verifiedQr.TransactionRef;
+        var ticketId = verifiedQr.TicketId;
 
         var ticket = string.IsNullOrWhiteSpace(ticketId)
             ? null
             : await _db.Tickets.FirstOrDefaultAsync(x => x.MaVe == ticketId, ct);
 
-        // QR sau thanh toán cũ đang nhét danh sách ghế (VD: A1,A2) vào vị trí TicketId,
-        // trong khi check-in chuẩn cần mã vé VE... Cho phép map token ghế -> vé theo mã giao dịch.
-        if (ticket == null
-            && !string.IsNullOrWhiteSpace(ticketId)
-            && !ticketId.StartsWith("VE", StringComparison.OrdinalIgnoreCase)
-            && !string.IsNullOrWhiteSpace(txnRef))
-        {
-            var seatTokens = ticketId.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            if (seatTokens.Length == 1)
-            {
-                ticket = await _db.Tickets.FirstOrDefaultAsync(x =>
-                    x.GatewayTxnRef == txnRef && x.MaGhe == seatTokens[0], ct);
-            }
-        }
-
-        var invoice = await _db.Invoices.FirstOrDefaultAsync(x =>
-            (!string.IsNullOrWhiteSpace(invoiceId) && x.MaHD == invoiceId) ||
-            (!string.IsNullOrWhiteSpace(txnRef) && x.GatewayTxnRef == txnRef) ||
-            (ticket != null && !string.IsNullOrWhiteSpace(ticket.GatewayTxnRef) && x.GatewayTxnRef == ticket.GatewayTxnRef), ct);
-
-        if (ticket == null && !string.IsNullOrWhiteSpace(ticketId))
+        if (ticket == null)
             return new CheckInResult { Success = false, Message = "Không tìm thấy vé.", TicketId = ticketId };
 
-        if (invoice == null)
+        if (!string.Equals(ticket.GatewayTxnRef, txnRef, StringComparison.Ordinal)
+            || !string.Equals(ticket.MaKH, verifiedQr.UserId, StringComparison.Ordinal)
+            || !string.Equals(ticket.MaSuatChieu, verifiedQr.ShowtimeId, StringComparison.Ordinal))
+            return new CheckInResult { Success = false, Message = "Thông tin QR không khớp với vé." };
+
+        var invoice = await _db.Invoices.FirstOrDefaultAsync(x => x.GatewayTxnRef == txnRef, ct);
+        var payment = await _db.Payments.FirstOrDefaultAsync(x => x.GatewayTxnRef == txnRef, ct);
+        var paymentReferenceMatches = payment != null
+            ? string.Equals(payment.MaTT, verifiedQr.PaymentId, StringComparison.Ordinal)
+            : string.Equals(invoice?.MaHD, verifiedQr.PaymentId, StringComparison.Ordinal);
+
+        if (invoice == null || !paymentReferenceMatches)
             return new CheckInResult { Success = false, Message = "Không tìm thấy hóa đơn/vé." };
 
-        if (ticket == null && !string.IsNullOrWhiteSpace(invoiceId))
+        if (!CinemaBD.Infrastructure.Payments.PaymentStatuses.IsPaid(invoice.TrangThai))
         {
-            var ticketIds = await _db.InvoiceLineItems.AsNoTracking()
-                .Where(x => x.MaHD == invoice.MaHD && x.MaVe != null)
-                .Select(x => x.MaVe!)
-                .ToListAsync(ct);
-            if (ticketIds.Count == 1)
-                ticket = await _db.Tickets.FirstOrDefaultAsync(x => x.MaVe == ticketIds[0], ct);
-        }
-
-        var detail = await BuildCheckInResultAsync(invoice, ticket, ct);
-
-        if (!string.Equals(invoice.TrangThai, "Thành công", StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(invoice.TrangThai, "Đã thanh toán", StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(invoice.TrangThai, "Paid", StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(invoice.TrangThai, "Success", StringComparison.OrdinalIgnoreCase))
-        {
-            detail.Success = false;
-            detail.Message = $"Vé chưa thanh toán hợp lệ. Trạng thái hiện tại: {invoice.TrangThai}";
-            return detail;
-        }
-
-        if (ticket == null)
-        {
-            detail.Success = false;
-            detail.Message = "QR hóa đơn không đủ để check-in từng vé. Vui lòng quét QR trên vé cụ thể.";
-            return detail;
+            return new CheckInResult { Success = false, Message = "Vé chưa thanh toán hợp lệ.", TicketId = ticketId };
         }
 
         if (IsCheckedInStatus(ticket.TrangThai))
         {
-            detail.Success = false;
-            detail.Message = $"Vé {ticket.MaVe} đã check-in.";
-            detail.IsCheckedIn = true;
-            detail.CheckedInAt = ticket.NgayDat;
-            return detail;
+            var alreadyCheckedIn = await BuildCheckInResultAsync(invoice, ticket, ct);
+            alreadyCheckedIn.Success = false;
+            alreadyCheckedIn.Message = $"Vé {ticket.MaVe} đã check-in.";
+            alreadyCheckedIn.IsCheckedIn = true;
+            alreadyCheckedIn.CheckedInAt = ticket.ThoiGianCheckIn ?? ticket.NgayDat;
+            return alreadyCheckedIn;
         }
 
-        ticket.TrangThai = "CheckedIn";
-        invoice.GhiChu = AppendNote(invoice.GhiChu, $"Check-in vé {ticket.MaVe} lúc {DateTime.Now:dd/MM/yyyy HH:mm}");
+        await using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        var checkInTime = DateTime.UtcNow;
+        var changed = await _db.Tickets
+            .Where(x =>
+                (x.MaVe == ticketId)
+                && (x.GatewayTxnRef == txnRef)
+                && (x.MaKH == verifiedQr.UserId)
+                && (x.MaSuatChieu == verifiedQr.ShowtimeId)
+                && (x.TrangThai != CheckedInStatus)
+                && (x.TrangThai == "Paid" || x.TrangThai == "Success" || x.TrangThai == "Thành công" || x.TrangThai == "Đã thanh toán"))
+            .ExecuteUpdateAsync(update => update
+                .SetProperty(x => x.TrangThai, CheckedInStatus)
+                .SetProperty(x => x.ThoiGianCheckIn, checkInTime)
+                .SetProperty(x => x.DaCheckIn, true), ct);
+
+        if (changed != 1)
+        {
+            await transaction.RollbackAsync(ct);
+            return new CheckInResult { Success = false, Message = "Vé đã check-in hoặc không còn hợp lệ.", TicketId = ticketId };
+        }
+
+        ticket.TrangThai = CheckedInStatus;
+        ticket.ThoiGianCheckIn = checkInTime;
+        ticket.DaCheckIn = true;
+        invoice.GhiChu = AppendNote(invoice.GhiChu, $"Check-in vé {ticket.MaVe} lúc {checkInTime:dd/MM/yyyy HH:mm}");
 
         var allInvoiceTickets = await _db.Tickets
             .Where(x => x.GatewayTxnRef == invoice.GatewayTxnRef)
@@ -174,12 +174,14 @@ public class AdminInvoiceService : IAdminInvoiceService
         }
 
         await _db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
 
-        detail.Success = true;
-        detail.Message = $"Check-in vé {ticket.MaVe} thành công.";
-        detail.IsCheckedIn = true;
-        detail.CheckedInAt = DateTime.Now;
-        return detail;
+        var checkedIn = await BuildCheckInResultAsync(invoice, ticket, ct);
+        checkedIn.Success = true;
+        checkedIn.Message = $"Check-in vé {ticket.MaVe} thành công.";
+        checkedIn.IsCheckedIn = true;
+        checkedIn.CheckedInAt = checkInTime;
+        return checkedIn;
     }
 
     private async Task<InvoiceSyncReport> BuildSyncReportAsync(bool fix, CancellationToken ct)

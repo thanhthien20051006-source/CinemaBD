@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.IOException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -44,7 +45,6 @@ class AuthViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 isLoginMode = !it.isLoginMode,
-                isAdminMode = false,
                 errorMessage = null,
                 password = "",
                 fullName = "",
@@ -54,18 +54,13 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun toggleAdminMode() {
-        _uiState.update {
-            it.copy(
-                isLoginMode = true,
-                isAdminMode = !it.isAdminMode,
-                errorMessage = null,
-                password = "",
-                fullName = "",
-                email = "",
-                phoneNumber = ""
-            )
+    private fun isNetworkError(throwable: Throwable?): Boolean {
+        var current: Throwable? = throwable
+        while (current != null) {
+            if (current is IOException) return true
+            current = current.cause
         }
+        return false
     }
 
     fun submit() {
@@ -83,24 +78,49 @@ class AuthViewModel @Inject constructor(
 
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             viewModelScope.launch {
-                val result = if (state.isAdminMode) {
-                    authRepository.adminLogin(LoginRequest(state.username, state.password))
-                } else {
-                    authRepository.login(LoginRequest(state.username, state.password))
-                }
-
-                if (result.isSuccess) {
-                    _uiState.update { it.copy(isLoading = false, isSuccess = true) }
-                } else {
-                    val defaultMsg = if (state.isAdminMode) {
-                        "Đăng nhập quản trị viên thất bại. Vui lòng thử lại."
-                    } else {
-                        "Đăng nhập thất bại. Vui lòng thử lại."
-                    }
+                val customerResult = authRepository.login(LoginRequest(state.username, state.password))
+                if (customerResult.isSuccess) {
+                    val authData = customerResult.getOrNull()
+                    val role = authData?.role ?: "Customer"
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = result.exceptionOrNull().toUserFriendlyMessage(defaultMsg)
+                            isSuccess = true,
+                            role = role
+                        )
+                    }
+                    return@launch
+                }
+
+                val customerException = customerResult.exceptionOrNull()
+                if (isNetworkError(customerException)) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = customerException.toUserFriendlyMessage("Không thể kết nối máy chủ. Vui lòng kiểm tra lại kết nối mạng.")
+                        )
+                    }
+                    return@launch
+                }
+
+                // Lỗi nghiệp vụ (400 hoặc tài khoản không tồn tại / sai mật khẩu) -> gọi admin login
+                val adminResult = authRepository.adminLogin(LoginRequest(state.username, state.password))
+                if (adminResult.isSuccess) {
+                    val adminData = adminResult.getOrNull()
+                    val adminRole = adminData?.role?.takeIf { it.isNotBlank() } ?: "Admin"
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isSuccess = true,
+                            role = adminRole
+                        )
+                    }
+                } else {
+                    val adminException = adminResult.exceptionOrNull()
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = adminException.toUserFriendlyMessage("Đăng nhập thất bại. Vui lòng kiểm tra lại tài khoản hoặc mật khẩu.")
                         )
                     }
                 }
@@ -138,7 +158,13 @@ class AuthViewModel @Inject constructor(
                 )
                 val result = authRepository.register(request)
                 if (result.isSuccess) {
-                    _uiState.update { it.copy(isLoading = false, isSuccess = true) }
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isSuccess = true,
+                            role = result.getOrNull()?.role ?: "Customer"
+                        )
+                    }
                 } else {
                     _uiState.update {
                         it.copy(
@@ -152,6 +178,8 @@ class AuthViewModel @Inject constructor(
     }
 
     fun resetSuccessState() {
-        _uiState.update { it.copy(isSuccess = false) }
+        _uiState.update { it.copy(isSuccess = false, role = null) }
     }
 }
+
+typealias LoginViewModel = AuthViewModel

@@ -1,7 +1,9 @@
 ﻿using CinemaBD.Api.Contracts.Admin;
 using CinemaBD.Api.Contracts.Common;
 using CinemaBD.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace CinemaBD.Api.Controllers.Admin;
 
@@ -16,7 +18,9 @@ public class AdminAuthController : ControllerBase
         _adminAuthService = adminAuthService;
     }
 
+    [AllowAnonymous]
     [HttpPost("login")]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> Login([FromBody] AdminLoginRequest request, CancellationToken cancellationToken)
     {
         var result = await _adminAuthService.LoginAsync(request.Username, request.Password, cancellationToken);

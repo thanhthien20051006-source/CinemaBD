@@ -22,7 +22,10 @@ data class AuthResponse(
     val userId: String,
     val username: String,
     val fullName: String,
-    val token: String
+    val token: String,
+    val email: String? = null,
+    val refreshToken: String? = null,
+    val role: String? = null
 )
 
 @Serializable

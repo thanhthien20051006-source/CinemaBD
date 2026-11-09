@@ -25,4 +25,6 @@ public class InvoiceTicket
     public string? Status { get; set; }
     public bool IsCheckedIn { get; set; }
     public DateTime? CheckedInAt { get; set; }
+    public string CustomerId { get; set; } = string.Empty;
+    public string ShowtimeId { get; set; } = string.Empty;
 }

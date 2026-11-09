@@ -67,6 +67,21 @@ public class DatabaseInitializer
     private async Task EnsureApplicationSchemaAsync(CancellationToken cancellationToken)
     {
         await _db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID(N'[dbo].[RevokedTokens]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[RevokedTokens]
+    (
+        [Jti] nvarchar(128) NOT NULL,
+        [ExpiresAtUtc] datetime2 NOT NULL,
+        CONSTRAINT [PK_RevokedTokens] PRIMARY KEY ([Jti])
+    );
+    CREATE INDEX [IX_RevokedTokens_ExpiresAtUtc] ON [dbo].[RevokedTokens] ([ExpiresAtUtc]);
+END;
+ELSE IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_RevokedTokens_ExpiresAtUtc' AND object_id = OBJECT_ID(N'[dbo].[RevokedTokens]'))
+BEGIN
+    CREATE INDEX [IX_RevokedTokens_ExpiresAtUtc] ON [dbo].[RevokedTokens] ([ExpiresAtUtc]);
+END;
+
 IF OBJECT_ID(N'[dbo].[RAP]', N'U') IS NULL
 BEGIN
     CREATE TABLE [dbo].[RAP]
@@ -176,6 +191,19 @@ IF OBJECT_ID(N'[dbo].[HoaDons]', N'U') IS NOT NULL
     AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_HoaDons_GatewayTxnRef' AND object_id = OBJECT_ID(N'[dbo].[HoaDons]'))
 BEGIN
     CREATE UNIQUE INDEX [IX_HoaDons_GatewayTxnRef] ON [dbo].[HoaDons] ([GatewayTxnRef]) WHERE [GatewayTxnRef] IS NOT NULL AND [GatewayTxnRef] <> N'';
+END;
+
+IF OBJECT_ID(N'[dbo].[VE]', N'U') IS NOT NULL
+    AND COL_LENGTH(N'[dbo].[VE]', N'MaSuatChieu') IS NOT NULL
+    AND COL_LENGTH(N'[dbo].[VE]', N'MaGhe') IS NOT NULL
+    AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_VE_Showtime_Seat_Active' AND object_id = OBJECT_ID(N'[dbo].[VE]'))
+    AND NOT EXISTS (
+        SELECT 1 FROM [dbo].[VE]
+        WHERE [TrangThai] IN (N'Paid', N'Success', N'Thành công', N'Đã thanh toán', N'CheckedIn')
+        GROUP BY [MaSuatChieu], [MaGhe] HAVING COUNT(*) > 1)
+BEGIN
+    CREATE UNIQUE INDEX [UX_VE_Showtime_Seat_Active] ON [dbo].[VE] ([MaSuatChieu], [MaGhe])
+        WHERE [TrangThai] IN (N'Paid', N'Success', N'Thành công', N'Đã thanh toán', N'CheckedIn');
 END;", cancellationToken);
     }
 

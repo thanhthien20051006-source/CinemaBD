@@ -38,9 +38,19 @@ import com.cinemabd.app.feature.admin.model.AdminRevenueDataPoint
 import com.cinemabd.app.feature.admin.model.AdminRevenueStatistics
 
 @Composable
-fun StatisticsScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
+fun StatisticsScreen(
+    viewModel: StatisticsViewModel = hiltViewModel(),
+    adminName: String? = null,
+    onLogout: (() -> Unit)? = null
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    Scaffold(topBar = { AdminTopBar(title = stringResource(R.string.admin_statistics_title)) }) { padding ->
+    Scaffold(topBar = {
+        AdminTopBar(
+            title = stringResource(R.string.admin_statistics_title),
+            adminName = adminName,
+            onLogout = onLogout
+        )
+    }) { padding ->
         when (val state = uiState) {
             StatisticsUiState.Loading -> Column(Modifier.fillMaxSize().padding(padding)) { LoadingContent() }
             is StatisticsUiState.Error -> Column(Modifier.fillMaxSize().padding(padding)) {

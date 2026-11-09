@@ -6,6 +6,7 @@ import com.cinemabd.app.core.datastore.TokenDataStore
 import com.cinemabd.app.core.network.AccountApi
 import com.cinemabd.app.core.network.model.CustomerProfileResponse
 import com.cinemabd.app.core.network.model.UpdateCustomerProfileRequest
+import com.cinemabd.app.core.session.SessionManager
 import com.cinemabd.app.feature.booking.BookingCartManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -17,6 +18,7 @@ import javax.inject.Singleton
 class ProfileRepository @Inject constructor(
     private val accountApi: AccountApi,
     private val tokenDataStore: TokenDataStore,
+    private val sessionManager: SessionManager,
     private val themePreferences: ThemePreferences,
     private val cinemaDatabase: CinemaDatabase,
     private val cartManager: BookingCartManager
@@ -69,7 +71,8 @@ class ProfileRepository @Inject constructor(
     }
 
     suspend fun logout() = withContext(Dispatchers.IO) {
-        tokenDataStore.clearToken()
+        sessionManager.clearSession()
+        tokenDataStore.clearSession()
         cinemaDatabase.clearAllTables()
         cartManager.clearCart()
     }

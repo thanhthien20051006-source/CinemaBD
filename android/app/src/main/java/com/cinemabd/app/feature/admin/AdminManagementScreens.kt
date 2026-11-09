@@ -1,8 +1,10 @@
 package com.cinemabd.app.feature.admin
 
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
@@ -22,12 +25,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,14 +40,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.cinemabd.app.R
 import com.cinemabd.app.core.network.model.MovieResponse
 import com.cinemabd.app.core.utils.DateTimeUtils
@@ -261,19 +270,61 @@ fun AdminMovieListScreen(
 }
 
 @Composable
+fun formatMovieStatus(status: String?): String {
+    if (status.isNullOrBlank()) return stringResource(R.string.admin_status_unknown)
+    return when (status.trim().lowercase()) {
+        "active" -> stringResource(R.string.admin_movie_status_active)
+        "đang chiếu", "nowshowing", "now_showing" -> stringResource(R.string.admin_movie_status_now_showing)
+        "sắp chiếu", "comingsoon", "coming_soon" -> stringResource(R.string.admin_movie_status_coming_soon)
+        "ngưng chiếu", "inactive", "ended", "ngưng hoạt động" -> stringResource(R.string.admin_movie_status_inactive)
+        else -> status
+    }
+}
+
+@Composable
 private fun MovieCard(movie: MovieResponse, onClick: () -> Unit) {
     Card(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            AsyncImage(
-                model = formatImageUrl(movie.posterUrl),
+            SubcomposeAsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(formatImageUrl(movie.posterUrl))
+                    .crossfade(true)
+                    .build(),
                 contentDescription = stringResource(R.string.admin_movie_poster_description, movie.title),
-                modifier = Modifier.size(width = 86.dp, height = 126.dp)
+                modifier = Modifier
+                    .size(width = 86.dp, height = 126.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop,
+                loading = {
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(Color.LightGray),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_image_placeholder),
+                            contentDescription = null,
+                            tint = Color.Gray
+                        )
+                    }
+                },
+                error = {
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(Color.LightGray),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_image_placeholder),
+                            contentDescription = null,
+                            tint = Color.Gray
+                        )
+                    }
+                }
             )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(movie.title, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text(movie.genre ?: stringResource(R.string.admin_value_unavailable))
                 Text(stringResource(R.string.movie_duration_format, movie.durationMinutes))
-                Text(movie.status ?: stringResource(R.string.admin_status_unknown), color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
+                Text(formatMovieStatus(movie.status), color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
             }
         }
     }
@@ -306,15 +357,46 @@ fun AdminMovieDetailScreen(
 @Composable
 private fun MovieDetailContent(movie: MovieResponse, isSaving: Boolean, onStatusChange: (String) -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        AsyncImage(
-            model = formatImageUrl(movie.posterUrl),
+        SubcomposeAsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(formatImageUrl(movie.posterUrl))
+                .crossfade(true)
+                .build(),
             contentDescription = stringResource(R.string.admin_movie_poster_description, movie.title),
-            modifier = Modifier.fillMaxWidth().height(280.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(280.dp)
+                .clip(RoundedCornerShape(8.dp)),
+            contentScale = ContentScale.Crop,
+            loading = {
+                Box(
+                    modifier = Modifier.fillMaxSize().background(Color.LightGray),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_image_placeholder),
+                        contentDescription = null,
+                        tint = Color.Gray
+                    )
+                }
+            },
+            error = {
+                Box(
+                    modifier = Modifier.fillMaxSize().background(Color.LightGray),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_image_placeholder),
+                        contentDescription = null,
+                        tint = Color.Gray
+                    )
+                }
+            }
         )
         Text(movie.title, style = androidx.compose.material3.MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         AdminDetailInfoRow(stringResource(R.string.movie_genre), movie.genre ?: stringResource(R.string.admin_value_unavailable))
         AdminDetailInfoRow(stringResource(R.string.movie_duration), stringResource(R.string.movie_duration_format, movie.durationMinutes))
-        AdminDetailInfoRow(stringResource(R.string.admin_movie_status), movie.status ?: stringResource(R.string.admin_status_unknown))
+        AdminDetailInfoRow(stringResource(R.string.admin_movie_status), formatMovieStatus(movie.status))
         if (!movie.director.isNullOrBlank()) AdminDetailInfoRow(stringResource(R.string.admin_movie_director), movie.director)
         if (!movie.country.isNullOrBlank()) AdminDetailInfoRow(stringResource(R.string.admin_movie_country), movie.country)
         if (!movie.description.isNullOrBlank()) Text(movie.description)

@@ -2,7 +2,10 @@
 using CinemaBD.Domain.Entities;
 using CinemaBD.Infrastructure.Persistence;
 using CinemaBD.Infrastructure.Security;
+using Google.Apis.Auth;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using System.Security.Cryptography;
 
 namespace CinemaBD.Infrastructure.Services;
 
@@ -11,12 +14,14 @@ public class AuthService : IAuthService
     private readonly AppDbContext _db;
     private readonly Md5PasswordHasher _passwordHasher;
     private readonly ITokenService _tokenService;
+    private readonly IConfiguration _configuration;
 
-    public AuthService(AppDbContext db, Md5PasswordHasher passwordHasher, ITokenService tokenService)
+    public AuthService(AppDbContext db, Md5PasswordHasher passwordHasher, ITokenService tokenService, IConfiguration configuration)
     {
         _db = db;
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
+        _configuration = configuration;
     }
 
     public async Task<string> LoginAsync(string username, string password, CancellationToken cancellationToken = default)
@@ -76,6 +81,78 @@ public class AuthService : IAuthService
 
         _db.Customers.Add(customer);
         await _db.SaveChangesAsync(cancellationToken);
+
+        var account = new UserAccount
+        {
+            Id = customer.MaKH,
+            FullName = customer.HoTen,
+            Username = customer.TKhoan,
+            PasswordHash = customer.MatKhau,
+            Email = customer.Email,
+            PhoneNumber = customer.SDT
+        };
+
+        return _tokenService.CreateToken(account);
+    }
+
+    public async Task<string> GoogleLoginAsync(string idToken, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(idToken))
+            throw new ArgumentException("Thiếu token Google.");
+
+        var clientIds = _configuration.GetSection("GoogleAuth:ClientIds").Get<string[]>();
+        if (clientIds == null || clientIds.Length == 0)
+            throw new InvalidOperationException("Chưa cấu hình GoogleAuth:ClientIds trên server.");
+
+        GoogleJsonWebSignature.Payload payload;
+        try
+        {
+            var settings = new GoogleJsonWebSignature.ValidationSettings
+            {
+                Audience = clientIds
+            };
+            payload = await GoogleJsonWebSignature.ValidateAsync(idToken, settings);
+        }
+        catch (InvalidJwtException)
+        {
+            throw new ArgumentException("Token Google không hợp lệ.");
+        }
+
+        if (payload.EmailVerified == false)
+            throw new ArgumentException("Email chưa được xác minh bởi Google.");
+
+        var email = payload.Email;
+        var fullName = payload.Name ?? email;
+
+        var customer = await _db.Customers.FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
+
+        if (customer == null)
+        {
+            var randomBytes = RandomNumberGenerator.GetBytes(32);
+            var randomPassword = Convert.ToBase64String(randomBytes);
+            var hashedPassword = _passwordHasher.Hash(randomPassword);
+
+            var username = email;
+            var usernameExists = await _db.Customers.AnyAsync(x => x.TKhoan == username, cancellationToken);
+            if (usernameExists)
+            {
+                var suffix = Convert.ToHexString(RandomNumberGenerator.GetBytes(3)).ToLowerInvariant();
+                username = email + "_" + suffix;
+            }
+
+            customer = new LegacyCustomer
+            {
+                MaKH = "KH" + DateTime.Now.ToString("yyyyMMddHHmmssfff"),
+                HoTen = fullName,
+                TKhoan = username,
+                MatKhau = hashedPassword,
+                Email = email,
+                SDT = null
+            };
+
+            _db.Customers.Add(customer);
+            await _db.SaveChangesAsync(cancellationToken);
+        }
 
         var account = new UserAccount
         {

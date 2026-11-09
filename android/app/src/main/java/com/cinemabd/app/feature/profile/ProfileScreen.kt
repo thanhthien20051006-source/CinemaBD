@@ -28,6 +28,8 @@ import com.cinemabd.app.core.utils.DateTimeUtils
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
+    isAdmin: Boolean = false,
+    onNavigateToAdmin: (() -> Unit)? = null,
     viewModel: ProfileViewModel = hiltViewModel(),
     onLogout: () -> Unit
 ) {
@@ -292,6 +294,25 @@ fun ProfileScreen(
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
+
+                                if (isAdmin && onNavigateToAdmin != null) {
+                                    OutlinedButton(
+                                        onClick = onNavigateToAdmin,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Settings,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(id = R.string.profile_switch_to_admin),
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
 
                                 Button(
                                     onClick = { viewModel.openLogoutDialog() },

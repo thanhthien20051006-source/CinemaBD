@@ -2,11 +2,15 @@ package com.cinemabd.app.core.network
 
 import com.cinemabd.app.core.network.model.CustomerHistoryResponse
 import com.cinemabd.app.core.network.model.CustomerProfileResponse
+import com.cinemabd.app.core.network.model.CustomerTicketResponse
 import com.cinemabd.app.core.network.model.InvoiceResponse
 import com.cinemabd.app.core.network.model.LoyaltyPointResponse
 import com.cinemabd.app.core.network.model.UpdateCustomerProfileRequest
+import com.cinemabd.app.core.network.model.VoucherPreviewRequest
+import com.cinemabd.app.core.network.model.VoucherPreviewResponse
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
 
@@ -22,6 +26,12 @@ interface AccountApi {
 
     @GET("api/account/history")
     suspend fun getHistory(): ApiResponse<List<CustomerHistoryResponse>>
+
+    @GET("api/account/tickets")
+    suspend fun getMyTickets(): ApiResponse<List<CustomerTicketResponse>>
+
+    @POST("api/bookings/voucher-preview")
+    suspend fun previewVoucher(@Body request: VoucherPreviewRequest): ApiResponse<VoucherPreviewResponse>
 
     @GET("api/bookings/invoice/{txnRef}")
     suspend fun getInvoiceDetail(@Path("txnRef") txnRef: String): ApiResponse<InvoiceResponse>

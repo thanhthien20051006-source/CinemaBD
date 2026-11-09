@@ -19,5 +19,5 @@ public interface IBookingCoreService
     Task<IReadOnlyList<ComboViewModel>> GetCombosAsync(CancellationToken cancellationToken = default);
     Task<CheckoutResponse?> CheckoutAsync(string token, CheckoutRequest request, CancellationToken cancellationToken = default);
     Task<bool> ConfirmPaymentAsync(string txnRef, string? responseCode, CancellationToken cancellationToken = default);
-    Task<InvoiceViewModel?> GetInvoiceAsync(string txnRef, CancellationToken cancellationToken = default);
+    Task<InvoiceViewModel?> GetInvoiceAsync(string token, string txnRef, CancellationToken cancellationToken = default);
 }

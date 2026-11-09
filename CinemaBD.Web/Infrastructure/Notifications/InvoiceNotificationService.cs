@@ -5,7 +5,6 @@ using CinemaBD.Web.Configurations;
 using CinemaBD.Web.Models;
 using CinemaBD.Web.Services;
 using Microsoft.Extensions.Options;
-using QRCoder;
 
 namespace CinemaBD.Web.Infrastructure.Notifications;
 
@@ -70,8 +69,9 @@ public class InvoiceNotificationService : IInvoiceNotificationService
             return false;
         }
 
-        var qrPayload = $"CinemaBD|CHECKIN|{invoice.TransactionRef}|{invoice.PaymentId}|{string.Join(",", invoice.Seats)}";
-        var qrPng = CreateQrPng(qrPayload);
+        if (!invoice.Tickets.Any())
+            return false;
+
         var pdfBytes = _ticketPdfService.CreateInvoicePdf(invoice);
         var body = BuildEmailBody(invoice);
 
@@ -86,7 +86,6 @@ public class InvoiceNotificationService : IInvoiceNotificationService
         };
 
         message.To.Add(receiver);
-        message.Attachments.Add(new Attachment(new MemoryStream(qrPng), $"qr-{txnRef}.png", "image/png"));
         message.Attachments.Add(new Attachment(new MemoryStream(pdfBytes), $"ve-dien-tu-{txnRef}.pdf", "application/pdf"));
 
         using var smtp = new SmtpClient(_emailSettings.SmtpHost, _emailSettings.SmtpPort)
@@ -116,13 +115,6 @@ public class InvoiceNotificationService : IInvoiceNotificationService
 
         var profile = await _apiClient.GetProfileAsync(token, cancellationToken);
         return string.IsNullOrWhiteSpace(profile?.Email) ? null : profile.Email;
-    }
-
-    private static byte[] CreateQrPng(string payload)
-    {
-        using var qrGenerator = new QRCodeGenerator();
-        using var qrData = qrGenerator.CreateQrCode(payload, QRCodeGenerator.ECCLevel.Q);
-        return new PngByteQRCode(qrData).GetGraphic(20);
     }
 
     private static string BuildEmailBody(InvoiceViewModel invoice)

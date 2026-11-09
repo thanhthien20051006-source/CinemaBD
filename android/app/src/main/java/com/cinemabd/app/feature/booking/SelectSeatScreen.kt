@@ -48,6 +48,7 @@ fun SelectSeatScreen(
         viewModel.startPolling()
         onStopOrDispose {
             viewModel.stopPolling()
+            viewModel.releaseHeldSeats()
         }
     }
 
@@ -76,19 +77,24 @@ fun SelectSeatScreen(
         bottomBar = {
             val state = uiState
             if (state is SeatMapUiState.Success) {
-                SeatBottomBar(
-                    state = state,
-                    onContinueClick = {
-                        viewModel.holdSeats {
-                            bookingSharedViewModel?.updateSeats(
-                                showtimeId = state.showtimeId,
-                                seats = state.selectedSeats.sorted(),
-                                ticketTotal = state.totalAmount
-                            )
-                            onContinue(state.showtimeId)
-                        }
+                Column {
+                    if (state.holdRemainingSeconds > 0) {
+                        HoldCountdownBar(remainingSeconds = state.holdRemainingSeconds)
                     }
-                )
+                    SeatBottomBar(
+                        state = state,
+                        onContinueClick = {
+                            viewModel.holdSeats {
+                                bookingSharedViewModel?.updateSeats(
+                                    showtimeId = state.showtimeId,
+                                    seats = state.selectedSeats.sorted(),
+                                    ticketTotal = state.totalAmount
+                                )
+                                onContinue(state.showtimeId)
+                            }
+                        }
+                    )
+                }
             }
         }
     ) { padding ->
@@ -390,6 +396,45 @@ private fun SeatBottomBar(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun HoldCountdownBar(remainingSeconds: Int) {
+    val minutes = remainingSeconds / 60
+    val seconds = remainingSeconds % 60
+    val timeText = String.format("%02d:%02d", minutes, seconds)
+    val timerColor = when {
+        remainingSeconds < 30 -> Color(0xFFDC2626)  // Đỏ
+        remainingSeconds < 60 -> Color(0xFFF59E0B)  // Vàng
+        else -> Color(0xFF16A34A)                     // Xanh lá
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = timerColor.copy(alpha = 0.15f)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(id = R.string.seat_hold_timer_label),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = timerColor
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = timeText,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = timerColor
+            )
         }
     }
 }

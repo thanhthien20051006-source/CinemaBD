@@ -56,6 +56,8 @@ import java.time.ZoneOffset
 @Composable
 fun InvoiceListScreen(
     viewModel: InvoiceListViewModel = hiltViewModel(),
+    adminName: String? = null,
+    onLogout: (() -> Unit)? = null,
     onInvoiceClick: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -105,7 +107,11 @@ fun InvoiceListScreen(
     }
 
     Scaffold(topBar = {
-        AdminTopBar(title = stringResource(R.string.admin_invoices_title))
+        AdminTopBar(
+            title = stringResource(R.string.admin_invoices_title),
+            adminName = adminName,
+            onLogout = onLogout
+        )
     }) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)

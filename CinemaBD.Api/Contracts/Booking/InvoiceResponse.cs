@@ -22,5 +22,7 @@ public record InvoiceTicketResponse(
     decimal Price,
     string? Status,
     bool IsCheckedIn,
-    DateTime? CheckedInAt
+    DateTime? CheckedInAt,
+    string CustomerId,
+    string ShowtimeId
 );

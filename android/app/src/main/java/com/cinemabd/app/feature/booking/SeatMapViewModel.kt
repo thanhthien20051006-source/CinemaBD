@@ -8,7 +8,10 @@ import com.cinemabd.app.core.network.model.SeatResponse
 import com.cinemabd.app.core.network.toUserFriendlyMessage
 import com.cinemabd.app.data.repository.BookingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +22,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.Instant
 import javax.inject.Inject
 
 enum class SeatDisplayStatus {
@@ -50,7 +55,8 @@ sealed interface SeatMapUiState {
         val selectedSeats: Set<String>,
         val totalAmount: Double,
         val isHolding: Boolean = false,
-        val errorMessage: String? = null
+        val errorMessage: String? = null,
+        val holdRemainingSeconds: Int = 0
     ) : SeatMapUiState
     data class Error(val message: String) : SeatMapUiState
 }
@@ -63,6 +69,7 @@ class SeatMapViewModel @Inject constructor(
 
     companion object {
         const val POLL_INTERVAL_MS = 4000L
+        const val MAX_SEATS = 8
     }
 
     val showtimeId: String = checkNotNull(savedStateHandle["showtimeId"])
@@ -74,6 +81,9 @@ class SeatMapViewModel @Inject constructor(
     val eventFlow: SharedFlow<String> = _eventFlow.asSharedFlow()
 
     private var pollingJob: Job? = null
+    private var countdownJob: Job? = null
+    private var heldSeatCodes: List<String> = emptyList()
+    private var navigatedForward = false
 
     init {
         loadSeats()
@@ -97,6 +107,8 @@ class SeatMapViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         stopPolling()
+        countdownJob?.cancel()
+        releaseHeldSeats()
     }
 
     fun retry() {
@@ -119,7 +131,15 @@ class SeatMapViewModel @Inject constructor(
         }
 
         val currentSelected = currentState.selectedSeats
-        val newSelected = if (currentSelected.contains(seatId)) {
+        val isDeselecting = currentSelected.contains(seatId)
+
+        // Kiểm tra giới hạn tối đa ghế
+        if (!isDeselecting && currentSelected.size >= MAX_SEATS) {
+            _eventFlow.tryEmit("Tối đa $MAX_SEATS ghế mỗi lần đặt")
+            return
+        }
+
+        val newSelected = if (isDeselecting) {
             currentSelected - seatId
         } else {
             currentSelected + seatId
@@ -158,14 +178,86 @@ class SeatMapViewModel @Inject constructor(
             val result = bookingsRepository.holdSeats(showtimeId, seatCodes)
 
             result.onSuccess { holdResult ->
+                heldSeatCodes = holdResult.heldSeats.ifEmpty { seatCodes }
+                val expiresAtMillis = holdResult.expiresAt?.let { parseExpiresAt(it) }
+
                 _uiState.update {
-                    if (it is SeatMapUiState.Success) it.copy(isHolding = false) else it
+                    if (it is SeatMapUiState.Success) it.copy(
+                        isHolding = false,
+                        holdRemainingSeconds = if (expiresAtMillis != null) {
+                            ((expiresAtMillis - System.currentTimeMillis()) / 1000).toInt().coerceAtLeast(0)
+                        } else 0
+                    ) else it
                 }
+
+                if (expiresAtMillis != null) {
+                    startCountdown(expiresAtMillis)
+                }
+
+                navigatedForward = true
                 onSuccess(holdResult)
             }.onFailure { error ->
                 val errorMsg = error.toUserFriendlyMessage("Không thể giữ ghế. Vui lòng chọn ghế khác.")
                 _eventFlow.emit(errorMsg)
                 refreshSeatsAfterError(errorMsg)
+            }
+        }
+    }
+
+    /**
+     * Đánh dấu đã điều hướng tiếp, không cần release ghế khi rời màn hình.
+     */
+    fun markNavigatedForward() {
+        navigatedForward = true
+    }
+
+    /**
+     * Nhả ghế đang giữ khi user rời màn hình (back/destroy).
+     * Không release nếu user đã điều hướng tiếp sang ComboScreen.
+     */
+    fun releaseHeldSeats() {
+        if (navigatedForward || heldSeatCodes.isEmpty()) return
+        val seats = heldSeatCodes.toList()
+        heldSeatCodes = emptyList()
+        countdownJob?.cancel()
+        // Dùng CoroutineScope riêng vì viewModelScope bị cancel khi onCleared
+        CoroutineScope(Dispatchers.IO).launch {
+            withContext(NonCancellable) {
+                bookingsRepository.releaseSeats(showtimeId, seats)
+            }
+        }
+    }
+
+    private fun parseExpiresAt(expiresAt: String): Long? {
+        return try {
+            Instant.parse(expiresAt).toEpochMilli()
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun startCountdown(expiresAtMillis: Long) {
+        countdownJob?.cancel()
+        countdownJob = viewModelScope.launch {
+            while (isActive) {
+                val remaining = ((expiresAtMillis - System.currentTimeMillis()) / 1000).toInt()
+                if (remaining <= 0) {
+                    _uiState.update {
+                        if (it is SeatMapUiState.Success) it.copy(
+                            holdRemainingSeconds = 0,
+                            selectedSeats = emptySet(),
+                            totalAmount = 0.0
+                        ) else it
+                    }
+                    heldSeatCodes = emptyList()
+                    _eventFlow.emit("Hết thời gian giữ ghế. Vui lòng chọn lại.")
+                    loadSeats()
+                    break
+                }
+                _uiState.update {
+                    if (it is SeatMapUiState.Success) it.copy(holdRemainingSeconds = remaining) else it
+                }
+                delay(1000L)
             }
         }
     }

@@ -46,6 +46,23 @@ class BookingsRepository @Inject constructor(
         }
     }
 
+    suspend fun releaseSeats(showtimeId: String, seats: List<String>): Result<SeatHoldResult> = withContext(Dispatchers.IO) {
+        try {
+            val response = bookingsApi.releaseSeats(SeatHoldRequest(showtimeId = showtimeId, seats = seats))
+            val result = response.data
+            if (response.success && result != null && result.success) {
+                Result.success(result)
+            } else {
+                val errorMessage = result?.message?.takeIf { it.isNotBlank() }
+                    ?: response.message.takeIf { it.isNotBlank() }
+                    ?: "Không thể nhả ghế. Vui lòng thử lại."
+                Result.failure(Exception(errorMessage))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun checkout(
         showtimeId: String,
         seats: List<String>,

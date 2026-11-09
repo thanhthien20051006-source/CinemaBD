@@ -75,6 +75,9 @@
     <string name="seat_empty">Không có dữ liệu ghế.</string>
     <string name="seat_hold_success">Giữ ghế thành công!</string>
     <string name="seat_hold_failed">Không giữ được ghế. Vui lòng chọn ghế khác.</string>
+    <string name="seat_hold_timer_label">Giữ ghế còn:</string>
+    <string name="seat_hold_expired">Hết thời gian giữ ghế. Vui lòng chọn lại.</string>
+    <string name="seat_max_limit">Tối đa %d ghế mỗi lần đặt</string>
 
     <!-- Booking - Select Combo -->
     <string name="select_combo_title">Chọn combo</string>
@@ -181,7 +184,19 @@
     <string name="profile_logout_btn">Đăng xuất</string>
     <string name="profile_logout_dialog_title">Xác nhận đăng xuất</string>
     <string name="profile_logout_dialog_message">Bạn có chắc chắn muốn đăng xuất không? Phiên đăng nhập và giỏ đặt vé sẽ được xóa.</string>
-    <string name="admin_logout_dialog_message">Bạn có chắc chắn muốn đăng xuất không?</string>
+    <string name="admin_logout_cd">Đăng xuất</string>
+    <string name="admin_default_role">Quản trị viên</string>
+    <string name="admin_exit_mode_title">Thoát quyền Admin</string>
+    <string name="admin_exit_mode_btn">Về trang khách hàng</string>
+    <string name="admin_exit_mode_dialog_title">Thoát quyền Admin</string>
+    <string name="admin_exit_mode_dialog_message">Quay về giao diện khách hàng? Phiên đăng nhập của bạn vẫn được giữ nguyên.</string>
+    <string name="admin_exit_mode_confirm">Về trang khách hàng</string>
+    <string name="admin_exit_mode_cancel">Hủy</string>
+    <string name="profile_switch_to_admin">Vào trang Quản trị</string>
+    <string name="admin_logout_dialog_title">Xác nhận đăng xuất</string>
+    <string name="admin_logout_dialog_message">Đăng xuất khỏi tài khoản quản trị?</string>
+    <string name="admin_logout_confirm">Đăng xuất</string>
+    <string name="admin_logout_cancel">Hủy</string>
     <string name="profile_logout_confirm">Đăng xuất</string>
     <string name="profile_logout_cancel">Hủy</string>
     <string name="profile_error_name_empty">Họ và tên không được để trống</string>
@@ -195,12 +210,7 @@
     <string name="go_back">Quay lại</string>
     <string name="profile_empty">Không có thông tin hồ sơ.</string>
 
-    <!-- Admin Login & Check-in -->
-    <string name="login_admin_link">Đăng nhập quản trị viên</string>
-    <string name="login_customer_link">Đăng nhập khách hàng</string>
-    <string name="login_admin_title">Đăng nhập Quản trị viên</string>
-    <string name="login_admin_subtitle">Dành cho nhân viên soát vé và quản lý hệ thống</string>
-    <string name="login_admin_failed">Đăng nhập quản trị viên thất bại. Vui lòng thử lại.</string>
+    <!-- Admin Check-in & Dashboard -->
 
     <string name="nav_check_in">Soát vé</string>
     <string name="nav_admin_invoices">Hóa đơn</string>
@@ -287,6 +297,7 @@
     <string name="admin_movie_director">Đạo diễn</string>
     <string name="admin_movie_country">Quốc gia</string>
     <string name="admin_movie_change_status">Thay đổi trạng thái hiển thị</string>
+    <string name="admin_movie_status_active">Đang hoạt động</string>
     <string name="admin_movie_status_now_showing">Đang chiếu</string>
     <string name="admin_movie_status_coming_soon">Sắp chiếu</string>
     <string name="admin_movie_status_inactive">Ngưng chiếu</string>
@@ -377,4 +388,66 @@
     <string name="check_in_movie_label">Phim:</string>
     <string name="check_in_seat_label">Ghế:</string>
     <string name="check_in_customer_label">Khách hàng:</string>
+
+    <!-- Admin QR Scanner (CameraX + ML Kit) -->
+    <string name="admin_scan_title">Quét mã QR</string>
+    <string name="admin_scan_verifying">Đang kiểm tra vé…</string>
+    <string name="admin_scan_valid_title">Vé hợp lệ</string>
+    <string name="admin_scan_already_used_title">Vé đã soát</string>
+    <string name="admin_scan_invalid_title">Vé không hợp lệ</string>
+    <string name="admin_scan_error_title">Lỗi</string>
+    <string name="admin_scan_confirm_btn">Xác nhận vào rạp</string>
+    <string name="admin_scan_continue_btn">Tiếp tục quét</string>
+    <string name="admin_scan_retry_btn">Quét lại</string>
+    <string name="admin_scan_flash_on">Bật đèn flash</string>
+    <string name="admin_scan_flash_off">Tắt đèn flash</string>
+    <string name="admin_scan_permission_title">Cần quyền Camera</string>
+    <string name="admin_scan_permission_message">Ứng dụng cần quyền truy cập camera để quét mã QR vé xem phim.</string>
+    <string name="admin_scan_permission_btn">Cấp quyền</string>
+    <string name="admin_scan_showtime_label">Suất chiếu:</string>
+    <string name="admin_scan_room_label">Phòng chiếu:</string>
+    <string name="admin_scan_checked_in_at_label">Đã soát lúc:</string>
+
+    <!-- Admin Dashboard -->
+    <string name="nav_admin_dashboard">Tổng quan</string>
+    <string name="admin_dashboard_title">Tổng quan Quản trị</string>
+    <string name="admin_dashboard_tickets_scanned">Vé đã quét hôm nay</string>
+    <string name="admin_dashboard_showtimes_today">Suất chiếu hôm nay</string>
+    <string name="admin_dashboard_revenue_today">Doanh thu hôm nay</string>
+    <string name="admin_dashboard_open_scanner">Mở máy quét soát vé</string>
+    <string name="admin_dashboard_add_showtime">Thêm suất chiếu mới</string>
+    <string name="admin_dashboard_date_today">Hôm nay</string>
+    <string name="admin_dashboard_date_tomorrow">Ngày mai</string>
+    <string name="admin_dashboard_date_other">Chọn ngày...</string>
+    <string name="admin_dashboard_showtimes_header">Danh sách Suất chiếu (%1$d)</string>
+    <string name="admin_dashboard_showtimes_empty">Không có suất chiếu nào trong ngày %1$s.</string>
+    <string name="admin_dashboard_fill_rate">Lấp đầy: %1$d/%2$d ghế (%3$d%%)</string>
+    <string name="admin_dashboard_checked_in_count">Đã soát: %1$d vé</string>
+    <string name="admin_dashboard_status_upcoming">Sắp chiếu</string>
+    <string name="admin_dashboard_status_ongoing">Đang chiếu</string>
+    <string name="admin_dashboard_status_ended">Đã kết thúc</string>
+    <string name="admin_dashboard_status_cancelled">Đã hủy</string>
+    <string name="admin_dashboard_view_detail">Xem chi tiết</string>
+    <string name="admin_dashboard_delete_showtime">Xóa suất chiếu</string>
+    <string name="admin_dashboard_delete_confirm_title">Xác nhận xóa suất chiếu</string>
+    <string name="admin_dashboard_delete_confirm_message">Bạn có chắc chắn muốn xóa suất chiếu này? Hành động này sẽ loại bỏ suất chiếu khỏi hệ thống.</string>
+    <string name="admin_dashboard_delete_btn">Xóa suất</string>
+    <string name="admin_add_showtime_title">Thêm suất chiếu mới</string>
+    <string name="admin_add_showtime_movie">Phim</string>
+    <string name="admin_add_showtime_select_movie">-- Chọn phim --</string>
+    <string name="admin_add_showtime_room">Phòng chiếu</string>
+    <string name="admin_add_showtime_select_room">-- Chọn phòng chiếu --</string>
+    <string name="admin_add_showtime_date">Ngày chiếu</string>
+    <string name="admin_add_showtime_time">Giờ bắt đầu</string>
+    <string name="admin_add_showtime_price">Giá vé cơ bản (VND)</string>
+    <string name="admin_add_showtime_submit">Thêm suất chiếu</string>
+    <string name="admin_add_showtime_conflict_warning">⚠️ Trùng lịch với suất chiếu %1$s từ %2$s đến %3$s</string>
+    <string name="admin_add_showtime_expected_time">Khung giờ chiếu dự kiến: %1$s - %2$s (đã gồm 15p dọn phòng)</string>
+    <string name="admin_add_showtime_price_hint">Tối thiểu 40.000 VND</string>
+    <string name="admin_add_showtime_price_error">Giá vé tiêu chuẩn phải từ 40.000 VND trở lên</string>
+    <string name="admin_add_showtime_past_error">Giờ bắt đầu không được nằm trong quá khứ so với thời điểm hiện tại</string>
+    <string name="admin_add_showtime_success">Thêm suất chiếu thành công</string>
+    <string name="admin_add_showtime_missing_movie">Vui lòng chọn phim</string>
+    <string name="admin_add_showtime_missing_room">Vui lòng chọn phòng chiếu</string>
+    <string name="confirm">Xác nhận</string>
 </resources>

@@ -3,6 +3,7 @@ using CinemaBD.Api.Contracts.Common;
 using CinemaBD.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
@@ -14,11 +15,17 @@ public class BookingsController : ControllerBase
 {
     private readonly IBookingService _bookingService;
     private readonly ISeatService _seatService;
+    private readonly IVoucherPreviewService _voucherPreviewService;
+    private readonly IConfiguration _configuration;
+    private readonly IWebHostEnvironment _environment;
 
-    public BookingsController(IBookingService bookingService, ISeatService seatService)
+    public BookingsController(IBookingService bookingService, ISeatService seatService, IVoucherPreviewService voucherPreviewService, IConfiguration configuration, IWebHostEnvironment environment)
     {
         _bookingService = bookingService;
         _seatService = seatService;
+        _voucherPreviewService = voucherPreviewService;
+        _configuration = configuration;
+        _environment = environment;
     }
 
     [HttpGet("showtimes/{showtimeId}/seats")]
@@ -33,6 +40,7 @@ public class BookingsController : ControllerBase
     }
 
     [Authorize]
+    [EnableRateLimiting("transactions")]
     [HttpPost("hold-seats")]
     public async Task<IActionResult> HoldSeats([FromBody] SeatHoldRequest request, CancellationToken cancellationToken)
     {
@@ -45,6 +53,7 @@ public class BookingsController : ControllerBase
     }
 
     [Authorize]
+    [EnableRateLimiting("transactions")]
     [HttpPost("release-seats")]
     public async Task<IActionResult> ReleaseSeats([FromBody] SeatHoldRequest request, CancellationToken cancellationToken)
     {
@@ -57,6 +66,27 @@ public class BookingsController : ControllerBase
     }
 
     [Authorize]
+    [EnableRateLimiting("transactions")]
+    [HttpPost("voucher-preview")]
+    public async Task<IActionResult> PreviewVoucher([FromBody] VoucherPreviewRequest request, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(JwtRegisteredClaimNames.Sub) ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+            return Unauthorized(new ApiResponse<object>(false, "Không xác định được người dùng", null));
+
+        var result = await _voucherPreviewService.PreviewAsync(
+            userId,
+            request.ShowtimeId,
+            request.Seats,
+            request.Combos,
+            request.Code,
+            cancellationToken);
+        var response = new VoucherPreviewResponse(result.Success, result.Message, result.Code, result.Subtotal, result.DiscountAmount, result.FinalAmount);
+        return Ok(new ApiResponse<object>(result.Success, result.Message, response));
+    }
+
+    [Authorize]
+    [EnableRateLimiting("transactions")]
     [HttpPost("checkout")]
     public async Task<IActionResult> Checkout([FromBody] CheckoutRequest request, CancellationToken cancellationToken)
     {
@@ -64,13 +94,14 @@ public class BookingsController : ControllerBase
         if (string.IsNullOrWhiteSpace(userId))
             return Unauthorized(new ApiResponse<object>(false, "Không xác định được người dùng", null));
 
-        var returnUrl = Request.Headers.TryGetValue("X-Return-Url", out var headerReturnUrl) ? headerReturnUrl.ToString() : null;
+        var returnUrl = GetAllowedReturnUrl();
         var result = await _bookingService.CreateCheckoutAsync(userId, request.ShowtimeId, request.Seats, request.Combos, request.TotalAmount, returnUrl, cancellationToken);
         var response = new CheckoutResponse(result.TransactionRef, result.PaymentUrl, result.TotalAmount);
         return Ok(new ApiResponse<object>(true, "Tạo phiên thanh toán thành công", response));
     }
 
     [Authorize]
+    [EnableRateLimiting("transactions")]
     [HttpPost("refund-request")]
     public async Task<IActionResult> CreateRefundRequest([FromBody] RefundRequestBody request, CancellationToken cancellationToken)
     {
@@ -112,10 +143,24 @@ public class BookingsController : ControllerBase
                 t.Price,
                 t.Status,
                 t.IsCheckedIn,
-                t.CheckedInAt)).ToList(),
+                t.CheckedInAt,
+                t.CustomerId,
+                t.ShowtimeId)).ToList(),
             data.Combos);
 
         return Ok(new ApiResponse<object>(true, "Lấy hóa đơn thành công", response));
+    }
+
+    private string? GetAllowedReturnUrl()
+    {
+        var configured = _configuration["VnPay:ReturnUrl"];
+        if (string.IsNullOrWhiteSpace(configured) || !Uri.TryCreate(configured, UriKind.Absolute, out var allowedReturnUri))
+            throw new InvalidOperationException("URL quay về thanh toán chưa được cấu hình hợp lệ.");
+
+        if (!_environment.IsDevelopment() && !string.Equals(allowedReturnUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("URL quay về thanh toán phải sử dụng HTTPS.");
+
+        return allowedReturnUri.ToString();
     }
 
     public sealed record SeatHoldRequest(string ShowtimeId, List<string> Seats);

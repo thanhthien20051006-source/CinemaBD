@@ -2,7 +2,9 @@ package com.cinemabd.app.di
 
 import android.content.Context
 import androidx.room.Room
-import com.cinemabd.app.core.database.CinemaDatabase
+import com.cinemabd.app.core.database.CinemaAppDatabase
+import com.cinemabd.app.core.database.MIGRATION_1_2
+import com.cinemabd.app.core.database.MIGRATION_2_3
 import com.cinemabd.app.core.database.dao.TicketDao
 import dagger.Module
 import dagger.Provides
@@ -19,17 +21,20 @@ object DatabaseModule {
     @Singleton
     fun provideCinemaDatabase(
         @ApplicationContext context: Context
-    ): CinemaDatabase {
+    ): CinemaAppDatabase {
         return Room.databaseBuilder(
             context,
-            CinemaDatabase::class.java,
+            CinemaAppDatabase::class.java,
             "cinema_bd.db"
-        ).fallbackToDestructiveMigration().build()
+        )
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .fallbackToDestructiveMigration()
+            .build()
     }
 
     @Provides
     @Singleton
-    fun provideTicketDao(database: CinemaDatabase): TicketDao {
+    fun provideTicketDao(database: CinemaAppDatabase): TicketDao {
         return database.ticketDao()
     }
 }

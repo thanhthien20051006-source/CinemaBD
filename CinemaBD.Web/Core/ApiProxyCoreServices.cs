@@ -25,7 +25,6 @@ public class ApiAuthCoreService : IAuthCoreService
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        request.Headers.TryAddWithoutValidation("X-User-Id", token);
         using var response = await _http.SendAsync(request, ct);
         if (!response.IsSuccessStatusCode) return default;
         var payload = await response.Content.ReadFromJsonAsync<ApiResponse<T>>(cancellationToken: ct);
@@ -65,7 +64,6 @@ public class ApiBookingCoreService : IBookingCoreService
     {
         using var message = new HttpRequestMessage(HttpMethod.Post, "api/bookings/checkout");
         message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        message.Headers.TryAddWithoutValidation("X-User-Id", token);
         message.Content = JsonContent.Create(request);
         using var response = await _http.SendAsync(message, cancellationToken);
         if (!response.IsSuccessStatusCode) return null;
@@ -80,8 +78,15 @@ public class ApiBookingCoreService : IBookingCoreService
         return response.IsSuccessStatusCode;
     }
 
-    public async Task<InvoiceViewModel?> GetInvoiceAsync(string txnRef, CancellationToken cancellationToken = default)
-        => await GetDataAsync<InvoiceViewModel>($"api/bookings/invoice/{Uri.EscapeDataString(txnRef)}", cancellationToken);
+    public async Task<InvoiceViewModel?> GetInvoiceAsync(string token, string txnRef, CancellationToken cancellationToken = default)
+    {
+        using var message = new HttpRequestMessage(HttpMethod.Get, $"api/bookings/invoice/{Uri.EscapeDataString(txnRef)}");
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await _http.SendAsync(message, cancellationToken);
+        if (!response.IsSuccessStatusCode) return null;
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<InvoiceViewModel>>(cancellationToken: cancellationToken);
+        return payload?.Data;
+    }
 
     private async Task<T?> GetDataAsync<T>(string url, CancellationToken ct)
     {

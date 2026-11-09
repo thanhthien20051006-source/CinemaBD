@@ -1,5 +1,7 @@
 ﻿using CinemaBD.Web.Core;
 using CinemaBD.Web.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CinemaBD.Web.Controllers.Api;
@@ -22,13 +24,11 @@ public class BookingsApiController : ControllerBase
         return Ok(new ApiResponse<IReadOnlyList<SeatViewModel>> { Success = true, Message = "OK", Data = data });
     }
 
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     [HttpPost("checkout")]
     public async Task<IActionResult> Checkout([FromBody] CheckoutRequest request, CancellationToken cancellationToken)
     {
-        var token = GetBearerToken();
-        if (string.IsNullOrWhiteSpace(token))
-            return Unauthorized(new ApiResponse<object> { Success = false, Message = "Thiếu thông tin user" });
-
+        var token = GetBearerToken()!;
         var data = await _booking.CheckoutAsync(token, request, cancellationToken);
         if (data is null)
             return BadRequest(new ApiResponse<object> { Success = false, Message = "Checkout thất bại" });
@@ -36,23 +36,20 @@ public class BookingsApiController : ControllerBase
         return Ok(new ApiResponse<CheckoutResponse> { Success = true, Message = "OK", Data = data });
     }
 
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     [HttpGet("invoice/{txnRef}")]
     public async Task<IActionResult> Invoice(string txnRef, CancellationToken cancellationToken)
     {
-        var data = await _booking.GetInvoiceAsync(txnRef, cancellationToken);
+        var data = await _booking.GetInvoiceAsync(GetBearerToken()!, txnRef, cancellationToken);
         if (data is null)
             return NotFound(new ApiResponse<object> { Success = false, Message = "Không tìm thấy hóa đơn" });
 
         return Ok(new ApiResponse<InvoiceViewModel> { Success = true, Message = "OK", Data = data });
     }
 
-    private string? GetBearerToken()
-    {
-        var authorization = Request.Headers.Authorization.FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(authorization) && authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            return authorization["Bearer ".Length..].Trim();
-
-        return Request.Headers["X-User-Id"].FirstOrDefault();
-    }
+    private string? GetBearerToken() => Request.Headers.Authorization.FirstOrDefault() is { } authorization
+        && authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+            ? authorization["Bearer ".Length..].Trim()
+            : null;
 }
 

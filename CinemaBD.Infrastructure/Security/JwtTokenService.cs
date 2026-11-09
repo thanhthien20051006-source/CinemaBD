@@ -27,6 +27,7 @@ public class JwtTokenService : ITokenService
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, user.Id),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
             new(JwtRegisteredClaimNames.UniqueName, user.Username),
             new("full_name", user.FullName),
             new(ClaimTypes.Role, isAdmin ? "Admin" : "Customer"),

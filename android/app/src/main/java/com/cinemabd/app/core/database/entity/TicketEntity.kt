@@ -1,11 +1,13 @@
 package com.cinemabd.app.core.database.entity
 
 import androidx.room.Entity
-import androidx.room.PrimaryKey
 
-@Entity(tableName = "tickets")
+@Entity(
+    tableName = "tickets",
+    primaryKeys = ["userId", "invoiceId"]
+)
 data class TicketEntity(
-    @PrimaryKey
+    val userId: String,
     val invoiceId: String,
     val movieTitle: String?,
     val showDate: String?,
@@ -16,5 +18,6 @@ data class TicketEntity(
     val totalAmount: Double,
     val paymentDate: String?,
     val ticketCount: Int,
-    val checkedInCount: Int
+    val checkedInCount: Int,
+    val qrPayload: String? = null
 )

@@ -20,7 +20,11 @@ fun formatImageUrl(url: String?): String? {
     val relativeUrl = formattedUrl.trimStart('~').trimStart('/')
 
     return if (!relativeUrl.contains("/")) {
-        "$baseUrl/legacy/Content/img/$relativeUrl"
+        if (relativeUrl.startsWith("combo", ignoreCase = true)) {
+            "$baseUrl/legacy/Content/img/$relativeUrl"
+        } else {
+            "$baseUrl/legacy/Content/img/Posters/$relativeUrl"
+        }
     } else {
         "$baseUrl/$relativeUrl"
     }

@@ -28,6 +28,39 @@ object JwtUtils {
         }
     }
 
+    fun parseExpirationUtcMillis(jwtToken: String): Long? {
+        return try {
+            val parts = jwtToken.split(".")
+            if (parts.size < 2) return null
+            val decodedBytes = Base64.decode(
+                parts[1],
+                Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP
+            )
+            val expirationSeconds = JSONObject(String(decodedBytes, Charsets.UTF_8))
+                .optLong("exp", 0L)
+                .takeIf { it > 0L } ?: return null
+            expirationSeconds * 1000L
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    fun parseSubject(jwtToken: String): String? {
+        return try {
+            val parts = jwtToken.split(".")
+            if (parts.size < 2) return null
+            val decodedBytes = Base64.decode(
+                parts[1],
+                Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP
+            )
+            JSONObject(String(decodedBytes, Charsets.UTF_8))
+                .optString("sub")
+                .ifBlank { null }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     fun isRoleAdmin(jwtToken: String, responseRole: String? = null): Boolean {
         if (responseRole.equals("Admin", ignoreCase = true)) return true
         val role = parseRole(jwtToken)

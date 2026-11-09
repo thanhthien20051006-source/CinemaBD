@@ -36,26 +36,22 @@ class TicketDetailViewModel @Inject constructor(
             _uiState.update { TicketDetailUiState.Loading }
             val result = ticketsRepository.getInvoiceDetail(invoiceId)
             result.onSuccess { invoice ->
-                val maHd = invoice.paymentId.ifBlank { invoiceId }
+                val signedTicketsResult = ticketsRepository.getMyTicketPayloads()
+                val signedTickets = signedTicketsResult.getOrNull()
+                    ?.filter { it.transactionRef == invoice.transactionRef }
+                    ?.associateBy { it.ticketId }
+                    .orEmpty()
                 val qrMap = withContext(Dispatchers.Default) {
-                    if (invoice.tickets.isNotEmpty()) {
-                        invoice.tickets.mapIndexed { index, ticket ->
-                            val ticketCode = ticket.ticketId.ifBlank { ticket.seatId }
-                            val payload = "CinemaBD|CHECKIN|${invoice.transactionRef}|$maHd|$ticketCode"
-                            index to QrCodeGenerator.generateQrBitmap(payload)
-                        }.toMap()
-                    } else {
-                        val seatTokens = invoice.seats.joinToString(",")
-                        val payload = "CinemaBD|CHECKIN|${invoice.transactionRef}|$maHd|$seatTokens"
-                        mapOf(0 to QrCodeGenerator.generateQrBitmap(payload))
-                    }
+                    invoice.tickets.mapIndexedNotNull { index, ticket ->
+                        val signedTicket = signedTickets[ticket.ticketId] ?: return@mapIndexedNotNull null
+                        index to QrCodeGenerator.generateQrBitmap(signedTicket.qrPayload)
+                    }.toMap()
                 }
                 _uiState.update {
                     TicketDetailUiState.Success(
                         invoice = invoice,
-                        selectedTicketIndex = 0,
-                        qrBitmaps = qrMap,
-                        qrBitmap = qrMap[0]
+                        selectedTicketIndex = qrMap.keys.firstOrNull() ?: 0,
+                        qrBitmaps = qrMap
                     )
                 }
             }.onFailure { err ->

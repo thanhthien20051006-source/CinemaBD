@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -26,6 +27,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navDeepLink
 import com.cinemabd.app.feature.admin.AdminComboScreen
+import com.cinemabd.app.feature.admin.AdminDashboardScreen
 import com.cinemabd.app.feature.admin.AdminManagementScreen
 import com.cinemabd.app.feature.admin.AdminMovieDetailScreen
 import com.cinemabd.app.feature.admin.AdminMovieListScreen
@@ -37,22 +39,25 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.cinemabd.app.R
-import com.cinemabd.app.feature.admin.CheckInScreen
+import com.cinemabd.app.feature.admin.scanner.AdminQrScannerScreen
 import com.cinemabd.app.feature.admin.InvoiceDetailScreen
 import com.cinemabd.app.feature.admin.InvoiceListScreen
 import com.cinemabd.app.feature.admin.StatisticsScreen
 import com.cinemabd.app.feature.home.HomeScreen
 import com.cinemabd.app.feature.profile.ProfileScreen
+import com.cinemabd.app.feature.tickets.MyTicketsScreen
 import com.cinemabd.app.feature.tickets.TicketsScreen
 import com.cinemabd.app.navigation.Routes
 
 @Composable
 fun MainScreen(
     rootNavController: NavHostController,
+    initialRoute: String? = null,
     viewModel: MainScreenViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
     val isAdmin by viewModel.isAdmin.collectAsStateWithLifecycle()
+    val adminName by viewModel.adminName.collectAsStateWithLifecycle()
 
     if (isAdmin == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -61,6 +66,15 @@ fun MainScreen(
         return
     }
     val isAdminUser = isAdmin == true
+    val adminDisplayName = adminName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.admin_default_role)
+
+    val handleAdminLogout: () -> Unit = {
+        rootNavController.navigate(Routes.AUTH) {
+            popUpTo(rootNavController.graph.id) { inclusive = true }
+            launchSingleTop = true
+        }
+        viewModel.logout()
+    }
 
     Scaffold(
         bottomBar = {
@@ -68,7 +82,26 @@ fun MainScreen(
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
 
-                if (isAdminUser) {
+                val isCustomerDestination = currentDestination?.hierarchy?.any {
+                    it.route in listOf(Routes.HOME, Routes.MY_TICKETS, Routes.TICKETS, Routes.PROFILE)
+                } == true
+                val showAdminBar = isAdminUser && !isCustomerDestination
+
+                if (showAdminBar) {
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Filled.Home, contentDescription = null) },
+                        label = { Text(stringResource(id = R.string.nav_admin_dashboard)) },
+                        selected = currentDestination?.hierarchy?.any { it.route == Routes.ADMIN_DASHBOARD } == true,
+                        onClick = {
+                            navController.navigate(Routes.ADMIN_DASHBOARD) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
                     NavigationBarItem(
                         icon = { Icon(Icons.Filled.Done, contentDescription = null) },
                         label = { Text(stringResource(id = R.string.nav_check_in)) },
@@ -148,9 +181,9 @@ fun MainScreen(
                     NavigationBarItem(
                         icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = null) },
                         label = { Text(stringResource(id = R.string.nav_tickets)) },
-                        selected = currentDestination?.hierarchy?.any { it.route == Routes.TICKETS } == true,
+                        selected = currentDestination?.hierarchy?.any { it.route == Routes.MY_TICKETS || it.route == Routes.TICKETS } == true,
                         onClick = {
-                            navController.navigate(Routes.TICKETS) {
+                            navController.navigate(Routes.MY_TICKETS) {
                                 popUpTo(navController.graph.findStartDestination().id) {
                                     saveState = true
                                 }
@@ -177,27 +210,59 @@ fun MainScreen(
             }
         }
     ) { innerPadding ->
+        val effectiveStart = rememberSaveable {
+            initialRoute ?: if (isAdminUser) Routes.ADMIN_DASHBOARD else Routes.HOME
+        }
+
         NavHost(
             navController = navController,
-            startDestination = if (isAdminUser) Routes.CHECK_IN else Routes.HOME,
+            startDestination = effectiveStart,
             modifier = Modifier.padding(innerPadding)
         ) {
-            if (isAdminUser) {
+            composable(Routes.ADMIN_DASHBOARD) {
+                    AdminDashboardScreen(
+                        navController = navController,
+                        onNavigateToScanner = {
+                            navController.navigate(Routes.CHECK_IN) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        onNavigateToShowtimeDetail = { showtimeId, showDate ->
+                            navController.navigate(Routes.adminShowtimeDetail(showtimeId, showDate))
+                        },
+                        onLogout = handleAdminLogout
+                    )
+                }
                 composable(Routes.CHECK_IN) {
-                    CheckInScreen(
-                        onLogout = {
-                            viewModel.logout {
-                                rootNavController.navigate(Routes.AUTH) {
-                                    popUpTo(0) { inclusive = true }
+                    AdminQrScannerScreen(
+                        navController = navController,
+                        adminName = adminDisplayName,
+                        onBack = {
+                            if (!navController.popBackStack()) {
+                                navController.navigate(Routes.ADMIN_DASHBOARD) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
                             }
-                        }
+                        },
+                        onLogout = handleAdminLogout
                     )
                 }
                 composable(Routes.ADMIN_INVOICES) {
-                    InvoiceListScreen(onInvoiceClick = { invoiceId ->
-                        navController.navigate(Routes.adminInvoiceDetail(invoiceId))
-                    })
+                    InvoiceListScreen(
+                        adminName = adminDisplayName,
+                        onLogout = handleAdminLogout,
+                        onInvoiceClick = { invoiceId ->
+                            navController.navigate(Routes.adminInvoiceDetail(invoiceId))
+                        }
+                    )
                 }
                 composable(
                     route = Routes.ADMIN_INVOICE_DETAIL,
@@ -206,10 +271,15 @@ fun MainScreen(
                     InvoiceDetailScreen(onBack = { navController.popBackStack() })
                 }
                 composable(Routes.ADMIN_STATISTICS) {
-                    StatisticsScreen()
+                    StatisticsScreen(
+                        adminName = adminDisplayName,
+                        onLogout = handleAdminLogout
+                    )
                 }
                 composable(Routes.ADMIN_MANAGEMENT) {
                     AdminManagementScreen(
+                        adminName = adminDisplayName,
+                        onLogout = handleAdminLogout,
                         onShowtimesClick = { navController.navigate(Routes.ADMIN_SHOWTIMES) },
                         onMoviesClick = { navController.navigate(Routes.ADMIN_MOVIES) },
                         onCombosClick = { navController.navigate(Routes.ADMIN_COMBOS) },
@@ -251,34 +321,70 @@ fun MainScreen(
                         }
                     )
                 }
-                composable(
-                    route = Routes.ADMIN_MOVIE_DETAIL,
-                    arguments = listOf(navArgument("movieId") { type = NavType.StringType })
-                ) {
-                    AdminMovieDetailScreen(onBack = { navController.popBackStack() })
-                }
-            } else {
-                composable(Routes.HOME) {
-                    HomeScreen(onMovieClick = { movieId ->
-                        rootNavController.navigate(Routes.movieDetail(movieId))
-                    })
-                }
-                composable(Routes.TICKETS) {
-                    TicketsScreen(
-                        onTicketClick = { invoiceId ->
-                            rootNavController.navigate(Routes.ticketDetail(invoiceId))
+            composable(
+                route = Routes.ADMIN_MOVIE_DETAIL,
+                arguments = listOf(navArgument("movieId") { type = NavType.StringType })
+            ) {
+                AdminMovieDetailScreen(onBack = { navController.popBackStack() })
+            }
+
+            composable(Routes.HOME) {
+                HomeScreen(onMovieClick = { movieId ->
+                    rootNavController.navigate(Routes.movieDetail(movieId))
+                })
+            }
+            composable(Routes.MY_TICKETS) {
+                MyTicketsScreen(
+                    onNavigateToHome = {
+                        navController.navigate(Routes.HOME) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
                         }
-                    )
-                }
-                composable(Routes.PROFILE) {
-                    ProfileScreen(
-                        onLogout = {
-                            rootNavController.navigate(Routes.AUTH) {
-                                popUpTo(0) { inclusive = true }
+                    },
+                    onTicketDetail = { invoiceId ->
+                        rootNavController.navigate(Routes.ticketDetail(invoiceId))
+                    }
+                )
+            }
+            composable(Routes.TICKETS) {
+                MyTicketsScreen(
+                    onNavigateToHome = {
+                        navController.navigate(Routes.HOME) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onTicketDetail = { invoiceId ->
+                        rootNavController.navigate(Routes.ticketDetail(invoiceId))
+                    }
+                )
+            }
+            composable(Routes.PROFILE) {
+                ProfileScreen(
+                    isAdmin = isAdminUser,
+                    onNavigateToAdmin = if (isAdminUser) {
+                        {
+                            navController.navigate(Routes.ADMIN_DASHBOARD) {
+                                popUpTo(Routes.HOME) {
+                                    inclusive = true
+                                }
+                                launchSingleTop = true
                             }
                         }
-                    )
-                }
+                    } else null,
+                    onLogout = {
+                        rootNavController.navigate(Routes.AUTH) {
+                            popUpTo(rootNavController.graph.id) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                )
             }
         }
     }

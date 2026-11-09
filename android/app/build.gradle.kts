@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,6 +7,41 @@ plugins {
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+}
+
+val emulatorApiBaseUrl = "http://10.0.2.2:5067/"
+val debugApiBaseUrl = providers.gradleProperty("cinemabdApiBaseUrl")
+    .orElse(providers.environmentVariable("CINEMABD_API_BASE_URL"))
+    .orElse(emulatorApiBaseUrl)
+    .get()
+val releaseApiBaseUrl = providers.gradleProperty("cinemabdReleaseApiBaseUrl")
+    .orElse(providers.environmentVariable("CINEMABD_RELEASE_API_BASE_URL"))
+    .orElse("")
+    .get()
+val releaseBuildConfigUrl = if (releaseApiBaseUrl.isBlank()) {
+    "https://api.example.invalid/"
+} else {
+    validateApiBaseUrl(releaseApiBaseUrl, false, "Release API base URL")
+}
+
+fun validateApiBaseUrl(value: String, allowHttp: Boolean, label: String): String {
+    require(value.endsWith('/')) { "$label must end with '/'." }
+    val uri = URI(value)
+    require(uri.isAbsolute && uri.host != null && uri.path == "/" && uri.query == null && uri.fragment == null) {
+        "$label must be an absolute origin URL ending with '/'."
+    }
+    require(uri.scheme == "https" || (allowHttp && uri.scheme == "http")) {
+        "$label must use ${if (allowHttp) "HTTP or HTTPS" else "HTTPS"}."
+    }
+    return value
+}
+
+gradle.taskGraph.whenReady {
+    if (allTasks.any { it.name.contains("Release", ignoreCase = true) }) {
+        require(releaseApiBaseUrl.isNotBlank()) {
+            "Set -PcinemabdReleaseApiBaseUrl or CINEMABD_RELEASE_API_BASE_URL to an HTTPS API origin before building release."
+        }
+    }
 }
 
 android {
@@ -26,11 +63,11 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:5067/\"")
+            buildConfigField("String", "API_BASE_URL", "\"${validateApiBaseUrl(debugApiBaseUrl, true, "Debug API base URL")}\"")
             applicationIdSuffix = ".debug"
         }
         release {
-            buildConfigField("String", "API_BASE_URL", "\"https://cinemabd.example.com/\"") // Thay thế sau
+            buildConfigField("String", "API_BASE_URL", "\"$releaseBuildConfigUrl\"")
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -68,6 +105,7 @@ dependencies {
     implementation(libs.compose.ui.graphics)
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.material3)
+    implementation(libs.compose.material.icons.extended)
 
     // Navigation
     implementation(libs.navigation.compose)
@@ -100,6 +138,14 @@ dependencies {
     // QR Code
     implementation(libs.zxing.core)
     implementation(libs.zxing.android.embedded)
+
+    // CameraX
+    implementation(libs.camerax.camera2)
+    implementation(libs.camerax.lifecycle)
+    implementation(libs.camerax.view)
+
+    // ML Kit Barcode Scanning
+    implementation(libs.mlkit.barcode)
 
     // Testing
     testImplementation(libs.junit)

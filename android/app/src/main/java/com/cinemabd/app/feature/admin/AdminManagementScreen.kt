@@ -28,13 +28,21 @@ import com.cinemabd.app.R
 
 @Composable
 fun AdminManagementScreen(
+    adminName: String? = null,
+    onLogout: (() -> Unit)? = null,
     onShowtimesClick: () -> Unit,
     onMoviesClick: () -> Unit,
     onCombosClick: () -> Unit,
     onVouchersClick: () -> Unit,
     onRefundsClick: () -> Unit
 ) {
-    Scaffold(topBar = { AdminTopBar(stringResource(R.string.admin_management_title)) }) { padding ->
+    Scaffold(topBar = {
+        AdminTopBar(
+            title = stringResource(R.string.admin_management_title),
+            adminName = adminName,
+            onLogout = onLogout
+        )
+    }) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()

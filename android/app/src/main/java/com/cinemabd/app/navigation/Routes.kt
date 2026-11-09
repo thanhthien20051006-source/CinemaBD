@@ -3,13 +3,19 @@ package com.cinemabd.app.navigation
 object Routes {
     // Root Nav
     const val AUTH = "auth"
+    const val LOGIN = AUTH
     const val MAIN = "main"
 
     // Main Nav
     const val HOME = "home"
+    const val CUSTOMER_HOME = HOME
+    const val CUSTOMER_DASHBOARD = HOME
     const val TICKETS = "tickets"
+    const val MY_TICKETS = "my_tickets"
     const val PROFILE = "profile"
+    const val ADMIN_DASHBOARD = "admin_dashboard"
     const val CHECK_IN = "check_in"
+    const val ADMIN_SCAN_TICKET = "check_in"
     const val ADMIN_INVOICES = "admin_invoices"
     const val ADMIN_STATISTICS = "admin_statistics"
     const val ADMIN_MANAGEMENT = "admin_management"
@@ -49,4 +55,16 @@ object Routes {
 
     const val TICKET_DETAIL = "ticket_detail/{invoiceId}"
     fun ticketDetail(invoiceId: String) = "ticket_detail/$invoiceId"
+}
+
+object NavRoutes {
+    const val AUTH = Routes.AUTH
+    const val LOGIN = Routes.LOGIN
+    const val MAIN = Routes.MAIN
+    const val HOME = Routes.HOME
+    const val CUSTOMER_HOME = Routes.CUSTOMER_HOME
+    const val CUSTOMER_DASHBOARD = Routes.CUSTOMER_DASHBOARD
+    const val ADMIN_DASHBOARD = Routes.ADMIN_DASHBOARD
+    const val PROFILE = Routes.PROFILE
+    const val TICKETS = Routes.TICKETS
 }
