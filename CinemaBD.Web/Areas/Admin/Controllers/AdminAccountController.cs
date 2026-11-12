@@ -44,8 +44,14 @@ public class AdminAccountController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult Logout()
+    public async Task<IActionResult> Logout(CancellationToken cancellationToken = default)
     {
+        var token = HttpContext.Session.GetString("AdminToken");
+        if (!string.IsNullOrWhiteSpace(token))
+        {
+            await _apiClient.AdminLogoutAsync(token, cancellationToken);
+        }
+
         HttpContext.Session.Clear();
         return RedirectToAction("Login", "Account", new { area = "" });
     }
