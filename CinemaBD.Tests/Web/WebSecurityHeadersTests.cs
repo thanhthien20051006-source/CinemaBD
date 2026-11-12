@@ -46,17 +46,19 @@ public class WebSecurityHeadersTests : IClassFixture<WebSecurityHeadersTests.Tes
         {
             builder.UseEnvironment("Development");
 
-            builder.ConfigureAppConfiguration((_, config) =>
-            {
-                config.AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    ["Jwt:Key"] = "SuperSecretKeyForIntegrationTesting1234567890!",
-                    ["Jwt:Issuer"] = "CinemaBD.Test",
-                    ["Jwt:Audience"] = "CinemaBD.Client.Test",
-                    ["Security:QrSigningKey"] = "SuperSecretQrSigningKeyForTesting1234567890!",
-                    ["DatabaseSeed:AllowDemoData"] = "false"
-                });
-            });
+            var randomBytes = new byte[32];
+            System.Security.Cryptography.RandomNumberGenerator.Fill(randomBytes);
+            var randomKey = Convert.ToBase64String(randomBytes);
+
+            var randomQrBytes = new byte[32];
+            System.Security.Cryptography.RandomNumberGenerator.Fill(randomQrBytes);
+            var randomQrKey = Convert.ToBase64String(randomQrBytes);
+
+            builder.UseSetting("Jwt:Key", randomKey);
+            builder.UseSetting("Jwt:Issuer", "CinemaBD.Test");
+            builder.UseSetting("Jwt:Audience", "CinemaBD.Client.Test");
+            builder.UseSetting("Security:QrSigningKey", randomQrKey);
+            builder.UseSetting("DatabaseSeed:AllowDemoData", "false");
 
             builder.ConfigureServices(services =>
             {
