@@ -22,7 +22,9 @@ CinemaBD.Application/     Interface/DTO/contract tầng ứng dụng
 CinemaBD.Domain/          Entity, enum, model nghiệp vụ
 CinemaBD.Infrastructure/  EF Core, persistence, service implementation
 CinemaBD.Web/             ASP.NET Core MVC/Razor UI khách hàng + admin
-CinemaBD.sql              Script dữ liệu mẫu SQL Server
+CinemaBD.schema.sql       Lược đồ DDL SQL Server
+CinemaBD.data.sql         Dữ liệu mẫu SQL Server
+CinemaBD.sql              Script legacy tương thích ngược
 docker-compose.yml        Chạy SQL Server + API + Web bằng Docker
 ```
 
@@ -30,7 +32,7 @@ docker-compose.yml        Chạy SQL Server + API + Web bằng Docker
 - Khách hàng: đăng ký/đăng nhập, xem phim, lịch chiếu, đặt ghế, combo, checkout, thanh toán, nhận vé.
 - Admin: dashboard, quản lý phim, phòng/ghế, suất chiếu, khách hàng, nhân viên, vai trò, combo, hoá đơn, đánh giá, thống kê.
 - Realtime: trạng thái ghế qua SignalR.
-- Database seed: API tự import `CinemaBD.sql` khi SQL Server container chưa có bảng.
+- Database seed: API tạo schema từ `CinemaBD.schema.sql`; chỉ nạp dữ liệu mẫu từ `CinemaBD.data.sql` khi `DatabaseSeed:AllowDemoData` được bật.
 
 ## 2. Yêu cầu cài đặt
 

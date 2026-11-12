@@ -33,7 +33,8 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__DefaultConnection: ${LOCAL_SQL_CONNECTION:-Server=host.docker.internal,1433;Database=CinemaBD;User Id=sa;Password=CHANGE_ME_LOCAL_SA_PASSWORD;TrustServerCertificate=True;MultipleActiveResultSets=True}
-      DatabaseSeed__SqlFile: /app/Database/CinemaBD.sql
+      DatabaseSeed__SchemaSqlFile: /app/Database/CinemaBD.schema.sql
+      DatabaseSeed__DataSqlFile: /app/Database/CinemaBD.data.sql
       DatabaseSeed__AllowDemoData: "true"
       Jwt__Key: ${JWT_KEY:?JWT_KEY is required}
       Jwt__Issuer: ${JWT_ISSUER:-CinemaBD}
