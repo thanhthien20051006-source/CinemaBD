@@ -40,25 +40,23 @@ public class DatabaseInitializer
         var hasTables = await CanConnectAndHasTablesAsync(cancellationToken);
         if (!hasTables)
         {
-            if (allowDemoData)
-            {
-                await SeedEmptyDatabaseAsync(cancellationToken);
-            }
-            else
-            {
-                _logger.LogInformation("Database chua co bang va DatabaseSeed:AllowDemoData = false. Bo qua nap CinemaBD.sql mau.");
-            }
+            await InitializeEmptyDatabaseAsync(allowDemoData, cancellationToken);
         }
 
         await ApplyPendingMigrationsIfAvailableAsync(cancellationToken);
         await EnsureApplicationSchemaAsync(cancellationToken);
+        await EnsureRolesAndPermissionsAsync(cancellationToken);
+        await EnsureBootstrapAdminAsync(cancellationToken);
         await UpgradeLegacyPlaintextPasswordsAsync(cancellationToken);
         await EnsureDemoDataAsync(allowDemoData, cancellationToken);
-        await EnsureLoyaltyPointsAsync(cancellationToken);
-        await EnsureUpcomingShowtimesAsync(cancellationToken);
+        if (allowDemoData)
+        {
+            await EnsureLoyaltyPointsAsync(cancellationToken);
+            await EnsureUpcomingShowtimesAsync(cancellationToken);
+        }
     }
 
-    private async Task SeedEmptyDatabaseAsync(CancellationToken cancellationToken)
+    private async Task InitializeEmptyDatabaseAsync(bool allowDemoData, CancellationToken cancellationToken)
     {
         var connectionString = _configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Missing ConnectionStrings:DefaultConnection.");
@@ -67,13 +65,37 @@ public class DatabaseInitializer
         if (string.IsNullOrWhiteSpace(databaseName))
             throw new InvalidOperationException("DefaultConnection must include Database/Initial Catalog.");
 
-        var sqlPath = ResolveSeedSqlPath();
-        if (!File.Exists(sqlPath))
-            throw new FileNotFoundException($"Không tìm thấy file seed SQL: {sqlPath}", sqlPath);
+        var schemaPath = ResolveSchemaSqlPath();
+        if (!File.Exists(schemaPath))
+            throw new FileNotFoundException($"Không tìm thấy file schema SQL: {schemaPath}", schemaPath);
 
-        _logger.LogInformation("Database {DatabaseName} chưa có dữ liệu. Đang khởi tạo từ {SqlPath}", databaseName, sqlPath);
-        await ExecuteSqlScriptAsync(connectionString, databaseName, sqlPath, cancellationToken);
-        _logger.LogInformation("Khởi tạo database {DatabaseName} hoàn tất.", databaseName);
+        _logger.LogInformation("Database {DatabaseName} chưa có bảng. Đang tạo schema từ {SchemaPath}", databaseName, schemaPath);
+        await ExecuteSqlScriptAsync(connectionString, databaseName, schemaPath, cancellationToken);
+        _logger.LogInformation("Khởi tạo schema database {DatabaseName} hoàn tất.", databaseName);
+
+        if (allowDemoData)
+        {
+            var dataPath = ResolveDataSqlPath();
+            if (File.Exists(dataPath))
+            {
+                _logger.LogInformation("DatabaseSeed:AllowDemoData = true. Đang nạp dữ liệu mẫu từ {DataPath}", dataPath);
+                await ExecuteSqlScriptAsync(connectionString, databaseName, dataPath, cancellationToken);
+                _logger.LogInformation("Nạp dữ liệu mẫu cho database {DatabaseName} hoàn tất.", databaseName);
+            }
+            else
+            {
+                var legacySqlPath = ResolveSeedSqlPath();
+                if (File.Exists(legacySqlPath))
+                {
+                    _logger.LogInformation("Đang nạp dữ liệu từ file legacy {SqlPath}", legacySqlPath);
+                    await ExecuteSqlScriptAsync(connectionString, databaseName, legacySqlPath, cancellationToken);
+                }
+            }
+        }
+        else
+        {
+            _logger.LogInformation("DatabaseSeed:AllowDemoData = false. Bỏ qua nạp dữ liệu mẫu.");
+        }
     }
 
     private async Task ApplyPendingMigrationsIfAvailableAsync(CancellationToken cancellationToken)
@@ -296,33 +318,20 @@ END;", cancellationToken);
         if (password.StartsWith("IDENTITY:", StringComparison.Ordinal))
             return false;
 
+        if (password.StartsWith("GoogleAuth_", StringComparison.OrdinalIgnoreCase)
+            || password.StartsWith("GOOGLE_", StringComparison.OrdinalIgnoreCase)
+            || password.StartsWith("EXTERNAL_", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(password, "NO_PASSWORD", StringComparison.OrdinalIgnoreCase))
+            return false;
+
         if (password.Length == 32 && password.All(c => (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))
             return false;
 
         return true;
     }
 
-    private async Task EnsureDemoDataAsync(bool allowDemoData, CancellationToken cancellationToken)
+    public async Task EnsureRolesAndPermissionsAsync(CancellationToken cancellationToken = default)
     {
-        if (allowDemoData)
-        {
-            await EnsureAdminDemoDataAsync(cancellationToken);
-            await EnsureCustomerDemoDataAsync(cancellationToken);
-        }
-        else
-        {
-            _logger.LogInformation("DatabaseSeed:AllowDemoData = false. Bo qua EnsureAdminDemoData va EnsureCustomerDemoData.");
-        }
-
-        await EnsureCatalogDemoDataAsync(cancellationToken);
-        await EnsureBusinessDemoDataAsync(cancellationToken);
-    }
-
-    private async Task EnsureAdminDemoDataAsync(CancellationToken cancellationToken)
-    {
-        var passwordHasher = new Md5PasswordHasher();
-        var hashedAdminPassword = passwordHasher.Hash("admin123");
-
         await _db.Database.ExecuteSqlRawAsync(@"
 IF NOT EXISTS (SELECT 1 FROM [dbo].[ChucVu] WHERE [TenChucVu] = N'Quản trị hệ thống')
     INSERT INTO [dbo].[ChucVu] ([TenChucVu], [IsMaster], [IsActive], [CreatedAt]) VALUES (N'Quản trị hệ thống', 1, 1, SYSDATETIME());
@@ -345,6 +354,84 @@ INSERT INTO [dbo].[PhanQuyen] ([MaCV], [MaCN])
 SELECT @AdminRoleId, cn.[MaCN]
 FROM [dbo].[ChucNang] cn
 WHERE NOT EXISTS (SELECT 1 FROM [dbo].[PhanQuyen] pq WHERE pq.[MaCV] = @AdminRoleId AND pq.[MaCN] = cn.[MaCN]);
+", cancellationToken);
+    }
+
+    public async Task EnsureBootstrapAdminAsync(CancellationToken cancellationToken = default)
+    {
+        var bootstrapUsername = _configuration["BOOTSTRAP_ADMIN_USERNAME"]
+            ?? Environment.GetEnvironmentVariable("BOOTSTRAP_ADMIN_USERNAME");
+        var bootstrapPassword = _configuration["BOOTSTRAP_ADMIN_PASSWORD"]
+            ?? Environment.GetEnvironmentVariable("BOOTSTRAP_ADMIN_PASSWORD");
+
+        if (string.IsNullOrWhiteSpace(bootstrapUsername) || string.IsNullOrWhiteSpace(bootstrapPassword))
+        {
+            return;
+        }
+
+        var existingAdmin = await _db.Admins.FirstOrDefaultAsync(x => x.Username == bootstrapUsername, cancellationToken);
+        if (existingAdmin != null)
+        {
+            return;
+        }
+
+        var adminRoleId = await _db.Roles.AsNoTracking()
+            .Where(x => x.TenChucVu == "Quản trị hệ thống")
+            .Select(x => (int?)x.MaCV)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (adminRoleId == null || adminRoleId == 0)
+        {
+            adminRoleId = await _db.Roles.AsNoTracking().Select(x => (int?)x.MaCV).FirstOrDefaultAsync(cancellationToken);
+        }
+
+        var passwordHasher = new Md5PasswordHasher();
+        var hashedPassword = passwordHasher.Hash(bootstrapPassword);
+
+        var newAdmin = new LegacyAdmin
+        {
+            Username = bootstrapUsername,
+            Password = hashedPassword,
+            FullName = "Bootstrap Administrator",
+            Email = "admin@cinemabd.local",
+            Phone = "0900000001",
+            Role = "Admin",
+            CreatedAt = DateTime.UtcNow,
+            IsActive = true,
+            MaCV = adminRoleId,
+            MustChangePassword = true,
+            PasswordExpiresAt = DateTime.UtcNow.AddDays(7)
+        };
+
+        _db.Admins.Add(newAdmin);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        // TUYỆT ĐỐI KHÔNG GHI LOG MẬT KHẨU
+        _logger.LogInformation("Đã khởi tạo tài khoản bootstrap admin cho username '{Username}'. Mật khẩu bắt buộc đổi trong vòng 7 ngày.", bootstrapUsername);
+    }
+
+    private async Task EnsureDemoDataAsync(bool allowDemoData, CancellationToken cancellationToken)
+    {
+        if (allowDemoData)
+        {
+            await EnsureAdminDemoDataAsync(cancellationToken);
+            await EnsureCustomerDemoDataAsync(cancellationToken);
+            await EnsureCatalogDemoDataAsync(cancellationToken);
+            await EnsureBusinessDemoDataAsync(cancellationToken);
+        }
+        else
+        {
+            _logger.LogInformation("DatabaseSeed:AllowDemoData = false. Bỏ qua nạp dữ liệu mẫu demo.");
+        }
+    }
+
+    private async Task EnsureAdminDemoDataAsync(CancellationToken cancellationToken)
+    {
+        var passwordHasher = new Md5PasswordHasher();
+        var hashedAdminPassword = passwordHasher.Hash("admin123");
+
+        await _db.Database.ExecuteSqlRawAsync(@"
+DECLARE @AdminRoleId int = (SELECT TOP 1 [MaCV] FROM [dbo].[ChucVu] WHERE [TenChucVu] = N'Quản trị hệ thống' ORDER BY [MaCV]);
 
 IF NOT EXISTS (SELECT 1 FROM [dbo].[NhanVien] WHERE [Email] = N'admin@cinemabd.local')
     INSERT INTO [dbo].[NhanVien] ([HoTen], [NgaySinh], [SDT], [Email], [NgayBatDau], [MaCV], [TrangThai]) VALUES (N'Quản trị viên', NULL, N'0900000001', N'admin@cinemabd.local', CONVERT(date, DATEADD(year, -1, SYSDATETIME())), @AdminRoleId, 1);
@@ -1025,6 +1112,48 @@ IF NOT EXISTS (SELECT 1 FROM [dbo].[TheLoai] WHERE [TenTheLoai] = N'Phiêu lưu'
         {
             return false;
         }
+    }
+
+    private string ResolveSchemaSqlPath()
+    {
+        var configuredPath = _configuration["DatabaseSeed:SchemaSqlFile"];
+        if (!string.IsNullOrWhiteSpace(configuredPath))
+        {
+            var fullConfiguredPath = Path.GetFullPath(configuredPath, AppContext.BaseDirectory);
+            if (File.Exists(fullConfiguredPath))
+                return fullConfiguredPath;
+        }
+
+        var primaryPath = Path.Combine(AppContext.BaseDirectory, "Database", "CinemaBD.schema.sql");
+        if (File.Exists(primaryPath))
+            return primaryPath;
+
+        var fallbackPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "CinemaBD.schema.sql"));
+        if (File.Exists(fallbackPath))
+            return fallbackPath;
+
+        return primaryPath;
+    }
+
+    private string ResolveDataSqlPath()
+    {
+        var configuredPath = _configuration["DatabaseSeed:DataSqlFile"];
+        if (!string.IsNullOrWhiteSpace(configuredPath))
+        {
+            var fullConfiguredPath = Path.GetFullPath(configuredPath, AppContext.BaseDirectory);
+            if (File.Exists(fullConfiguredPath))
+                return fullConfiguredPath;
+        }
+
+        var primaryPath = Path.Combine(AppContext.BaseDirectory, "Database", "CinemaBD.data.sql");
+        if (File.Exists(primaryPath))
+            return primaryPath;
+
+        var fallbackPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "CinemaBD.data.sql"));
+        if (File.Exists(fallbackPath))
+            return fallbackPath;
+
+        return primaryPath;
     }
 
     private string ResolveSeedSqlPath()

@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <Content Include="..\CinemaBD.sql" Link="Database\CinemaBD.sql" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\CinemaBD.schema.sql" Link="Database\CinemaBD.schema.sql" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\CinemaBD.data.sql" Link="Database\CinemaBD.data.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
