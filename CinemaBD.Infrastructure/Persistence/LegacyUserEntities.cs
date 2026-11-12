@@ -14,4 +14,6 @@ public class LegacyCustomer
     public string TKhoan { get; set; } = default!;
     public string MatKhau { get; set; } = default!;
     public DateTime? NgaySinh { get; set; }
+    public bool MustChangePassword { get; set; } = false;
+    public DateTime? PasswordExpiresAt { get; set; }
 }

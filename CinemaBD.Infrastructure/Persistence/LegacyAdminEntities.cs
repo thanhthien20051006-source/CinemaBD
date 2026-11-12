@@ -17,4 +17,6 @@ public class LegacyAdmin
     public DateTime? CreatedAt { get; set; }
     public bool IsActive { get; set; }
     public int? MaCV { get; set; }
+    public bool MustChangePassword { get; set; } = false;
+    public DateTime? PasswordExpiresAt { get; set; }
 }

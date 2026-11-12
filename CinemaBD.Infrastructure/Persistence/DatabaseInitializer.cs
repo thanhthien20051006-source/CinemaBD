@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using CinemaBD.Infrastructure.Security;
 using System.Text.RegularExpressions;
 
 namespace CinemaBD.Infrastructure.Persistence;
@@ -204,6 +205,18 @@ IF OBJECT_ID(N'[dbo].[VE]', N'U') IS NOT NULL
 BEGIN
     CREATE UNIQUE INDEX [UX_VE_Showtime_Seat_Active] ON [dbo].[VE] ([MaSuatChieu], [MaGhe])
         WHERE [TrangThai] IN (N'Paid', N'Success', N'Thành công', N'Đã thanh toán', N'CheckedIn');
+END;
+
+IF OBJECT_ID(N'[dbo].[Admin]', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'[dbo].[Admin]', N'MustChangePassword') IS NULL ALTER TABLE [dbo].[Admin] ADD [MustChangePassword] bit NOT NULL CONSTRAINT [DF_Admin_MustChangePassword] DEFAULT 0;
+    IF COL_LENGTH(N'[dbo].[Admin]', N'PasswordExpiresAt') IS NULL ALTER TABLE [dbo].[Admin] ADD [PasswordExpiresAt] datetime2 NULL;
+END;
+
+IF OBJECT_ID(N'[dbo].[KHACHHANG]', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'[dbo].[KHACHHANG]', N'MustChangePassword') IS NULL ALTER TABLE [dbo].[KHACHHANG] ADD [MustChangePassword] bit NOT NULL CONSTRAINT [DF_KHACHHANG_MustChangePassword] DEFAULT 0;
+    IF COL_LENGTH(N'[dbo].[KHACHHANG]', N'PasswordExpiresAt') IS NULL ALTER TABLE [dbo].[KHACHHANG] ADD [PasswordExpiresAt] datetime2 NULL;
 END;", cancellationToken);
     }
 
@@ -217,6 +230,9 @@ END;", cancellationToken);
 
     private async Task EnsureAdminDemoDataAsync(CancellationToken cancellationToken)
     {
+        var passwordHasher = new Md5PasswordHasher();
+        var hashedAdminPassword = passwordHasher.Hash("admin123");
+
         await _db.Database.ExecuteSqlRawAsync(@"
 IF NOT EXISTS (SELECT 1 FROM [dbo].[ChucVu] WHERE [TenChucVu] = N'Quản trị hệ thống')
     INSERT INTO [dbo].[ChucVu] ([TenChucVu], [IsMaster], [IsActive], [CreatedAt]) VALUES (N'Quản trị hệ thống', 1, 1, SYSDATETIME());
@@ -244,8 +260,18 @@ IF NOT EXISTS (SELECT 1 FROM [dbo].[NhanVien] WHERE [Email] = N'admin@cinemabd.l
     INSERT INTO [dbo].[NhanVien] ([HoTen], [NgaySinh], [SDT], [Email], [NgayBatDau], [MaCV], [TrangThai]) VALUES (N'Quản trị viên', NULL, N'0900000001', N'admin@cinemabd.local', CONVERT(date, DATEADD(year, -1, SYSDATETIME())), @AdminRoleId, 1);
 
 IF NOT EXISTS (SELECT 1 FROM [dbo].[Admin] WHERE [Username] = N'admin')
-    INSERT INTO [dbo].[Admin] ([Username], [Password], [FullName], [Email], [Phone], [Role], [CreatedAt], [IsActive], [MaCV]) VALUES (N'admin', N'admin123', N'Quản trị viên', N'admin@cinemabd.local', N'0900000001', N'Admin', SYSDATETIME(), 1, @AdminRoleId);
-", cancellationToken);
+    INSERT INTO [dbo].[Admin] ([Username], [Password], [FullName], [Email], [Phone], [Role], [CreatedAt], [IsActive], [MaCV], [MustChangePassword], [PasswordExpiresAt])
+    VALUES (N'admin', {0}, N'Quản trị viên', N'admin@cinemabd.local', N'0900000001', N'Admin', SYSDATETIME(), 1, @AdminRoleId, 1, DATEADD(day, 7, SYSDATETIME()));
+", new object[] { hashedAdminPassword }, cancellationToken);
+
+        var existingAdmin = await _db.Admins.FirstOrDefaultAsync(x => x.Username == "admin", cancellationToken);
+        if (existingAdmin != null && passwordHasher.NeedsRehash(existingAdmin.Password))
+        {
+            existingAdmin.Password = hashedAdminPassword;
+            existingAdmin.MustChangePassword = true;
+            existingAdmin.PasswordExpiresAt = DateTime.UtcNow.AddDays(7);
+            await _db.SaveChangesAsync(cancellationToken);
+        }
     }
 
     private async Task EnsureCatalogDemoDataAsync(CancellationToken cancellationToken)
@@ -316,17 +342,40 @@ IF NOT EXISTS (SELECT 1 FROM [dbo].[TheLoai] WHERE [TenTheLoai] = N'Phiêu lưu'
 
     private async Task EnsureCustomerDemoDataAsync(CancellationToken cancellationToken)
     {
+        var passwordHasher = new Md5PasswordHasher();
+        var hashedDemoPassword = passwordHasher.Hash("123456");
+
         var customers = new[]
         {
-            ("KHDEMO01", "Nguyễn Văn Demo", "0901000001", "demo1@cinemabd.local", "demo1", "123456"),
-            ("KHDEMO02", "Trần Thị Cinema", "0901000002", "demo2@cinemabd.local", "demo2", "123456"),
-            ("KHDEMO03", "Lê Minh Khách", "0901000003", "demo3@cinemabd.local", "demo3", "123456")
+            ("KHDEMO01", "Nguyễn Văn Demo", "0901000001", "demo1@cinemabd.local", "demo1", hashedDemoPassword),
+            ("KHDEMO02", "Trần Thị Cinema", "0901000002", "demo2@cinemabd.local", "demo2", hashedDemoPassword),
+            ("KHDEMO03", "Lê Minh Khách", "0901000003", "demo3@cinemabd.local", "demo3", hashedDemoPassword)
         };
 
         foreach (var customer in customers)
         {
-            if (!await _db.Customers.AnyAsync(x => x.MaKH == customer.Item1, cancellationToken))
-                _db.Customers.Add(new LegacyCustomer { MaKH = customer.Item1, HoTen = customer.Item2, SDT = customer.Item3, Email = customer.Item4, TKhoan = customer.Item5, MatKhau = customer.Item6, NgaySinh = new DateTime(2000, 1, 1) });
+            var existing = await _db.Customers.FirstOrDefaultAsync(x => x.MaKH == customer.Item1, cancellationToken);
+            if (existing == null)
+            {
+                _db.Customers.Add(new LegacyCustomer
+                {
+                    MaKH = customer.Item1,
+                    HoTen = customer.Item2,
+                    SDT = customer.Item3,
+                    Email = customer.Item4,
+                    TKhoan = customer.Item5,
+                    MatKhau = customer.Item6,
+                    NgaySinh = new DateTime(2000, 1, 1),
+                    MustChangePassword = true,
+                    PasswordExpiresAt = DateTime.UtcNow.AddDays(7)
+                });
+            }
+            else if (passwordHasher.NeedsRehash(existing.MatKhau))
+            {
+                existing.MatKhau = customer.Item6;
+                existing.MustChangePassword = true;
+                existing.PasswordExpiresAt = DateTime.UtcNow.AddDays(7);
+            }
         }
 
         await _db.SaveChangesAsync(cancellationToken);
