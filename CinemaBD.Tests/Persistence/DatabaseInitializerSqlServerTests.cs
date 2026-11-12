@@ -61,7 +61,15 @@ public class DatabaseInitializerSqlServerTests
     {
         using var db = CreateBootstrapDb();
         var logger = new ListLogger<DatabaseInitializer>();
-        var initializer = new DatabaseInitializer(db, new ConfigurationBuilder().Build(), logger);
+        // Explicit empty values keep this test isolated from developer/CI bootstrap environment variables.
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["BOOTSTRAP_ADMIN_USERNAME"] = string.Empty,
+                ["BOOTSTRAP_ADMIN_PASSWORD"] = string.Empty
+            })
+            .Build();
+        var initializer = new DatabaseInitializer(db, config, logger);
 
         await initializer.EnsureBootstrapAdminAsync();
 
