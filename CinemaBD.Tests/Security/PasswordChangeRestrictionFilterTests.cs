@@ -38,6 +38,26 @@ public sealed class PasswordChangeRestrictionFilterTests
             filterContext.Result.Should().BeOfType<ForbidResult>();
     }
 
+    [Theory]
+    [InlineData("/api/account/profile", "GET")]
+    [InlineData("/api/account/history", "GET")]
+    [InlineData("/api/bookings/hold-seats", "POST")]
+    [InlineData("/api/bookings/checkout", "POST")]
+    public async Task RestrictedToken_ForbidsCustomerEndpoints(string path, string method)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Path = path;
+        context.Request.Method = method;
+        context.User = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim("password_change_only", "true")], "Bearer"));
+        var actionContext = new ActionContext(context, new RouteData(), new Microsoft.AspNetCore.Mvc.Abstractions.ActionDescriptor());
+        var filterContext = new AuthorizationFilterContext(actionContext, Array.Empty<IFilterMetadata>());
+
+        await new PasswordChangeRestrictionFilter().OnAuthorizationAsync(filterContext);
+
+        filterContext.Result.Should().BeOfType<ForbidResult>();
+    }
+
     [Fact]
     public async Task NormalToken_IsNotRestricted()
     {

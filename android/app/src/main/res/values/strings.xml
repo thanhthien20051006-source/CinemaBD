@@ -23,6 +23,12 @@
     <string name="switch_to_login">Đã có tài khoản? Đăng nhập</string>
     <string name="show_password">Hiển thị mật khẩu</string>
     <string name="hide_password">Ẩn mật khẩu</string>
+    <string name="change_password_title">Đổi mật khẩu bắt buộc</string>
+    <string name="change_password_required_message">Tài khoản cần đổi mật khẩu trước khi tiếp tục. Sau khi đổi, vui lòng đăng nhập lại.</string>
+    <string name="current_password">Mật khẩu hiện tại</string>
+    <string name="new_password">Mật khẩu mới</string>
+    <string name="confirm_password">Xác nhận mật khẩu mới</string>
+    <string name="change_password_btn">Đổi mật khẩu</string>
 
     <!-- Main Navigation -->
     <string name="nav_home">Trang chủ</string>

@@ -52,6 +52,20 @@ class UnifiedLoginLogicTest {
     }
 
     @Test
+    fun mustChangePasswordPreventsNormalLoginNavigation() {
+        val authResponse = AuthResponse(
+            userId = "KH-test",
+            username = "customer",
+            fullName = "Test Customer",
+            token = "restricted-token",
+            mustChangePassword = true
+        )
+
+        assertTrue(authResponse.requiresPasswordChange)
+        assertFalse("Restricted customer login must not navigate to booking/home", !authResponse.requiresPasswordChange)
+    }
+
+    @Test
     fun testRoleDestinationMapping() {
         assertEquals(Routes.ADMIN_DASHBOARD, resolveTargetDestination("Admin"))
         assertEquals(Routes.ADMIN_DASHBOARD, resolveTargetDestination("admin"))

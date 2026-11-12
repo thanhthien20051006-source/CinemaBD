@@ -24,8 +24,12 @@ class AuthRepository @Inject constructor(
             if (response.success && response.data != null) {
                 val data = response.data
                 val resolvedData = data.copy(role = UserRole.Customer.value)
-                tokenDataStore.saveSession(resolvedData.toUserSession(UserRole.Customer, data.email))
-                sessionManager.resetSession()
+                if (resolvedData.requiresPasswordChange) {
+                    sessionManager.clearSession()
+                } else {
+                    tokenDataStore.saveSession(resolvedData.toUserSession(UserRole.Customer, data.email))
+                    sessionManager.resetSession()
+                }
                 Result.success(resolvedData)
             } else {
                 Result.failure(Exception(response.message))
@@ -43,16 +47,20 @@ class AuthRepository @Inject constructor(
                 cinemaDatabase.clearAllTables()
                 val roleFromToken = JwtUtils.parseRole(token)
                 val roleString = response.data.role?.takeIf { it.isNotBlank() } ?: roleFromToken ?: UserRole.Admin.value
-                tokenDataStore.saveSession(
-                    UserSession(
-                        accessToken = token,
-                        userId = response.data.adminId.takeIf { it > 0 }?.toString() ?: JwtUtils.parseSubject(token),
-                        userName = response.data.fullName.ifBlank { response.data.username },
-                        role = UserRole.Admin,
-                        expiresAtUtcMillis = JwtUtils.parseExpirationUtcMillis(token) ?: 0L
+                if (response.data.mustChangePassword || response.data.passwordExpired) {
+                    sessionManager.clearSession()
+                } else {
+                    tokenDataStore.saveSession(
+                        UserSession(
+                            accessToken = token,
+                            userId = response.data.adminId.takeIf { it > 0 }?.toString() ?: JwtUtils.parseSubject(token),
+                            userName = response.data.fullName.ifBlank { response.data.username },
+                            role = UserRole.Admin,
+                            expiresAtUtcMillis = JwtUtils.parseExpirationUtcMillis(token) ?: 0L
+                        )
                     )
-                )
-                sessionManager.resetSession()
+                    sessionManager.resetSession()
+                }
                 Result.success(response.data.copy(role = roleString))
             } else {
                 Result.failure(Exception(response.message))
@@ -73,6 +81,34 @@ class AuthRepository @Inject constructor(
                 Result.success(resolvedData)
             } else {
                 Result.failure(Exception(response.message))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun changeCustomerPassword(token: String?, request: ChangePasswordRequest): Result<Unit> = withContext(Dispatchers.IO) {
+        changePassword(token, request, isAdmin = false)
+    }
+
+    suspend fun changeAdminPassword(token: String?, request: ChangePasswordRequest): Result<Unit> = withContext(Dispatchers.IO) {
+        changePassword(token, request, isAdmin = true)
+    }
+
+    private suspend fun changePassword(token: String?, request: ChangePasswordRequest, isAdmin: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            if (token.isNullOrBlank())
+                return@withContext Result.failure(IllegalStateException("Phiên đăng nhập không còn hợp lệ. Vui lòng đăng nhập lại."))
+            val response = if (isAdmin) {
+                authApi.changeAdminPassword("Bearer $token", request)
+            } else {
+                authApi.changeCustomerPassword("Bearer $token", request)
+            }
+            if (response.success) {
+                sessionManager.clearSession()
+                Result.success(Unit)
+            } else {
+                Result.failure(IllegalStateException(response.message.ifBlank { "Không đổi được mật khẩu." }))
             }
         } catch (e: Exception) {
             Result.failure(e)

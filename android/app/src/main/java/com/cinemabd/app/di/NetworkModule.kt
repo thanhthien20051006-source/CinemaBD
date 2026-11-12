@@ -40,6 +40,10 @@ object NetworkModule {
             val logging = HttpLoggingInterceptor { message ->
                 val sanitized = message
                     .replace(Regex("\"password\"\\s*:\\s*\"[^\"]*\""), "\"password\":\"***\"")
+                    .replace(Regex("\"currentPassword\"\\s*:\\s*\"[^\"]*\""), "\"currentPassword\":\"***\"")
+                    .replace(Regex("\"newPassword\"\\s*:\\s*\"[^\"]*\""), "\"newPassword\":\"***\"")
+                    .replace(Regex("\"confirmPassword\"\\s*:\\s*\"[^\"]*\""), "\"confirmPassword\":\"***\"")
+                    .replace(Regex("\"refreshToken\"\\s*:\\s*\"[^\"]*\""), "\"refreshToken\":\"***\"")
                     .replace(Regex("\"token\"\\s*:\\s*\"[^\"]*\""), "\"token\":\"***\"")
                     .replace(Regex("\"qrPayload\"\\s*:\\s*\"[^\"]*\""), "\"qrPayload\":\"***\"")
                     .replace(Regex("\"qrSignature\"\\s*:\\s*\"[^\"]*\""), "\"qrSignature\":\"***\"")

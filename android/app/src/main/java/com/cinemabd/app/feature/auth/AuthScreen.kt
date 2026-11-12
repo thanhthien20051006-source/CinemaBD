@@ -44,10 +44,24 @@ import com.cinemabd.app.R
 @Composable
 fun AuthScreen(
     viewModel: AuthViewModel = hiltViewModel(),
-    onAuthSuccess: (role: String) -> Unit = {}
+    onAuthSuccess: (role: String) -> Unit = {},
+    onPasswordChangeCompleted: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.requiresPasswordChange) {
+        if (uiState.requiresPasswordChange) {
+            viewModel.resetSuccessState()
+        }
+    }
+
+    LaunchedEffect(uiState.passwordChangeCompleted) {
+        if (uiState.passwordChangeCompleted) {
+            viewModel.resetPasswordChangeCompleted()
+            onPasswordChangeCompleted()
+        }
+    }
 
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) {
@@ -70,12 +84,22 @@ fun AuthScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = if (uiState.isLoginMode) stringResource(R.string.login_title) else stringResource(R.string.register_title),
+                text = when {
+                    uiState.requiresPasswordChange -> stringResource(R.string.change_password_title)
+                    uiState.isLoginMode -> stringResource(R.string.login_title)
+                    else -> stringResource(R.string.register_title)
+                },
                 color = MaterialTheme.colorScheme.error, // Assuming matching web's danger color
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold
             )
-            if (uiState.isLoginMode) {
+            if (uiState.requiresPasswordChange) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.change_password_required_message),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else if (uiState.isLoginMode) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = stringResource(R.string.login_subtitle),
@@ -93,7 +117,38 @@ fun AuthScreen(
                 )
             }
 
-            if (!uiState.isLoginMode) {
+            if (uiState.requiresPasswordChange) {
+                OutlinedTextField(
+                    value = uiState.currentPassword,
+                    onValueChange = viewModel::onCurrentPasswordChange,
+                    label = { Text(stringResource(R.string.current_password)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = uiState.newPassword,
+                    onValueChange = viewModel::onNewPasswordChange,
+                    label = { Text(stringResource(R.string.new_password)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = uiState.confirmPassword,
+                    onValueChange = viewModel::onConfirmPasswordChange,
+                    label = { Text(stringResource(R.string.confirm_password)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            } else if (!uiState.isLoginMode) {
                 OutlinedTextField(
                     value = uiState.fullName,
                     onValueChange = viewModel::onFullNameChange,
@@ -104,58 +159,58 @@ fun AuthScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            OutlinedTextField(
-                value = uiState.username,
-                onValueChange = viewModel::onUsernameChange,
-                label = { Text(stringResource(R.string.username)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+            if (!uiState.requiresPasswordChange) {
+                OutlinedTextField(
+                    value = uiState.username,
+                    onValueChange = viewModel::onUsernameChange,
+                    label = { Text(stringResource(R.string.username)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = uiState.password,
-                onValueChange = viewModel::onPasswordChange,
-                label = { Text(stringResource(R.string.password)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                trailingIcon = {
-                    val description = if (passwordVisible) stringResource(R.string.hide_password) else stringResource(R.string.show_password)
-                    val textLabel = if (passwordVisible) "Ẩn" else "Hiện"
-
-                    TextButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Text(text = textLabel, color = MaterialTheme.colorScheme.primary)
+                OutlinedTextField(
+                    value = uiState.password,
+                    onValueChange = viewModel::onPasswordChange,
+                    label = { Text(stringResource(R.string.password)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    trailingIcon = {
+                        val textLabel = if (passwordVisible) "Ẩn" else "Hiện"
+                        TextButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Text(text = textLabel, color = MaterialTheme.colorScheme.primary)
+                        }
                     }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (!uiState.isLoginMode) {
+                    OutlinedTextField(
+                        value = uiState.email,
+                        onValueChange = viewModel::onEmailChange,
+                        label = { Text(stringResource(R.string.email)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    OutlinedTextField(
+                        value = uiState.phoneNumber,
+                        onValueChange = viewModel::onPhoneNumberChange,
+                        label = { Text(stringResource(R.string.phone_number)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (!uiState.isLoginMode) {
-                OutlinedTextField(
-                    value = uiState.email,
-                    onValueChange = viewModel::onEmailChange,
-                    label = { Text(stringResource(R.string.email)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedTextField(
-                    value = uiState.phoneNumber,
-                    onValueChange = viewModel::onPhoneNumberChange,
-                    label = { Text(stringResource(R.string.phone_number)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.height(16.dp))
             }
 
             Button(
-                onClick = viewModel::submit,
+                onClick = if (uiState.requiresPasswordChange) viewModel::submitPasswordChange else viewModel::submit,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -171,7 +226,11 @@ fun AuthScreen(
                     )
                 } else {
                     Text(
-                        text = if (uiState.isLoginMode) stringResource(R.string.login_btn) else stringResource(R.string.register_btn),
+                        text = when {
+                            uiState.requiresPasswordChange -> stringResource(R.string.change_password_btn)
+                            uiState.isLoginMode -> stringResource(R.string.login_btn)
+                            else -> stringResource(R.string.register_btn)
+                        },
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onError
@@ -181,7 +240,7 @@ fun AuthScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            if (uiState.isLoginMode) {
+            if (uiState.isLoginMode && !uiState.requiresPasswordChange) {
                 TextButton(onClick = viewModel::toggleAuthMode) {
                     Text(
                         text = stringResource(R.string.switch_to_register),

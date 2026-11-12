@@ -183,6 +183,21 @@ public class CinemaApiClient
         return payload?.Data;
     }
 
+    public async Task<bool> ChangeCustomerPasswordAsync(string token, string currentPassword, string newPassword, CancellationToken cancellationToken = default)
+        => await ChangePasswordAsync("api/auth/password/change", token, currentPassword, newPassword, cancellationToken);
+
+    public async Task<bool> ChangeAdminPasswordAsync(string token, string currentPassword, string newPassword, CancellationToken cancellationToken = default)
+        => await ChangePasswordAsync("api/admin/auth/password/change", token, currentPassword, newPassword, cancellationToken);
+
+    private async Task<bool> ChangePasswordAsync(string endpoint, string token, string currentPassword, string newPassword, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Content = JsonContent.Create(new { currentPassword, newPassword });
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        return response.IsSuccessStatusCode;
+    }
+
     public async Task LogoutAsync(string token, CancellationToken cancellationToken = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/logout");

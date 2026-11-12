@@ -29,6 +29,82 @@ class AuthViewModel @Inject constructor(
         _uiState.update { it.copy(password = password, errorMessage = null) }
     }
 
+    fun onCurrentPasswordChange(password: String) {
+        _uiState.update { it.copy(currentPassword = password, errorMessage = null) }
+    }
+
+    fun onNewPasswordChange(password: String) {
+        _uiState.update { it.copy(newPassword = password, errorMessage = null) }
+    }
+
+    fun onConfirmPasswordChange(password: String) {
+        _uiState.update { it.copy(confirmPassword = password, errorMessage = null) }
+    }
+
+    fun submitPasswordChange() {
+        val state = _uiState.value
+        if (state.currentPassword.isBlank() || state.newPassword.isBlank() || state.confirmPassword.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Vui lòng nhập đầy đủ thông tin mật khẩu.") }
+            return
+        }
+        if (state.newPassword.length < 12 || state.newPassword.none(Char::isUpperCase)
+            || state.newPassword.none(Char::isLowerCase) || state.newPassword.none(Char::isDigit)
+            || state.newPassword.all(Char::isLetterOrDigit)) {
+            _uiState.update { it.copy(errorMessage = "Mật khẩu mới cần tối thiểu 12 ký tự, gồm chữ hoa, chữ thường, chữ số và ký tự đặc biệt.") }
+            return
+        }
+        if (state.newPassword != state.confirmPassword) {
+            _uiState.update { it.copy(errorMessage = "Mật khẩu xác nhận không khớp.") }
+            return
+        }
+
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        viewModelScope.launch {
+            val request = ChangePasswordRequest(state.currentPassword, state.newPassword)
+            val result = if (state.passwordChangeForAdmin) {
+                authRepository.changeAdminPassword(state.passwordChangeToken, request)
+            } else {
+                authRepository.changeCustomerPassword(state.passwordChangeToken, request)
+            }
+            if (result.isSuccess) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        requiresPasswordChange = false,
+                        passwordChangeCompleted = true,
+                        currentPassword = "",
+                        newPassword = "",
+                        confirmPassword = "",
+                        password = ""
+                    )
+                }
+            } else {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = result.exceptionOrNull().toUserFriendlyMessage("Không đổi được mật khẩu. Vui lòng thử lại.")
+                    )
+                }
+            }
+        }
+    }
+
+    fun resetPasswordChangeCompleted() {
+        _uiState.update {
+            it.copy(
+                passwordChangeCompleted = false,
+                requiresPasswordChange = false,
+                passwordChangeToken = null,
+                passwordChangeForAdmin = false,
+                currentPassword = "",
+                newPassword = "",
+                confirmPassword = "",
+                password = "",
+                isLoginMode = true
+            )
+        }
+    }
+
     fun onFullNameChange(fullName: String) {
         _uiState.update { it.copy(fullName = fullName, errorMessage = null) }
     }
@@ -78,6 +154,14 @@ class AuthViewModel @Inject constructor(
 
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             viewModelScope.launch {
+                _uiState.update {
+                    it.copy(
+                        requiresPasswordChange = false,
+                        passwordChangeToken = null,
+                        passwordChangeForAdmin = false,
+                        passwordChangeCompleted = false
+                    )
+                }
                 val customerResult = authRepository.login(LoginRequest(state.username, state.password))
                 if (customerResult.isSuccess) {
                     val authData = customerResult.getOrNull()
@@ -85,7 +169,10 @@ class AuthViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            isSuccess = true,
+                            isSuccess = authData?.requiresPasswordChange != true,
+                            requiresPasswordChange = authData?.requiresPasswordChange == true,
+                            passwordChangeToken = authData?.token.takeIf { authData?.requiresPasswordChange == true },
+                            passwordChangeForAdmin = false,
                             role = role
                         )
                     }
@@ -111,7 +198,10 @@ class AuthViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            isSuccess = true,
+                            isSuccess = !(adminData?.mustChangePassword == true || adminData?.passwordExpired == true),
+                            requiresPasswordChange = adminData?.mustChangePassword == true || adminData?.passwordExpired == true,
+                            passwordChangeToken = adminData?.token.takeIf { adminData?.mustChangePassword == true || adminData?.passwordExpired == true },
+                            passwordChangeForAdmin = adminData?.mustChangePassword == true || adminData?.passwordExpired == true,
                             role = adminRole
                         )
                     }

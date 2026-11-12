@@ -34,7 +34,10 @@ data class AuthResponse(
     val email: String? = null,
     val refreshToken: String? = null,
     val role: String? = null
-)
+) {
+    val requiresPasswordChange: Boolean
+        get() = mustChangePassword || passwordExpired
+}
 
 @Serializable
 data class AdminAuthResponse(
