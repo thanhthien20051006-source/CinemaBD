@@ -34,15 +34,17 @@ public class AuthService : IAuthService
 
         var user = await _db.Customers.FirstOrDefaultAsync(x => x.TKhoan == username, cancellationToken);
         if (user == null)
-            throw new InvalidOperationException("Tài khoản không tồn tại.");
+            throw new InvalidOperationException("Tài khoản hoặc mật khẩu không chính xác.");
 
         var isMatch = _passwordHasher.Verify(password, user.MatKhau);
         if (!isMatch)
-            throw new InvalidOperationException("Sai mật khẩu.");
+            throw new InvalidOperationException("Tài khoản hoặc mật khẩu không chính xác.");
 
         if (_passwordHasher.NeedsRehash(user.MatKhau))
         {
             user.MatKhau = _passwordHasher.Hash(password);
+            user.MustChangePassword = true;
+            user.PasswordExpiresAt = DateTime.UtcNow.AddDays(7);
             await _db.SaveChangesAsync(cancellationToken);
         }
 
@@ -67,7 +69,7 @@ public class AuthService : IAuthService
         username = username.Trim();
         var existed = await _db.Customers.AnyAsync(x => x.TKhoan == username, cancellationToken);
         if (existed)
-            throw new InvalidOperationException("Tài khoản đã tồn tại.");
+            throw new InvalidOperationException("Không thể hoàn tất đăng ký với thông tin đã cung cấp. Vui lòng kiểm tra lại hoặc đăng nhập.");
 
         var customer = new LegacyCustomer
         {

@@ -23,14 +23,16 @@ public class AdminAuthApiService : IAdminAuthApiService
     {
         var admin = await _db.Admins.FirstOrDefaultAsync(x => x.Username == username && x.IsActive, cancellationToken);
         if (admin == null)
-            throw new InvalidOperationException("Tài khoản admin không tồn tại.");
+            throw new InvalidOperationException("Tài khoản hoặc mật khẩu không chính xác.");
 
         if (!_passwordHasher.Verify(password, admin.Password))
-            throw new InvalidOperationException("Sai mật khẩu admin.");
+            throw new InvalidOperationException("Tài khoản hoặc mật khẩu không chính xác.");
 
-        if (string.Equals(admin.Password, password, StringComparison.Ordinal))
+        if (_passwordHasher.NeedsRehash(admin.Password))
         {
             admin.Password = _passwordHasher.Hash(password);
+            admin.MustChangePassword = true;
+            admin.PasswordExpiresAt = DateTime.UtcNow.AddDays(7);
             await _db.SaveChangesAsync(cancellationToken);
         }
 
