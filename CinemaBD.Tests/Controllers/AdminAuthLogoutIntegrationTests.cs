@@ -2,12 +2,10 @@ using CinemaBD.Api;
 using CinemaBD.Application.Interfaces;
 using CinemaBD.Domain.Entities;
 using CinemaBD.Infrastructure.Persistence;
-using CinemaBD.Infrastructure.Security;
 using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using System.Collections.Concurrent;
@@ -23,44 +21,47 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
 {
     private readonly TestApiFactory _factory;
 
-    public AdminAuthLogoutIntegrationTests(TestApiFactory factory)
-    {
-        _factory = factory;
-    }
+    public AdminAuthLogoutIntegrationTests(TestApiFactory factory) => _factory = factory;
 
     [Fact]
-    public async Task AdminToken_WhenNotRevoked_ShouldAccessAdminEndpointSuccessfully()
+    public async Task AdminToken_WithMasterRoleFlag_ShouldAccessAdminEndpoint()
     {
-        // Control test: verify that a valid unrevoked admin token accesses admin endpoint (200 OK)
         var client = _factory.CreateClient();
-        var token = CreateTestAdminToken();
+        var token = CreateTestAdminToken("admin:1");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var response = await client.GetAsync("/api/admin/roles");
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK, "unrevoked admin token must be accepted by the JWT pipeline");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]
     public async Task AdminToken_AfterLogout_ShouldReturn401WhenReused()
     {
-        // Arrange
         var client = _factory.CreateClient();
-        var token = CreateTestAdminToken();
+        var token = CreateTestAdminToken("admin:1");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        // Act 1: Initial logout request -> should succeed (200 OK)
         var logoutResponse = await client.PostAsync("/api/admin/auth/logout", null);
-        logoutResponse.StatusCode.Should().Be(HttpStatusCode.OK, "initial logout with valid token must succeed");
+        logoutResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        // Act 2: Re-use the revoked token on the logout endpoint or any admin endpoint
         var reusedResponse = await client.PostAsync("/api/admin/auth/logout", null);
-
-        // Assert: The real ASP.NET Core JwtBearer pipeline rejects revoked token with 401 Unauthorized
-        reusedResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized, "revoked token must be rejected with 401 Unauthorized");
+        reusedResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
-    private static string CreateTestAdminToken()
+    [Fact]
+    public async Task AdminToken_WhenAdminHasNoActiveRole_ShouldBeDenied()
+    {
+        var client = _factory.CreateClient();
+        var token = CreateTestAdminToken("admin:2");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await client.GetAsync("/api/admin/roles");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    private static string CreateTestAdminToken(string subject)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.UTF8.GetBytes(TestApiFactory.TestJwtKey);
@@ -68,11 +69,10 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
         {
             Subject = new ClaimsIdentity(new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, "admin:01"),
+                new Claim(JwtRegisteredClaimNames.Sub, subject),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
                 new Claim(JwtRegisteredClaimNames.UniqueName, "admin_test"),
                 new Claim("full_name", "Admin Test User"),
-                new Claim(ClaimTypes.Role, "Admin"),
                 new Claim("account_type", "admin")
             }),
             Expires = DateTime.UtcNow.AddHours(1),
@@ -81,8 +81,7 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256)
         };
 
-        var token = tokenHandler.CreateToken(tokenDescriptor);
-        return tokenHandler.WriteToken(token);
+        return tokenHandler.WriteToken(tokenHandler.CreateToken(tokenDescriptor));
     }
 
     public class TestApiFactory : WebApplicationFactory<CinemaBD.Api.Program>
@@ -91,11 +90,11 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
         public const string TestJwtIssuer = "CinemaBD.Test";
         public const string TestJwtAudience = "CinemaBD.Client.Test";
         public const string TestQrKey = "SuperSecretQrSigningKeyForTesting1234567890!";
+        private readonly string _databaseName = "AdminAuthLogoutTestDb_" + Guid.NewGuid();
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Development");
-
             builder.UseSetting("Jwt:Key", TestJwtKey);
             builder.UseSetting("Jwt:Issuer", TestJwtIssuer);
             builder.UseSetting("Jwt:Audience", TestJwtAudience);
@@ -104,21 +103,45 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
 
             builder.ConfigureServices(services =>
             {
-                // Remove existing AppDbContext and use InMemory
                 var dbDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
-                if (dbDescriptor != null)
-                    services.Remove(dbDescriptor);
+                if (dbDescriptor != null) services.Remove(dbDescriptor);
 
-                services.AddDbContext<AppDbContext>(options =>
-                    options.UseInMemoryDatabase("AdminAuthLogoutTestDb_" + Guid.NewGuid()));
-
-                // Replace IRevokedTokenService with in-memory concurrent store
-                var revokedDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IRevokedTokenService));
-                if (revokedDescriptor != null)
-                    services.Remove(revokedDescriptor);
-
+                services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(_databaseName));
+                RemoveService<IAdminAuthorizationService>(services);
+                services.AddScoped<IAdminAuthorizationService, TestAdminAuthorizationService>();
+                RemoveService<IAdminRoleService>(services);
+                services.AddScoped<IAdminRoleService, TestAdminRoleService>();
+                RemoveService<IRevokedTokenService>(services);
                 services.AddSingleton<IRevokedTokenService, InMemoryRevokedTokenService>();
             });
+        }
+
+        private static void RemoveService<TService>(IServiceCollection services)
+        {
+            var descriptors = services.Where(descriptor => descriptor.ServiceType == typeof(TService)).ToList();
+            foreach (var descriptor in descriptors)
+                services.Remove(descriptor);
+        }
+
+        private sealed class TestAdminAuthorizationService : IAdminAuthorizationService
+        {
+            public Task<AdminAuthorizationAccess> GetAccessForAdminAsync(int adminId, CancellationToken cancellationToken = default)
+                => Task.FromResult(adminId == 1
+                    ? new AdminAuthorizationAccess(1, true, Array.Empty<string>())
+                    : throw new InvalidOperationException("Role unavailable"));
+        }
+
+        private sealed class TestAdminRoleService : IAdminRoleService
+        {
+            public Task<IReadOnlyCollection<Role>> GetAllAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyCollection<Role>>([]);
+            public Task<Role?> GetByIdAsync(int id, CancellationToken cancellationToken = default) => Task.FromResult<Role?>(null);
+            public Task<Role> CreateAsync(Role role, CancellationToken cancellationToken = default) => Task.FromResult(role);
+            public Task<Role?> UpdateAsync(int id, Role role, CancellationToken cancellationToken = default) => Task.FromResult<Role?>(null);
+            public Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default) => Task.FromResult(false);
+            public Task<IReadOnlyCollection<Permission>> GetPermissionsAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyCollection<Permission>>([]);
+            public Task<IReadOnlyCollection<Permission>> GetAssignedPermissionsAsync(int roleId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyCollection<Permission>>([]);
+            public Task AssignPermissionAsync(int roleId, int permissionId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task RemovePermissionAsync(int roleId, int permissionId, CancellationToken cancellationToken = default) => Task.CompletedTask;
         }
     }
 
@@ -133,9 +156,6 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
         }
 
         public Task<bool> IsRevokedAsync(string jti, CancellationToken cancellationToken = default)
-        {
-            var isRevoked = _revokedTokens.TryGetValue(jti, out var exp) && exp > DateTime.UtcNow;
-            return Task.FromResult(isRevoked);
-        }
+            => Task.FromResult(_revokedTokens.TryGetValue(jti, out var exp) && exp > DateTime.UtcNow);
     }
 }

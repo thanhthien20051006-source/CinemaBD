@@ -31,6 +31,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAdminCustomerService, AdminCustomerService>();
         services.AddScoped<IAdminEmployeeService, AdminEmployeeService>();
         services.AddScoped<IAdminRoleService, AdminRoleService>();
+        services.AddScoped<IAdminAuthorizationService, AdminAuthorizationService>();
         services.AddScoped<IAdminCinemaService, AdminCinemaService>();
         services.AddScoped<IAdminRoomService, AdminRoomService>();
         services.AddScoped<IAdminSeatService, AdminSeatService>();

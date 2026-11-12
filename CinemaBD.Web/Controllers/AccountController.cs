@@ -90,6 +90,7 @@ public class AccountController : Controller
             HttpContext.Session.Clear();
             HttpContext.Session.SetString("AdminToken", admin.Token);
             HttpContext.Session.SetString("AdminUser", admin.Username);
+            HttpContext.Session.SetString("AdminId", admin.AdminId.ToString(System.Globalization.CultureInfo.InvariantCulture));
             HttpContext.Session.SetString("AdminFullName", admin.FullName ?? string.Empty);
             HttpContext.Session.SetString("AdminRole", admin.Role ?? string.Empty);
             HttpContext.Session.SetString("LoginType", "Admin");
