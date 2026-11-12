@@ -169,6 +169,22 @@ Kiểm tra trực tiếp từ `CinemaBD.sql` và `DatabaseInitializer.cs`:
 
 > **Tổng kết**: Hiện có **4 tài khoản định dạng MD5 hex** và **4 tài khoản định dạng Plaintext**, hoàn toàn **0 tài khoản định dạng PBKDF2**. Mọi tài khoản cần cơ chế rehash-on-login hoạt động chính xác để tự động chuyển đổi khi đăng nhập thành công.
 
+### 3.2. Đánh giá Hiện trạng Chính sách Bắt buộc Đổi Mật khẩu (`MustChangePassword` / `PasswordExpiresAt`)
+
+Rà soát trạng thái triển khai thực tế của các cờ `MustChangePassword` và `PasswordExpiresAt`:
+
+1. **Login có trả cờ cho client không?**
+   - **Chưa có**: Cả contract phản hồi của API khách hàng (`AuthResponse`) lẫn quản trị viên (`AdminAuthResponse`) đều chưa trả về 2 trường này. Các claim trong JWT Access Token hiện tại (`sub`, `jti`, `unique_name`, `full_name`, `role`, `account_type`) cũng không chứa thông tin về việc bắt buộc đổi mật khẩu hay hạn hết hạn mật khẩu.
+2. **Có endpoint đổi mật khẩu chưa?**
+   - **Chưa có**: Trong `CinemaBD.Api`, chưa có endpoint nào phục vụ việc đổi mật khẩu (như `/api/auth/change-password` hay `/api/admin/auth/change-password`). Trên Website MVC (`CinemaBD.Web`) và Android App (`android/`) cũng chưa có giao diện đổi mật khẩu.
+3. **Quá hạn thì xử lý thế nào?**
+   - **Chưa thực thi (Not enforced)**: Trong `AuthService.LoginAsync` và `AdminAuthApiService.LoginAsync`, logic xác thực chỉ kiểm tra mật khẩu đúng/sai và thực hiện rehash. Hệ thống chưa kiểm tra `if (PasswordExpiresAt < DateTime.UtcNow)`. Khi mật khẩu đã quá hạn, người dùng vẫn đăng nhập và nhận access token bình thường.
+4. **Admin demo có được gán cờ không?**
+   - **Đã gán trong DatabaseInitializer**: Tài khoản quản trị demo (`admin`) được tạo với `MustChangePassword = 1` và `PasswordExpiresAt = DATEADD(day, 7, SYSDATETIME())`. Khi admin cũ được rehash trên DB có sẵn, hệ thống cũng cập nhật `MustChangePassword = true` và `PasswordExpiresAt = DateTime.UtcNow.AddDays(7)`. Ba tài khoản khách hàng demo (`KHDEMO01`, `KHDEMO02`, `KHDEMO03`) cũng được gán tương tự.
+5. **Kế hoạch triển khai đầy đủ (Đưa vào Gói 2 - Package 2)**:
+   - Các trường dữ liệu `MustChangePassword` và `PasswordExpiresAt` đã được thiết lập sẵn trong schema CSDL (`Admin`, `KHACHHANG`) để chuẩn bị hạ tầng.
+   - Toàn bộ nghiệp vụ thực thi (enforcement) gồm: trả cờ trong login response/claims, xây dựng endpoint đổi mật khẩu bắt buộc, và chặn/giới hạn quyền khi mật khẩu hết hạn sẽ được triển khai đầy đủ trong **Gói 2 (Package 2)** theo kế hoạch đồ án.
+
 ---
 
 ## 4. Ma trận Phủ quyền Toàn bộ Endpoint của `CinemaBD.Api`
