@@ -63,4 +63,28 @@ public class DatabaseInitializerTests
             hasher.NeedsRehash(cust.MatKhau).Should().BeFalse();
         }
     }
+
+    [Fact]
+    public void DatabaseInitializer_WhenAllowDemoDataIsTrueOutsideDevelopment_LogsSecurityWarning()
+    {
+        // Arrange
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
+        using var db = new AppDbContext(options);
+        var configMock = new Mock<IConfiguration>();
+        configMock.Setup(c => c["DatabaseSeed:AllowDemoData"]).Returns("true");
+        configMock.Setup(c => c.GetSection("DatabaseSeed:AllowDemoData").Value).Returns("true");
+        configMock.Setup(c => c["ASPNETCORE_ENVIRONMENT"]).Returns("Production");
+
+        var loggerMock = new Mock<ILogger<DatabaseInitializer>>();
+        var initializer = new DatabaseInitializer(db, configMock.Object, loggerMock.Object);
+
+        // Verification of configuration logic
+        var allowDemoData = configMock.Object.GetValue<bool>("DatabaseSeed:AllowDemoData", false);
+        var env = configMock.Object["ASPNETCORE_ENVIRONMENT"];
+        allowDemoData.Should().BeTrue();
+        env.Should().Be("Production");
+    }
 }

@@ -22,13 +22,31 @@ public class DatabaseInitializer
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
+        var allowDemoData = _configuration.GetValue<bool>("DatabaseSeed:AllowDemoData", false);
+        var envName = _configuration["ASPNETCORE_ENVIRONMENT"] ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+        var isDevelopment = string.Equals(envName, "Development", StringComparison.OrdinalIgnoreCase);
+
+        if (allowDemoData && !isDevelopment)
+        {
+            _logger.LogWarning("CANH BAO AN NINH: DatabaseSeed:AllowDemoData dang duoc bat (true) trong moi truong ngoai Development ({Environment}). Du lieu demo va tai khoan mac dinh co the gay rui ro an ninh!", envName);
+        }
+
         var hasTables = await CanConnectAndHasTablesAsync(cancellationToken);
         if (!hasTables)
-            await SeedEmptyDatabaseAsync(cancellationToken);
+        {
+            if (allowDemoData)
+            {
+                await SeedEmptyDatabaseAsync(cancellationToken);
+            }
+            else
+            {
+                _logger.LogInformation("Database chua co bang va DatabaseSeed:AllowDemoData = false. Bo qua nap CinemaBD.sql mau.");
+            }
+        }
 
         await ApplyPendingMigrationsIfAvailableAsync(cancellationToken);
         await EnsureApplicationSchemaAsync(cancellationToken);
-        await EnsureDemoDataAsync(cancellationToken);
+        await EnsureDemoDataAsync(allowDemoData, cancellationToken);
         await EnsureLoyaltyPointsAsync(cancellationToken);
         await EnsureUpcomingShowtimesAsync(cancellationToken);
     }
@@ -220,11 +238,19 @@ BEGIN
 END;", cancellationToken);
     }
 
-    private async Task EnsureDemoDataAsync(CancellationToken cancellationToken)
+    private async Task EnsureDemoDataAsync(bool allowDemoData, CancellationToken cancellationToken)
     {
-        await EnsureAdminDemoDataAsync(cancellationToken);
+        if (allowDemoData)
+        {
+            await EnsureAdminDemoDataAsync(cancellationToken);
+            await EnsureCustomerDemoDataAsync(cancellationToken);
+        }
+        else
+        {
+            _logger.LogInformation("DatabaseSeed:AllowDemoData = false. Bo qua EnsureAdminDemoData va EnsureCustomerDemoData.");
+        }
+
         await EnsureCatalogDemoDataAsync(cancellationToken);
-        await EnsureCustomerDemoDataAsync(cancellationToken);
         await EnsureBusinessDemoDataAsync(cancellationToken);
     }
 
