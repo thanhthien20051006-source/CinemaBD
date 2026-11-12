@@ -61,6 +61,7 @@ services:
       Jwt__Issuer: ${JWT_ISSUER:-CinemaBD}
       Jwt__Audience: ${JWT_AUDIENCE:-CinemaBD.Client}
       Security__QrSigningKey: ${QR_SIGNING_KEY:?QR_SIGNING_KEY is required}
+      Security__RequireSecureCookies: "false"
       ConnectionStrings__DefaultConnection: Data Source=/app/data/cinemabd.web.db
       PaymentSettings__Url: ${VNPAY_BASE_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
       PaymentSettings__ReturnUrl: ${WEB_PUBLIC_URL:-http://localhost:7188}/booking/payment-return

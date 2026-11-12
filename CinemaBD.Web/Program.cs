@@ -37,12 +37,15 @@ if (string.IsNullOrWhiteSpace(qrSigningKey) || qrSigningKey.StartsWith("CHANGE_M
     || Encoding.UTF8.GetByteCount(qrSigningKey) < 32)
     throw new InvalidOperationException("Security:QrSigningKey must be configured with at least 32 bytes of secret material.");
 
+var requireSecureCookies = builder.Configuration.GetValue<bool>("Security:RequireSecureCookies", true);
+var cookieSecurePolicy = requireSecureCookies ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
+
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SecurePolicy = cookieSecurePolicy;
     options.Cookie.SameSite = SameSiteMode.Lax;
 });
 
@@ -90,7 +93,7 @@ builder.Services.AddAuthentication(options =>
 .AddCookie("Cookies", options =>
 {
     options.Cookie.HttpOnly = true;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SecurePolicy = cookieSecurePolicy;
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.ExpireTimeSpan = TimeSpan.FromHours(8);
     options.SlidingExpiration = true;
