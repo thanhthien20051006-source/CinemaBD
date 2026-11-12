@@ -20,7 +20,7 @@
        v
 [AuthService]
        |-- 3. Kiểm tra trùng lặp: TKhoan đã tồn tại?
-       |-- 4. Băm mật khẩu: Md5PasswordHasher.Hash(password) -> "IDENTITY:" + PBKDF2(HMAC-SHA256, 100k iter)
+       |-- 4. Băm mật khẩu: Md5PasswordHasher.Hash(password) -> "IDENTITY:" + PBKDF2(HMAC-SHA512, 100k iter)
        |-- 5. Lưu Customer (MaKH = "KH" + yyyyMMddHHmmssfff) vào SQL Server (bảng KHACHHANG)
        |-- 6. Gọi JwtTokenService.CreateToken(account)
        v
@@ -147,7 +147,7 @@ Căn cứ: `CinemaBD.Infrastructure/Security/Md5PasswordHasher.cs:1-47`, `AuthSe
 
 | Tiêu chí | Hiện trạng mã nguồn | Nhận xét / Khoảng cách |
 |---|---|---|
-| **Thuật toán băm mới** | ASP.NET Core Identity `PasswordHasher<UserAccount>` (chuẩn PBKDF2 với HMAC-SHA256, 100,000 iterations, 128-bit salt, 256-bit subkey). Giá trị lưu kèm tiền tố `"IDENTITY:"`. | Đạt chuẩn an toàn hiện đại của Microsoft cho .NET 8. |
+| **Thuật toán băm mới** | ASP.NET Core Identity `PasswordHasher<UserAccount>` (chuẩn IdentityV3: PBKDF2 với HMAC-SHA512, 100.000 vòng lặp, 128-bit salt, 256-bit subkey). Giá trị lưu kèm tiền tố `"IDENTITY:"`. | Đạt chuẩn an toàn mặc định của Microsoft cho .NET 8 (IdentityV3; bitwise prefix `AQAAAAIAAYagAAAA...` phản ánh format=0x01, PRF=0x00000002 HMAC-SHA512, iter=0x000186A0 100k). |
 | **Hỗ trợ ngược (Legacy Compatibility)** | Cho phép xác minh mật khẩu cũ định dạng: <br>1. MD5 hex 32 ký tự không salt (`HashMd5(plainTextPassword)`).<br>2. Plaintext (so sánh chuỗi trực tiếp `string.Equals(storedHash, plainTextPassword)`). | Tương thích ngược với CSDL cũ từ đồ án MVC 5, nhưng tiềm ẩn rủi ro cao nếu DB bị lộ (F-16 trong Identify). |
 | **Rehash-on-login (Khách hàng)** | `AuthService.LoginAsync` kiểm tra `_passwordHasher.NeedsRehash(user.MatKhau)`. Nếu chuỗi hash trong DB không bắt đầu bằng `"IDENTITY:"`, tự động băm lại bằng PBKDF2 và lưu vào CSDL ngay khi đăng nhập đúng mật khẩu. | Đạt yêu cầu nâng cấp tự động không bắt người dùng reset mật khẩu hàng loạt. |
 | **Rehash-on-login (Admin)** | `AdminAuthApiService.LoginAsync` chỉ kiểm tra: `if (string.Equals(admin.Password, password, StringComparison.Ordinal))` -> chỉ rehash nếu mật khẩu cũ là **plaintext**. | **LỖ HỔNG LOGIC**: Nếu tài khoản Admin đang lưu mật khẩu dạng MD5, sau khi đăng nhập thành công hệ thống **KHÔNG rehash** sang PBKDF2 mà vẫn giữ nguyên chuỗi MD5 trong DB! |
@@ -508,6 +508,13 @@ Căn cứ: `PaymentsController.cs:26-116`, `PaymentService.cs:175-365`, `VnPaySi
 3. **Đồng bộ hóa lược đồ gốc**:
    - Để đảm bảo tính nhất quán, tệp `CinemaBD.sql` gốc đã được cập nhật đầy đủ các bảng mới (`RevokedTokens`, `RAP`, `VOUCHER`, `TICHDIEM`, `RefundRequests`) và các cột mới (`MustChangePassword`, `PasswordExpiresAt`, `DaCheckIn`, `ThoiGianCheckIn`, `Rating`, `IsHidden`, `MaRap`). Bất kỳ CSDL mới nào được tạo trực tiếp từ `CinemaBD.sql` đều sở hữu ngay lược đồ chuẩn hóa 100%.
 
+### 12.3. Minh bạch Hiện trạng Kiểm thử CSDL và các Phần Chưa Được Kiểm Chứng
+1. **Phần đã được kiểm chứng tự động (Automated Verification)**:
+   - Các hàm logic `IsPlaintextPassword` và nâng cấp mật khẩu tự động `UpgradeLegacyPlaintextPasswordsAsync` được kiểm chứng bằng unit test chạy trên provider `UseInMemoryDatabase` (`DatabaseInitializerSqlServerTests.cs`).
+2. **Phần CHƯA được kiểm chứng trong bộ test tự động mặc định (Unverified Scope)**:
+   - Việc thực thi kịch bản tạo bảng DDL thuần (`CinemaBD.schema.sql` / `CinemaBD.sql`) và các lệnh raw SQL (`ExecuteSqlRawAsync`) trên **hệ quản trị SQL Server thật** **CHƯA được kiểm thử tự động trong CI/CD mặc định**.
+   - Phương thức kiểm thử `DatabaseInitializer_OnRealSqlServer_WhenContainerAvailable_ShouldInitializeSuccessfully` được đánh dấu `[Fact(Skip = "...")]` do yêu cầu container SQL Server thật qua Docker (`docker-compose --profile container-db`). Khi chưa kích hoạt container, kết quả test không được tính làm bằng chứng kiểm chứng tính toàn vẹn DDL trên SQL Server.
+
 ---
 
 ## 13. Backlog An ninh Ghi nhận (Security Backlog)
@@ -519,3 +526,5 @@ Các vấn đề sau được ghi nhận vào danh mục backlog kỹ thuật c�
    - `CinemaBD.Web` cần bổ sung header CSP chi tiết bảo vệ các trang MVC/Razor, kiểm soát nguồn scripts, stylesheets, fonts, tránh nguy cơ XSS và Clickjacking.
 3. **Chính sách Referrer-Policy chặt chẽ**:
    - Cần kiểm soát `Referrer-Policy` nghiêm ngặt hơn (ví dụ `strict-origin-when-cross-origin`) trên các luồng redirect thanh toán VNPay và MoMo để bảo vệ thông tin giao dịch trong URL query parameters.
+4. **Loại bỏ dummy password cho tài khoản bên thứ ba (Google Auth)**:
+   - Bổ sung trường `IsExternalAuth` hoặc cờ `HasPassword = false` cho bảng `KHACHHANG`, loại bỏ hoàn toàn việc lưu dummy password `"GoogleAuth_..."` cho tài khoản Google; ngăn chặn khả năng xác thực bằng mật khẩu đối với tài khoản chỉ dùng SSO.
