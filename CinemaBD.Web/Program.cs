@@ -190,4 +190,10 @@ app.MapControllerRoute(
 
 app.Run();
 
+namespace CinemaBD.Web
+{
+    public partial class Program { }
+}
+
+
 

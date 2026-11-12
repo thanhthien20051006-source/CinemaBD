@@ -31,6 +31,12 @@ public class DatabaseInitializer
             _logger.LogWarning("CANH BAO AN NINH: DatabaseSeed:AllowDemoData dang duoc bat (true) trong moi truong ngoai Development ({Environment}). Du lieu demo va tai khoan mac dinh co the gay rui ro an ninh!", envName);
         }
 
+        if (!_db.Database.IsRelational())
+        {
+            _logger.LogInformation("Database provider khong phai Relational (vi du InMemory test). Bo qua ExecuteSqlRaw.");
+            return;
+        }
+
         var hasTables = await CanConnectAndHasTablesAsync(cancellationToken);
         if (!hasTables)
         {
@@ -46,6 +52,7 @@ public class DatabaseInitializer
 
         await ApplyPendingMigrationsIfAvailableAsync(cancellationToken);
         await EnsureApplicationSchemaAsync(cancellationToken);
+        await UpgradeLegacyPlaintextPasswordsAsync(cancellationToken);
         await EnsureDemoDataAsync(allowDemoData, cancellationToken);
         await EnsureLoyaltyPointsAsync(cancellationToken);
         await EnsureUpcomingShowtimesAsync(cancellationToken);
@@ -236,6 +243,63 @@ BEGIN
     IF COL_LENGTH(N'[dbo].[KHACHHANG]', N'MustChangePassword') IS NULL ALTER TABLE [dbo].[KHACHHANG] ADD [MustChangePassword] bit NOT NULL CONSTRAINT [DF_KHACHHANG_MustChangePassword] DEFAULT 0;
     IF COL_LENGTH(N'[dbo].[KHACHHANG]', N'PasswordExpiresAt') IS NULL ALTER TABLE [dbo].[KHACHHANG] ADD [PasswordExpiresAt] datetime2 NULL;
 END;", cancellationToken);
+    }
+
+    public async Task UpgradeLegacyPlaintextPasswordsAsync(CancellationToken cancellationToken = default)
+    {
+        var passwordHasher = new Md5PasswordHasher();
+
+        var customers = await _db.Customers
+            .Where(x => !string.IsNullOrEmpty(x.MatKhau))
+            .ToListAsync(cancellationToken);
+
+        var upgradedCustomersCount = 0;
+        foreach (var customer in customers)
+        {
+            if (IsPlaintextPassword(customer.MatKhau))
+            {
+                customer.MatKhau = passwordHasher.Hash(customer.MatKhau);
+                customer.MustChangePassword = true;
+                customer.PasswordExpiresAt = DateTime.UtcNow.AddDays(7);
+                upgradedCustomersCount++;
+            }
+        }
+
+        var admins = await _db.Admins
+            .Where(x => !string.IsNullOrEmpty(x.Password))
+            .ToListAsync(cancellationToken);
+
+        var upgradedAdminsCount = 0;
+        foreach (var admin in admins)
+        {
+            if (IsPlaintextPassword(admin.Password))
+            {
+                admin.Password = passwordHasher.Hash(admin.Password);
+                admin.MustChangePassword = true;
+                admin.PasswordExpiresAt = DateTime.UtcNow.AddDays(7);
+                upgradedAdminsCount++;
+            }
+        }
+
+        if (upgradedCustomersCount > 0 || upgradedAdminsCount > 0)
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("Da tu dong nang cap mat khau plaintext len IDENTITY hash cho {CustomerCount} khach hang va {AdminCount} quan tri vien.", upgradedCustomersCount, upgradedAdminsCount);
+        }
+    }
+
+    public static bool IsPlaintextPassword(string? password)
+    {
+        if (string.IsNullOrWhiteSpace(password))
+            return false;
+
+        if (password.StartsWith("IDENTITY:", StringComparison.Ordinal))
+            return false;
+
+        if (password.Length == 32 && password.All(c => (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))
+            return false;
+
+        return true;
     }
 
     private async Task EnsureDemoDataAsync(bool allowDemoData, CancellationToken cancellationToken)

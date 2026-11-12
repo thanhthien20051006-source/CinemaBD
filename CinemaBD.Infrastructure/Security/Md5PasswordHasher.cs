@@ -27,10 +27,7 @@ public class Md5PasswordHasher
         }
 
         var hashedInput = HashMd5(plainTextPassword);
-        if (string.Equals(storedHash, hashedInput, StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        return string.Equals(storedHash, plainTextPassword, StringComparison.Ordinal);
+        return string.Equals(storedHash, hashedInput, StringComparison.OrdinalIgnoreCase);
     }
 
     public bool NeedsRehash(string storedHash)

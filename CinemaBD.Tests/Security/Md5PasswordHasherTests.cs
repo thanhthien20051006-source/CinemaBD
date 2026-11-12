@@ -33,10 +33,10 @@ public class Md5PasswordHasherTests
     }
 
     [Fact]
-    public void Verify_WithPlaintext_ShouldVerifySuccessfully()
+    public void Verify_WithPlaintext_ShouldReturnFalse_PlaintextBranchRemoved()
     {
         var password = "plainTextPasswordDemo";
-        _hasher.Verify(password, password).Should().BeTrue();
+        _hasher.Verify(password, password).Should().BeFalse();
         _hasher.Verify("wrong", password).Should().BeFalse();
     }
 

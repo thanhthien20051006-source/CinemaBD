@@ -196,3 +196,9 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+namespace CinemaBD.Api
+{
+    public partial class Program { }
+}
+
