@@ -42,6 +42,8 @@ builder.Services.AddSession(options =>
 {
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Lax;
 });
 
 builder.Services.AddDataProtection()
@@ -85,7 +87,14 @@ builder.Services.AddAuthentication(options =>
     options.DefaultSignInScheme = "Cookies";
     options.DefaultChallengeScheme = "Google";
 })
-.AddCookie("Cookies")
+.AddCookie("Cookies", options =>
+{
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    options.SlidingExpiration = true;
+})
 .AddGoogle("Google", options =>
 {
     options.ClientId = builder.Configuration["GoogleAuth:ClientId"] ?? "dummy";
@@ -148,6 +157,14 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 app.UseHttpsRedirection();
+
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("X-Frame-Options", "DENY");
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Append("Referrer-Policy", "no-referrer");
+    await next();
+});
 
 app.UseStaticFiles();
 app.UseRouting();
