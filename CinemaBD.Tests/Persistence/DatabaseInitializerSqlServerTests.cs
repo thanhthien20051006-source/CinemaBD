@@ -15,15 +15,64 @@ public class DatabaseInitializerSqlServerTests
     [InlineData("IDENTITY:AQAAAAIAAYagAAAAEOabc123==", false)]
     [InlineData("5f4dcc3b5aa765d61d8327deb882cf99", false)] // 32-char hex MD5
     [InlineData("202cb962ac59075b964b07152d234b70", false)] // 32-char hex MD5
+    [InlineData("5F4DCC3B5AA765D61D8327DEB882CF99", false)] // 32-char hex MD5 uppercase
+    [InlineData("GoogleAuth_108234857234", false)]           // Google dummy password
+    [InlineData("googleauth_abc123", false)]                // Google dummy lowercase
+    [InlineData("GOOGLE_OAUTH_TOKEN", false)]               // Google external dummy
+    [InlineData("EXTERNAL_AUTH_DUMMY", false)]              // External dummy
+    [InlineData("NO_PASSWORD", false)]                      // No password placeholder
+    [InlineData("no_password", false)]                      // No password lowercase
     [InlineData("123456", true)]                            // Plaintext
     [InlineData("admin123", true)]                          // Plaintext
     [InlineData("MySecurePassword!", true)]                  // Plaintext
+    [InlineData("5f4dcc3b5aa765d61d8327deb882cf9g", true)] // 32 chars with invalid hex char 'g'
+    [InlineData("5f4dcc3b5aa765d61d8327deb882cf9", true)]  // 31 chars
+    [InlineData("5f4dcc3b5aa765d61d8327deb882cf99a", true)]// 33 chars
     [InlineData("", false)]
+    [InlineData("   ", false)]
     [InlineData(null, false)]
     public void IsPlaintextPassword_ShouldIdentifyPlaintextCorrectly(string? password, bool expectedIsPlaintext)
     {
         var result = DatabaseInitializer.IsPlaintextPassword(password);
         result.Should().Be(expectedIsPlaintext);
+    }
+
+    [Fact]
+    public async Task EnsureBootstrapAdmin_WhenConfigProvided_ShouldCreateAdminWithMustChangePassword()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase("BootstrapAdminTestDb_" + Guid.NewGuid())
+            .Options;
+
+        using var db = new AppDbContext(options);
+
+        db.Roles.Add(new LegacyRole
+        {
+            MaCV = 1,
+            TenChucVu = "Quản trị hệ thống",
+            IsMaster = true,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["BOOTSTRAP_ADMIN_USERNAME"] = "sysadmin_bootstrap",
+                ["BOOTSTRAP_ADMIN_PASSWORD"] = "InitialSecurePassword123!"
+            })
+            .Build();
+
+        var initializer = new DatabaseInitializer(db, config, NullLogger<DatabaseInitializer>.Instance);
+        await initializer.EnsureBootstrapAdminAsync();
+
+        var created = await db.Admins.FirstOrDefaultAsync(x => x.Username == "sysadmin_bootstrap");
+        created.Should().NotBeNull();
+        created!.MustChangePassword.Should().BeTrue();
+        created.PasswordExpiresAt.Should().NotBeNull();
+        created.Password.Should().StartWith("IDENTITY:");
+        new Md5PasswordHasher().Verify("InitialSecurePassword123!", created.Password).Should().BeTrue();
     }
 
     [Fact]
@@ -101,7 +150,7 @@ public class DatabaseInitializerSqlServerTests
         md5Customer.MatKhau.Should().Be("5f4dcc3b5aa765d61d8327deb882cf99");
     }
 
-    [Fact]
+    [Fact(Skip = "Yêu cầu SQL Server container thật (docker-compose --profile container-db). Không dùng làm bằng chứng kiểm chứng khi môi trường chưa khởi chạy SQL Server.")]
     public async Task DatabaseInitializer_OnRealSqlServer_WhenContainerAvailable_ShouldInitializeSuccessfully()
     {
         // Check if SQL Server container is accessible
