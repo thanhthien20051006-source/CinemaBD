@@ -60,6 +60,7 @@ Mọi thay đổi về code Backend và API phải được xem xét theo năm t
 
 ## Cấu hình và kiểm chứng
 
+- Cấu hình khởi tạo CSDL: `DatabaseSeed:AllowDemoData` mặc định là `true` trong Development (`appsettings.Development.json`) để tự động tạo dữ liệu rạp/phim/suất chiếu demo; trong Production mặc định là `false` để ngăn chặn lộ tài khoản demo. Khi CSDL trống, schema DDL (`CinemaBD.schema.sql`) luôn luôn được thực thi; Roles và Permissions luôn được seed độc lập với cờ demo. Tạo tài khoản quản trị ban đầu trên CSDL production sạch thông qua biến môi trường `BOOTSTRAP_ADMIN_USERNAME` và `BOOTSTRAP_ADMIN_PASSWORD` (tuyệt đối không log mật khẩu này; tài khoản bắt buộc đổi mật khẩu lần đầu trong 7 ngày).
 - Không đưa secret thật vào source, tài liệu, log hoặc commit. Dùng biến môi trường/secret manager theo cấu hình triển khai; chỉ dùng placeholder trong `.env.example`. Không sao chép giá trị nhạy cảm từ `appsettings*.json` vào tài liệu.
 - Giữ đúng ranh giới phân tầng và tái sử dụng service/interface hiện có trước khi thêm cơ chế mới. Khi sửa API, rà soát authorization, validation, response contract, logging và các client bị ảnh hưởng.
 - Dùng các lệnh build/run và Docker đã ghi trong `README.md`; chỉ báo cáo kiểm thử/build thực sự đã chạy và kết quả.
