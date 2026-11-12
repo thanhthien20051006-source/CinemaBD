@@ -487,3 +487,35 @@ Căn cứ: `PaymentsController.cs:26-116`, `PaymentService.cs:175-365`, `VnPaySi
    - Nâng cấp lưu trữ token trên Android sang `EncryptedSharedPreferences` / Android Keystore.
 4. **Kiểm toán & Giám sát**:
    - Thiết kế và tạo bảng `AuditLog` ghi nhận đầy đủ các sự kiện an ninh quan trọng của toàn hệ thống theo chuẩn NIST DE.CM / PR.PT.
+
+---
+
+## 12. Kiến trúc CSDL: Lý do Dùng ALTER DDL trong `DatabaseInitializer` thay vì EF Core Migrations
+
+### 12.1. Nguồn gốc Kỹ thuật
+- Dự án CinemaBD là hệ thống di chuyển (migration) từ đồ án MVC 5 cũ, kế thừa toàn bộ lược đồ cơ sở dữ liệu và dữ liệu ban đầu từ tệp `CinemaBD.sql` gồm hơn 17 bảng nghiệp vụ.
+- Khi chuyển đổi sang .NET 8 với EF Core, nhóm phát triển chỉ khởi tạo một migration rỗng duy nhất mang tên `20260524131837_InitialCinemaBdBaseline` (có hai phương thức `Up()` và `Down()` rỗng) nhằm mục đích baselining (đánh dấu CSDL đã tồn tại vào bảng `__EFMigrationsHistory` mà không sinh lệnh tạo lại toàn bộ bảng).
+- Do đó, repository **không có tập EF Core Migrations thật** quản lý toàn bộ vòng đời tạo bảng từ đầu đến cuối.
+
+### 12.2. Vì sao dùng ALTER DDL trong `DatabaseInitializer`?
+1. **Tránh xung đột đối tượng đã tồn tại (Object Already Exists)**: Nếu tạo một EF Migration mới từ `AppDbContext`, EF Core sẽ cố gắng phát sinh các câu lệnh tạo bảng hoặc thay đổi cột mà không có điều kiện kiểm tra tồn tại. Trên các máy phát triển hoặc container đã có sẵn database từ script cũ, việc chạy `dotnet ef database update` sẽ lập tức gây lỗi `There is already an object named '...' in the database`.
+2. **Tính Idempotent và An toàn Dữ liệu**:
+   - `DatabaseInitializer` sử dụng các câu lệnh DDL có kiểm tra điều kiện an toàn:
+     - `IF OBJECT_ID(N'[dbo].[TableName]', N'U') IS NULL CREATE TABLE ...`
+     - `IF COL_LENGTH(N'[dbo].[TableName]', N'ColumnName') IS NULL ALTER TABLE ... ADD ...`
+     - `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE ...) CREATE INDEX ...`
+   - Nhờ vậy, ứng dụng có thể khởi chạy và nâng cấp lược đồ một cách an toàn trên mọi môi trường: CSDL hoàn toàn mới, CSDL vừa nạp từ `CinemaBD.sql`, hoặc CSDL đang chạy của các thành viên trong nhóm mà không làm mất dữ liệu và không gây crash tiến trình khởi động.
+3. **Đồng bộ hóa lược đồ gốc**:
+   - Để đảm bảo tính nhất quán, tệp `CinemaBD.sql` gốc đã được cập nhật đầy đủ các bảng mới (`RevokedTokens`, `RAP`, `VOUCHER`, `TICHDIEM`, `RefundRequests`) và các cột mới (`MustChangePassword`, `PasswordExpiresAt`, `DaCheckIn`, `ThoiGianCheckIn`, `Rating`, `IsHidden`, `MaRap`). Bất kỳ CSDL mới nào được tạo trực tiếp từ `CinemaBD.sql` đều sở hữu ngay lược đồ chuẩn hóa 100%.
+
+---
+
+## 13. Backlog An ninh Ghi nhận (Security Backlog)
+
+Các vấn đề sau được ghi nhận vào danh mục backlog kỹ thuật cần xử lý ở các giai đoạn tiếp theo:
+1. **Mật khẩu SA mặc định và cổng 1433 trong Docker Compose**:
+   - `docker-compose.yml` hiện mở cổng `1433:1433` trực tiếp ra ngoài máy host và sử dụng mật khẩu mặc định `${SA_PASSWORD:-Your_strong_password123!}`. Cần chuyển sang chỉ mở cổng nội bộ mạng docker (`expose: - 1433`) và bắt buộc đổi mật khẩu mạnh qua `.env` khi triển khai production.
+2. **HSTS và Content-Security-Policy (CSP) cho Web MVC**:
+   - `CinemaBD.Web` cần bổ sung header CSP chi tiết bảo vệ các trang MVC/Razor, kiểm soát nguồn scripts, stylesheets, fonts, tránh nguy cơ XSS và Clickjacking.
+3. **Chính sách Referrer-Policy chặt chẽ**:
+   - Cần kiểm soát `Referrer-Policy` nghiêm ngặt hơn (ví dụ `strict-origin-when-cross-origin`) trên các luồng redirect thanh toán VNPay và MoMo để bảo vệ thông tin giao dịch trong URL query parameters.
