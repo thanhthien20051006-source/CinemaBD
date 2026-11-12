@@ -34,7 +34,10 @@ public class AuthService : IAuthService
 
         var user = await _db.Customers.FirstOrDefaultAsync(x => x.TKhoan == username, cancellationToken);
         if (user == null)
+        {
+            _passwordHasher.DummyVerify(password);
             throw new InvalidOperationException("Tài khoản hoặc mật khẩu không chính xác.");
+        }
 
         var isMatch = _passwordHasher.Verify(password, user.MatKhau);
         if (!isMatch)

@@ -7,6 +7,7 @@ public class Md5PasswordHasher
 {
     private const string IdentityPrefix = "IDENTITY:";
     private readonly PasswordHasher<UserAccount> _passwordHasher = new();
+    private static readonly string DummyIdentityHash = new Md5PasswordHasher().Hash("dummy_sidechannel_password");
 
     public string Hash(string password)
     {
@@ -14,7 +15,7 @@ public class Md5PasswordHasher
         return IdentityPrefix + hash;
     }
 
-    public bool Verify(string plainTextPassword, string storedHash)
+    public virtual bool Verify(string plainTextPassword, string storedHash)
     {
         if (storedHash == null)
             return false;
@@ -28,6 +29,11 @@ public class Md5PasswordHasher
 
         var hashedInput = HashMd5(plainTextPassword);
         return string.Equals(storedHash, hashedInput, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public virtual bool DummyVerify(string password)
+    {
+        return Verify(password, DummyIdentityHash);
     }
 
     public bool NeedsRehash(string storedHash)

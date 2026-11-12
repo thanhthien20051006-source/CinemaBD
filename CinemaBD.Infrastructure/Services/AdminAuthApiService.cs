@@ -23,7 +23,10 @@ public class AdminAuthApiService : IAdminAuthApiService
     {
         var admin = await _db.Admins.FirstOrDefaultAsync(x => x.Username == username && x.IsActive, cancellationToken);
         if (admin == null)
+        {
+            _passwordHasher.DummyVerify(password);
             throw new InvalidOperationException("Tài khoản hoặc mật khẩu không chính xác.");
+        }
 
         if (!_passwordHasher.Verify(password, admin.Password))
             throw new InvalidOperationException("Tài khoản hoặc mật khẩu không chính xác.");

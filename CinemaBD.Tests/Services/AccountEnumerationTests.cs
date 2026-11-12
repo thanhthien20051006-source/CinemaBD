@@ -116,4 +116,57 @@ public class AccountEnumerationTests
         var ex = await act.Should().ThrowAsync<InvalidOperationException>();
         ex.WithMessage(ExpectedRegisterConflictMessage);
     }
+
+    [Fact]
+    public void DummyVerify_ShouldExecutePbkdf2AndReturnFalse()
+    {
+        var hasher = new Md5PasswordHasher();
+        var result = hasher.DummyVerify("wrongPassword123");
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CustomerLogin_WhenUserDoesNotExist_ShouldCallDummyVerifyToMitigateTimingAttack()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
+        using var db = new AppDbContext(options);
+        var hasherMock = new Mock<Md5PasswordHasher>();
+        hasherMock.Setup(x => x.DummyVerify(It.IsAny<string>())).Returns(false);
+
+        var tokenServiceMock = new Mock<ITokenService>();
+        var configMock = new Mock<IConfiguration>();
+
+        var authService = new AuthService(db, hasherMock.Object, tokenServiceMock.Object, configMock.Object);
+
+        var act = () => authService.LoginAsync("nonexistentuser", "testpassword123");
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage(ExpectedLoginErrorMessage);
+
+        hasherMock.Verify(x => x.DummyVerify("testpassword123"), Times.Once);
+    }
+
+    [Fact]
+    public async Task AdminLogin_WhenAdminDoesNotExist_ShouldCallDummyVerifyToMitigateTimingAttack()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
+        using var db = new AppDbContext(options);
+        var hasherMock = new Mock<Md5PasswordHasher>();
+        hasherMock.Setup(x => x.DummyVerify(It.IsAny<string>())).Returns(false);
+
+        var tokenServiceMock = new Mock<ITokenService>();
+
+        var adminService = new AdminAuthApiService(db, hasherMock.Object, tokenServiceMock.Object);
+
+        var act = () => adminService.LoginAsync("nonexistentadmin", "testpassword123");
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage(ExpectedLoginErrorMessage);
+
+        hasherMock.Verify(x => x.DummyVerify("testpassword123"), Times.Once);
+    }
 }
