@@ -13,4 +13,10 @@ interface AuthApi {
 
     @POST("api/auth/register")
     suspend fun register(@Body request: RegisterRequest): ApiResponse<AuthResponse>
+
+    @POST("api/auth/password/change")
+    suspend fun changeCustomerPassword(@Body request: ChangePasswordRequest): ApiResponse<Unit>
+
+    @POST("api/admin/auth/password/change")
+    suspend fun changeAdminPassword(@Body request: ChangePasswordRequest): ApiResponse<Unit>
 }

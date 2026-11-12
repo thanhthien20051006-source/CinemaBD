@@ -9,6 +9,12 @@ data class LoginRequest(
 )
 
 @Serializable
+data class ChangePasswordRequest(
+    val currentPassword: String,
+    val newPassword: String
+)
+
+@Serializable
 data class RegisterRequest(
     val fullName: String,
     val username: String,
@@ -23,6 +29,8 @@ data class AuthResponse(
     val username: String,
     val fullName: String,
     val token: String,
+    val mustChangePassword: Boolean = false,
+    val passwordExpired: Boolean = false,
     val email: String? = null,
     val refreshToken: String? = null,
     val role: String? = null
@@ -34,5 +42,7 @@ data class AdminAuthResponse(
     val username: String = "",
     val fullName: String = "",
     val role: String? = null,
-    val token: String = ""
+    val token: String = "",
+    val mustChangePassword: Boolean = false,
+    val passwordExpired: Boolean = false
 )

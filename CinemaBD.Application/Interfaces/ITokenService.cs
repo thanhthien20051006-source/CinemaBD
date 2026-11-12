@@ -4,5 +4,5 @@ namespace CinemaBD.Application.Interfaces;
 
 public interface ITokenService
 {
-    string CreateToken(UserAccount user);
+    string CreateToken(UserAccount user, bool restrictedToPasswordChange = false);
 }

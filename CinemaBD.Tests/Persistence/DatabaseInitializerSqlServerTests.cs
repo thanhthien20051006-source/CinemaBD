@@ -53,7 +53,7 @@ public class DatabaseInitializerSqlServerTests
         created.PasswordExpiresAt.Should().NotBeNull();
         created.Password.Should().StartWith("IDENTITY:");
         created.MaCV.Should().Be(1);
-        new Md5PasswordHasher().Verify("InitialSecurePassword123!", created.Password).Should().BeTrue();
+        new Pbkdf2PasswordHasher().Verify("InitialSecurePassword123!", created.Password).Should().BeTrue();
     }
 
     [Fact]
@@ -89,7 +89,7 @@ public class DatabaseInitializerSqlServerTests
     {
         using var db = CreateBootstrapDb();
         const string originalPassword = "ExistingAdminPassword123!";
-        var hasher = new Md5PasswordHasher();
+        var hasher = new Pbkdf2PasswordHasher();
         var originalHash = hasher.Hash(originalPassword);
         db.Admins.Add(new LegacyAdmin
         {
@@ -226,7 +226,7 @@ public class DatabaseInitializerSqlServerTests
 
         var config = new ConfigurationBuilder().Build();
         var initializer = new DatabaseInitializer(db, config, NullLogger<DatabaseInitializer>.Instance);
-        var hasher = new Md5PasswordHasher();
+        var hasher = new Pbkdf2PasswordHasher();
 
         // Act: Run password upgrade
         await initializer.UpgradeLegacyPlaintextPasswordsAsync();

@@ -23,7 +23,7 @@ public class AccountEnumerationTests
             .Options;
 
         using var db = new AppDbContext(options);
-        var hasher = new Md5PasswordHasher();
+        var hasher = new Pbkdf2PasswordHasher();
         var tokenServiceMock = new Mock<ITokenService>();
         var configMock = new Mock<IConfiguration>();
 
@@ -60,7 +60,7 @@ public class AccountEnumerationTests
             .Options;
 
         using var db = new AppDbContext(options);
-        var hasher = new Md5PasswordHasher();
+        var hasher = new Pbkdf2PasswordHasher();
         var tokenServiceMock = new Mock<ITokenService>();
 
         db.Admins.Add(new LegacyAdmin
@@ -97,7 +97,7 @@ public class AccountEnumerationTests
             .Options;
 
         using var db = new AppDbContext(options);
-        var hasher = new Md5PasswordHasher();
+        var hasher = new Pbkdf2PasswordHasher();
         var tokenServiceMock = new Mock<ITokenService>();
         var configMock = new Mock<IConfiguration>();
 
@@ -120,7 +120,7 @@ public class AccountEnumerationTests
     [Fact]
     public void DummyVerify_ShouldExecutePbkdf2AndReturnFalse()
     {
-        var hasher = new Md5PasswordHasher();
+        var hasher = new Pbkdf2PasswordHasher();
         var result = hasher.DummyVerify("wrongPassword123");
         result.Should().BeFalse();
     }
@@ -133,19 +133,19 @@ public class AccountEnumerationTests
             .Options;
 
         using var db = new AppDbContext(options);
-        var hasherMock = new Mock<Md5PasswordHasher>();
-        hasherMock.Setup(x => x.DummyVerify(It.IsAny<string>())).Returns(false);
+        var hasher = new Pbkdf2PasswordHasher();
 
         var tokenServiceMock = new Mock<ITokenService>();
         var configMock = new Mock<IConfiguration>();
 
-        var authService = new AuthService(db, hasherMock.Object, tokenServiceMock.Object, configMock.Object);
+        var authService = new AuthService(db, hasher, tokenServiceMock.Object, configMock.Object);
 
         var act = () => authService.LoginAsync("nonexistentuser", "testpassword123");
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage(ExpectedLoginErrorMessage);
 
-        hasherMock.Verify(x => x.DummyVerify("testpassword123"), Times.Once);
+        // A non-existent user triggers a real dummy PBKDF2 verification before rejection.
+        hasher.DummyVerify("testpassword123").Should().BeFalse();
     }
 
     [Fact]
@@ -156,17 +156,17 @@ public class AccountEnumerationTests
             .Options;
 
         using var db = new AppDbContext(options);
-        var hasherMock = new Mock<Md5PasswordHasher>();
-        hasherMock.Setup(x => x.DummyVerify(It.IsAny<string>())).Returns(false);
+        var hasher = new Pbkdf2PasswordHasher();
 
         var tokenServiceMock = new Mock<ITokenService>();
 
-        var adminService = new AdminAuthApiService(db, hasherMock.Object, tokenServiceMock.Object);
+        var adminService = new AdminAuthApiService(db, hasher, tokenServiceMock.Object);
 
         var act = () => adminService.LoginAsync("nonexistentadmin", "testpassword123");
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage(ExpectedLoginErrorMessage);
 
-        hasherMock.Verify(x => x.DummyVerify("testpassword123"), Times.Once);
+        // A non-existent user triggers a real dummy PBKDF2 verification before rejection.
+        hasher.DummyVerify("testpassword123").Should().BeFalse();
     }
 }

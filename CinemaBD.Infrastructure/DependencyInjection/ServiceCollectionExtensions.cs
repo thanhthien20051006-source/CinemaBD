@@ -16,7 +16,8 @@ public static class ServiceCollectionExtensions
         services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
 
-        services.AddScoped<Md5PasswordHasher>();
+        services.AddScoped<Pbkdf2PasswordHasher>();
+        services.AddScoped<IAccountPasswordService, AccountPasswordService>();
         services.AddScoped<VnPayUrlBuilder>();
         services.AddScoped<VnPaySignatureValidator>();
         services.AddScoped<DatabaseInitializer>();

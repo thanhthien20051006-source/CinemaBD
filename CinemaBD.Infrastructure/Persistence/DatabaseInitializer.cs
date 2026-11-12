@@ -269,7 +269,7 @@ END;", cancellationToken);
 
     public async Task UpgradeLegacyPlaintextPasswordsAsync(CancellationToken cancellationToken = default)
     {
-        var passwordHasher = new Md5PasswordHasher();
+        var passwordHasher = new Pbkdf2PasswordHasher();
 
         var customers = await _db.Customers
             .Where(x => !string.IsNullOrEmpty(x.MatKhau))
@@ -389,7 +389,7 @@ WHERE NOT EXISTS (SELECT 1 FROM [dbo].[PhanQuyen] pq WHERE pq.[MaCV] = @AdminRol
         if (adminRoleId is null or 0)
             throw new InvalidOperationException("The master administrator role is missing; bootstrap admin was not created.");
 
-        var passwordHasher = new Md5PasswordHasher();
+        var passwordHasher = new Pbkdf2PasswordHasher();
         var hashedPassword = passwordHasher.Hash(bootstrapPassword);
 
         var newAdmin = new LegacyAdmin
@@ -440,7 +440,7 @@ WHERE NOT EXISTS (SELECT 1 FROM [dbo].[PhanQuyen] pq WHERE pq.[MaCV] = @AdminRol
 
     private async Task EnsureAdminDemoDataAsync(CancellationToken cancellationToken)
     {
-        var passwordHasher = new Md5PasswordHasher();
+        var passwordHasher = new Pbkdf2PasswordHasher();
         var hashedAdminPassword = passwordHasher.Hash("admin123");
 
         await _db.Database.ExecuteSqlRawAsync(@"
@@ -532,7 +532,7 @@ IF NOT EXISTS (SELECT 1 FROM [dbo].[TheLoai] WHERE [TenTheLoai] = N'Phiêu lưu'
 
     private async Task EnsureCustomerDemoDataAsync(CancellationToken cancellationToken)
     {
-        var passwordHasher = new Md5PasswordHasher();
+        var passwordHasher = new Pbkdf2PasswordHasher();
         var hashedDemoPassword = passwordHasher.Hash("123456");
 
         var customers = new[]

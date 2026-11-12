@@ -2,6 +2,7 @@ using CinemaBD.Application.Interfaces;
 using CinemaBD.Domain.Entities;
 using CinemaBD.Infrastructure.Persistence;
 using CinemaBD.Infrastructure.Security;
+using Microsoft.AspNetCore.Identity;
 using CinemaBD.Infrastructure.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -22,16 +23,17 @@ public class AuthServiceRehashTests
     }
 
     [Fact]
-    public async Task AdminLogin_WithLegacyMd5Password_ShouldRehashToIdentityAndRequirePasswordReset()
+    public async Task AdminLogin_WithLegacyMd5Password_ShouldRehashAndRequirePasswordReset()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
 
         using var db = new AppDbContext(options);
-        var hasher = new Md5PasswordHasher();
+        var hasher = new Pbkdf2PasswordHasher();
         var tokenServiceMock = new Mock<ITokenService>();
-        tokenServiceMock.Setup(x => x.CreateToken(It.IsAny<UserAccount>())).Returns("dummy_token");
+        tokenServiceMock.Setup(x => x.CreateToken(It.IsAny<UserAccount>(), false)).Returns("dummy_token");
+        tokenServiceMock.Setup(x => x.CreateToken(It.IsAny<UserAccount>(), true)).Returns("restricted_dummy_token");
 
         var rawPassword = "adminSecretPassword123";
         var md5Hash = ComputeMd5(rawPassword);
@@ -52,7 +54,9 @@ public class AuthServiceRehashTests
         var result = await adminService.LoginAsync("admin_md5", rawPassword);
 
         // Assert
-        result.Token.Should().Be("dummy_token");
+        result.Token.Should().Be("restricted_dummy_token");
+        result.MustChangePassword.Should().BeTrue();
+        result.PasswordExpired.Should().BeFalse();
         var updatedAdmin = await db.Admins.FirstAsync(x => x.Username == "admin_md5");
         updatedAdmin.Password.Should().StartWith("IDENTITY:");
         updatedAdmin.MustChangePassword.Should().BeTrue();
@@ -62,16 +66,17 @@ public class AuthServiceRehashTests
     }
 
     [Fact]
-    public async Task CustomerLogin_WithLegacyMd5Password_ShouldRehashToIdentityAndRequirePasswordReset()
+    public async Task CustomerLogin_WithLegacyMd5Password_ShouldRehashToIdentityWithoutForcingReset()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
 
         using var db = new AppDbContext(options);
-        var hasher = new Md5PasswordHasher();
+        var hasher = new Pbkdf2PasswordHasher();
         var tokenServiceMock = new Mock<ITokenService>();
-        tokenServiceMock.Setup(x => x.CreateToken(It.IsAny<UserAccount>())).Returns("customer_token");
+        tokenServiceMock.Setup(x => x.CreateToken(It.IsAny<UserAccount>(), false)).Returns("customer_token");
+        tokenServiceMock.Setup(x => x.CreateToken(It.IsAny<UserAccount>(), true)).Returns("restricted_customer_token");
 
         var configMock = new Mock<IConfiguration>();
 
@@ -93,7 +98,9 @@ public class AuthServiceRehashTests
         var token = await authService.LoginAsync("cust_md5", rawPassword);
 
         // Assert
-        token.Should().Be("customer_token");
+        token.Token.Should().Be("restricted_customer_token");
+        token.MustChangePassword.Should().BeTrue();
+        token.PasswordExpired.Should().BeFalse();
         var updatedCustomer = await db.Customers.FirstAsync(x => x.TKhoan == "cust_md5");
         updatedCustomer.MatKhau.Should().StartWith("IDENTITY:");
         updatedCustomer.MustChangePassword.Should().BeTrue();

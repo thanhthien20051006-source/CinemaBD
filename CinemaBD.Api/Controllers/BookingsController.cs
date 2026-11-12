@@ -39,7 +39,7 @@ public class BookingsController : ControllerBase
         return Ok(new ApiResponse<object>(true, "Lấy sơ đồ ghế thành công", response));
     }
 
-    [Authorize]
+    [Authorize(Policy = "NotPasswordChangeOnly")]
     [EnableRateLimiting("transactions")]
     [HttpPost("hold-seats")]
     public async Task<IActionResult> HoldSeats([FromBody] SeatHoldRequest request, CancellationToken cancellationToken)
@@ -52,7 +52,7 @@ public class BookingsController : ControllerBase
         return Ok(new ApiResponse<object>(result.Success, result.Message, result));
     }
 
-    [Authorize]
+    [Authorize(Policy = "NotPasswordChangeOnly")]
     [EnableRateLimiting("transactions")]
     [HttpPost("release-seats")]
     public async Task<IActionResult> ReleaseSeats([FromBody] SeatHoldRequest request, CancellationToken cancellationToken)
@@ -65,7 +65,7 @@ public class BookingsController : ControllerBase
         return Ok(new ApiResponse<object>(result.Success, result.Message, result));
     }
 
-    [Authorize]
+    [Authorize(Policy = "NotPasswordChangeOnly")]
     [EnableRateLimiting("transactions")]
     [HttpPost("voucher-preview")]
     public async Task<IActionResult> PreviewVoucher([FromBody] VoucherPreviewRequest request, CancellationToken cancellationToken)
@@ -85,7 +85,7 @@ public class BookingsController : ControllerBase
         return Ok(new ApiResponse<object>(result.Success, result.Message, response));
     }
 
-    [Authorize]
+    [Authorize(Policy = "NotPasswordChangeOnly")]
     [EnableRateLimiting("transactions")]
     [HttpPost("checkout")]
     public async Task<IActionResult> Checkout([FromBody] CheckoutRequest request, CancellationToken cancellationToken)
@@ -100,7 +100,7 @@ public class BookingsController : ControllerBase
         return Ok(new ApiResponse<object>(true, "Tạo phiên thanh toán thành công", response));
     }
 
-    [Authorize]
+    [Authorize(Policy = "NotPasswordChangeOnly")]
     [EnableRateLimiting("transactions")]
     [HttpPost("refund-request")]
     public async Task<IActionResult> CreateRefundRequest([FromBody] RefundRequestBody request, CancellationToken cancellationToken)

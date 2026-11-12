@@ -23,7 +23,7 @@ public class DatabaseInitializerTests
         var loggerMock = new Mock<ILogger<DatabaseInitializer>>();
 
         var initializer = new DatabaseInitializer(db, configMock.Object, loggerMock.Object);
-        var hasher = new Md5PasswordHasher();
+        var hasher = new Pbkdf2PasswordHasher();
 
         // Seed customer demo data by adding demo customers the way EnsureCustomerDemoDataAsync does
         var hashedDemoPassword = hasher.Hash("123456");

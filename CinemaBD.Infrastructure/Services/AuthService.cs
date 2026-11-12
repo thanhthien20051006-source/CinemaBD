@@ -3,6 +3,7 @@ using CinemaBD.Domain.Entities;
 using CinemaBD.Infrastructure.Persistence;
 using CinemaBD.Infrastructure.Security;
 using Google.Apis.Auth;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System.Security.Cryptography;
@@ -12,11 +13,11 @@ namespace CinemaBD.Infrastructure.Services;
 public class AuthService : IAuthService
 {
     private readonly AppDbContext _db;
-    private readonly Md5PasswordHasher _passwordHasher;
+    private readonly Pbkdf2PasswordHasher _passwordHasher;
     private readonly ITokenService _tokenService;
     private readonly IConfiguration _configuration;
 
-    public AuthService(AppDbContext db, Md5PasswordHasher passwordHasher, ITokenService tokenService, IConfiguration configuration)
+    public AuthService(AppDbContext db, Pbkdf2PasswordHasher passwordHasher, ITokenService tokenService, IConfiguration configuration)
     {
         _db = db;
         _passwordHasher = passwordHasher;
@@ -24,7 +25,7 @@ public class AuthService : IAuthService
         _configuration = configuration;
     }
 
-    public async Task<string> LoginAsync(string username, string password, CancellationToken cancellationToken = default)
+    public async Task<(string Token, bool MustChangePassword, bool PasswordExpired)> LoginAsync(string username, string password, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
             throw new ArgumentException("Thiếu tài khoản hoặc mật khẩu.");
@@ -39,18 +40,23 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("Tài khoản hoặc mật khẩu không chính xác.");
         }
 
-        var isMatch = _passwordHasher.Verify(password, user.MatKhau);
-        if (!isMatch)
+        var verification = _passwordHasher.VerifyDetailed(password, user.MatKhau);
+        if (verification == PasswordVerificationResult.Failed)
             throw new InvalidOperationException("Tài khoản hoặc mật khẩu không chính xác.");
 
-        if (_passwordHasher.NeedsRehash(user.MatKhau))
+        if (verification == PasswordVerificationResult.SuccessRehashNeeded || _passwordHasher.NeedsRehash(user.MatKhau))
         {
             user.MatKhau = _passwordHasher.Hash(password);
-            user.MustChangePassword = true;
-            user.PasswordExpiresAt = DateTime.UtcNow.AddDays(7);
+            if (verification == PasswordVerificationResult.SuccessRehashNeeded)
+            {
+                user.MustChangePassword = true;
+                user.PasswordExpiresAt = DateTime.UtcNow.AddDays(7);
+            }
             await _db.SaveChangesAsync(cancellationToken);
         }
 
+        var passwordExpired = user.PasswordExpiresAt is not null && user.PasswordExpiresAt <= DateTime.UtcNow;
+        var mustChangePassword = user.MustChangePassword || passwordExpired;
         var account = new UserAccount
         {
             Id = user.MaKH,
@@ -58,10 +64,12 @@ public class AuthService : IAuthService
             Username = user.TKhoan,
             PasswordHash = user.MatKhau,
             Email = user.Email,
-            PhoneNumber = user.SDT
+            PhoneNumber = user.SDT,
+            MustChangePassword = mustChangePassword,
+            PasswordExpired = passwordExpired
         };
 
-        return _tokenService.CreateToken(account);
+        return (_tokenService.CreateToken(account, mustChangePassword), mustChangePassword, passwordExpired);
     }
 
     public async Task<string> RegisterAsync(string fullName, string username, string password, string? email, string? phoneNumber, CancellationToken cancellationToken = default)
@@ -74,6 +82,7 @@ public class AuthService : IAuthService
         if (existed)
             throw new InvalidOperationException("Không thể hoàn tất đăng ký với thông tin đã cung cấp. Vui lòng kiểm tra lại hoặc đăng nhập.");
 
+        ValidateNewPassword(password);
         var customer = new LegacyCustomer
         {
             MaKH = "KH" + DateTime.Now.ToString("yyyyMMddHHmmssfff"),
@@ -112,11 +121,7 @@ public class AuthService : IAuthService
         GoogleJsonWebSignature.Payload payload;
         try
         {
-            var settings = new GoogleJsonWebSignature.ValidationSettings
-            {
-                Audience = clientIds
-            };
-            payload = await GoogleJsonWebSignature.ValidateAsync(idToken, settings);
+            payload = await GoogleJsonWebSignature.ValidateAsync(idToken, new GoogleJsonWebSignature.ValidationSettings { Audience = clientIds });
         }
         catch (InvalidJwtException)
         {
@@ -128,7 +133,6 @@ public class AuthService : IAuthService
 
         var email = payload.Email;
         var fullName = payload.Name ?? email;
-
         var customer = await _db.Customers.FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
 
         if (customer == null)
@@ -136,14 +140,9 @@ public class AuthService : IAuthService
             var randomBytes = RandomNumberGenerator.GetBytes(32);
             var randomPassword = Convert.ToBase64String(randomBytes);
             var hashedPassword = _passwordHasher.Hash(randomPassword);
-
             var username = email;
-            var usernameExists = await _db.Customers.AnyAsync(x => x.TKhoan == username, cancellationToken);
-            if (usernameExists)
-            {
-                var suffix = Convert.ToHexString(RandomNumberGenerator.GetBytes(3)).ToLowerInvariant();
-                username = email + "_" + suffix;
-            }
+            if (await _db.Customers.AnyAsync(x => x.TKhoan == username, cancellationToken))
+                username = email + "_" + Convert.ToHexString(RandomNumberGenerator.GetBytes(3)).ToLowerInvariant();
 
             customer = new LegacyCustomer
             {
@@ -151,10 +150,8 @@ public class AuthService : IAuthService
                 HoTen = fullName,
                 TKhoan = username,
                 MatKhau = hashedPassword,
-                Email = email,
-                SDT = null
+                Email = email
             };
-
             _db.Customers.Add(customer);
             await _db.SaveChangesAsync(cancellationToken);
         }
@@ -166,13 +163,17 @@ public class AuthService : IAuthService
             Username = customer.TKhoan,
             PasswordHash = customer.MatKhau,
             Email = customer.Email,
-            PhoneNumber = customer.SDT
+            PhoneNumber = customer.SDT,
+            MustChangePassword = customer.MustChangePassword || (customer.PasswordExpiresAt is not null && customer.PasswordExpiresAt <= DateTime.UtcNow)
         };
 
-        return _tokenService.CreateToken(account);
+        return _tokenService.CreateToken(account, account.MustChangePassword);
+    }
+
+    private static void ValidateNewPassword(string password)
+    {
+        if (password.Length < 12 || !password.Any(char.IsUpper) || !password.Any(char.IsLower)
+            || !password.Any(char.IsDigit) || !password.Any(character => !char.IsLetterOrDigit(character)))
+            throw new ArgumentException("Mật khẩu phải có ít nhất 12 ký tự, gồm chữ hoa, chữ thường, chữ số và ký tự đặc biệt.");
     }
 }
-
-
-
-

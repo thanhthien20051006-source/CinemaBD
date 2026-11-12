@@ -479,6 +479,8 @@ public class CinemaApiClient
         public string Username { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
         public string Token { get; set; } = string.Empty;
+        public bool MustChangePassword { get; set; }
+        public bool PasswordExpired { get; set; }
     }
 
     public sealed class AdminAuthResult
@@ -488,6 +490,8 @@ public class CinemaApiClient
         public string FullName { get; set; } = string.Empty;
         public string? Role { get; set; }
         public string Token { get; set; } = string.Empty;
+        public bool MustChangePassword { get; set; }
+        public bool PasswordExpired { get; set; }
     }
 
     public sealed class InvoiceHistoryItem

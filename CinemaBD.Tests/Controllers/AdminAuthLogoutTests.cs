@@ -19,7 +19,8 @@ public class AdminAuthLogoutTests
         var adminAuthServiceMock = new Mock<IAdminAuthApiService>();
         var revokedTokenServiceMock = new Mock<IRevokedTokenService>();
 
-        var controller = new AdminAuthController(adminAuthServiceMock.Object, revokedTokenServiceMock.Object);
+        var accountPasswordServiceMock = new Mock<IAccountPasswordService>();
+        var controller = new AdminAuthController(adminAuthServiceMock.Object, revokedTokenServiceMock.Object, accountPasswordServiceMock.Object);
 
         var testJti = Guid.NewGuid().ToString("N");
         var expiryTime = DateTimeOffset.UtcNow.AddHours(1);
@@ -54,13 +55,42 @@ public class AdminAuthLogoutTests
     }
 
     [Fact]
+    public async Task AdminChangePassword_WithAdminIdentity_ShouldDelegateAndSucceed()
+    {
+        var adminAuthServiceMock = new Mock<IAdminAuthApiService>();
+        var revokedTokenServiceMock = new Mock<IRevokedTokenService>();
+        var passwordServiceMock = new Mock<IAccountPasswordService>();
+        var controller = new AdminAuthController(adminAuthServiceMock.Object, revokedTokenServiceMock.Object, passwordServiceMock.Object);
+        var expires = DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeSeconds();
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(new[]
+                {
+                    new Claim("account_type", "admin"),
+                    new Claim(JwtRegisteredClaimNames.Sub, "admin:12"),
+                    new Claim(JwtRegisteredClaimNames.Jti, "jti-1"),
+                    new Claim(JwtRegisteredClaimNames.Exp, expires.ToString())
+                }, "Bearer"))
+            }
+        };
+
+        var result = await controller.ChangePassword(new AdminAuthController.ChangeAdminPasswordRequest("CurrentPassword123!", "NewPassword123!"), CancellationToken.None);
+
+        result.Should().BeOfType<OkObjectResult>();
+        passwordServiceMock.Verify(x => x.ChangeAdminPasswordAsync(12, "CurrentPassword123!", "NewPassword123!", "jti-1", It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task AdminLogout_WithoutJtiClaim_ShouldReturnUnauthorized()
     {
         // Arrange
         var adminAuthServiceMock = new Mock<IAdminAuthApiService>();
         var revokedTokenServiceMock = new Mock<IRevokedTokenService>();
 
-        var controller = new AdminAuthController(adminAuthServiceMock.Object, revokedTokenServiceMock.Object);
+        var accountPasswordServiceMock = new Mock<IAccountPasswordService>();
+        var controller = new AdminAuthController(adminAuthServiceMock.Object, revokedTokenServiceMock.Object, accountPasswordServiceMock.Object);
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity()) }

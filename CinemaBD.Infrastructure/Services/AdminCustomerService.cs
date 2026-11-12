@@ -9,9 +9,9 @@ namespace CinemaBD.Infrastructure.Services;
 public class AdminCustomerService : IAdminCustomerService
 {
     private readonly AppDbContext _db;
-    private readonly Md5PasswordHasher _hasher;
+    private readonly Pbkdf2PasswordHasher _hasher;
 
-    public AdminCustomerService(AppDbContext db, Md5PasswordHasher hasher)
+    public AdminCustomerService(AppDbContext db, Pbkdf2PasswordHasher hasher)
     {
         _db = db;
         _hasher = hasher;

@@ -14,7 +14,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
 builder.Services.AddScoped<CinemaBD.Api.Filters.AdminPermissionAuthorizationFilter>();
-builder.Services.AddControllers(options => options.Filters.AddService<CinemaBD.Api.Filters.AdminPermissionAuthorizationFilter>());
+builder.Services.AddScoped<CinemaBD.Api.Filters.PasswordChangeRestrictionFilter>();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.AddService<CinemaBD.Api.Filters.AdminPermissionAuthorizationFilter>();
+    options.Filters.AddService<CinemaBD.Api.Filters.PasswordChangeRestrictionFilter>();
+});
 builder.Services.AddCors(options => options.AddPolicy("WebClients", policy =>
 {
     var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
@@ -146,6 +151,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", policy => policy.RequireClaim("account_type", "admin"));
+    options.AddPolicy("NotPasswordChangeOnly", policy => policy.RequireAssertion(context =>
+        !context.User.HasClaim("password_change_only", "true")));
 });
 
 var app = builder.Build();

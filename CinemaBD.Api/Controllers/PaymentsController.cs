@@ -23,7 +23,7 @@ public class PaymentsController : ControllerBase
         _environment = environment;
     }
 
-    [Authorize]
+    [Authorize(Policy = "NotPasswordChangeOnly")]
     [EnableRateLimiting("transactions")]
     [HttpPost("vnpay/create")]
     public async Task<IActionResult> CreateVnPayPayment([FromBody] VnPayCreatePaymentRequest request, CancellationToken cancellationToken)
