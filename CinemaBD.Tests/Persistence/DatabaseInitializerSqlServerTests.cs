@@ -5,6 +5,7 @@ using FluentAssertions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CinemaBD.Tests.Persistence;
@@ -38,31 +39,10 @@ public class DatabaseInitializerSqlServerTests
     }
 
     [Fact]
-    public async Task EnsureBootstrapAdmin_WhenConfigProvided_ShouldCreateAdminWithMustChangePassword()
+    public async Task EnsureBootstrapAdmin_WhenConfigProvided_ShouldCreateAdminWithMasterRoleAndMustChangePassword()
     {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase("BootstrapAdminTestDb_" + Guid.NewGuid())
-            .Options;
-
-        using var db = new AppDbContext(options);
-
-        db.Roles.Add(new LegacyRole
-        {
-            MaCV = 1,
-            TenChucVu = "Quản trị hệ thống",
-            IsMaster = true,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow
-        });
-        await db.SaveChangesAsync();
-
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["BOOTSTRAP_ADMIN_USERNAME"] = "sysadmin_bootstrap",
-                ["BOOTSTRAP_ADMIN_PASSWORD"] = "InitialSecurePassword123!"
-            })
-            .Build();
+        using var db = CreateBootstrapDb();
+        var config = CreateBootstrapConfiguration("sysadmin_bootstrap", "InitialSecurePassword123!");
 
         var initializer = new DatabaseInitializer(db, config, NullLogger<DatabaseInitializer>.Instance);
         await initializer.EnsureBootstrapAdminAsync();
@@ -72,7 +52,131 @@ public class DatabaseInitializerSqlServerTests
         created!.MustChangePassword.Should().BeTrue();
         created.PasswordExpiresAt.Should().NotBeNull();
         created.Password.Should().StartWith("IDENTITY:");
+        created.MaCV.Should().Be(1);
         new Md5PasswordHasher().Verify("InitialSecurePassword123!", created.Password).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task EnsureBootstrapAdmin_WhenConfigurationMissing_ShouldSkipAndWarn()
+    {
+        using var db = CreateBootstrapDb();
+        var logger = new ListLogger<DatabaseInitializer>();
+        var initializer = new DatabaseInitializer(db, new ConfigurationBuilder().Build(), logger);
+
+        await initializer.EnsureBootstrapAdminAsync();
+
+        (await db.Admins.CountAsync()).Should().Be(0);
+        logger.Entries.Should().Contain(x => x.Level == LogLevel.Warning && x.Message.Contains("BOOTSTRAP_ADMIN_USERNAME"));
+    }
+
+    [Fact]
+    public async Task EnsureBootstrapAdmin_WhenPasswordIsWeak_ShouldRejectWithoutLoggingIt()
+    {
+        using var db = CreateBootstrapDb();
+        const string weakSecret = "weakpassword";
+        var logger = new ListLogger<DatabaseInitializer>();
+        var initializer = new DatabaseInitializer(db, CreateBootstrapConfiguration("sysadmin_bootstrap", weakSecret), logger);
+
+        var action = () => initializer.EnsureBootstrapAdminAsync();
+
+        await action.Should().ThrowAsync<InvalidOperationException>();
+        (await db.Admins.CountAsync()).Should().Be(0);
+        logger.Entries.Should().NotContain(x => x.Message.Contains(weakSecret));
+    }
+
+    [Fact]
+    public async Task EnsureBootstrapAdmin_WhenAnyAdminExists_ShouldNotCreateOrOverwriteOnRepeatedRuns()
+    {
+        using var db = CreateBootstrapDb();
+        const string originalPassword = "ExistingAdminPassword123!";
+        var hasher = new Md5PasswordHasher();
+        var originalHash = hasher.Hash(originalPassword);
+        db.Admins.Add(new LegacyAdmin
+        {
+            Username = "existing_admin",
+            Password = originalHash,
+            Role = "Admin",
+            IsActive = true,
+            MaCV = 1
+        });
+        await db.SaveChangesAsync();
+
+        var firstInitializer = new DatabaseInitializer(db,
+            CreateBootstrapConfiguration("sysadmin_bootstrap", "BootstrapPassword123!"),
+            NullLogger<DatabaseInitializer>.Instance);
+        await firstInitializer.EnsureBootstrapAdminAsync();
+
+        var secondInitializer = new DatabaseInitializer(db,
+            CreateBootstrapConfiguration("existing_admin", "ChangedBootstrapPassword123!"),
+            NullLogger<DatabaseInitializer>.Instance);
+        await secondInitializer.EnsureBootstrapAdminAsync();
+
+        (await db.Admins.CountAsync()).Should().Be(1);
+        var existing = await db.Admins.SingleAsync();
+        existing.Password.Should().Be(originalHash);
+        hasher.Verify(originalPassword, existing.Password).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task EnsureBootstrapAdmin_WhenMasterRoleIsMissing_ShouldNotAssignAnArbitraryRole()
+    {
+        using var db = CreateBootstrapDb(includeMasterRole: false);
+        db.Roles.Add(new LegacyRole
+        {
+            MaCV = 2,
+            TenChucVu = "Nhân viên",
+            IsMaster = false,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var initializer = new DatabaseInitializer(db,
+            CreateBootstrapConfiguration("sysadmin_bootstrap", "InitialSecurePassword123!"),
+            NullLogger<DatabaseInitializer>.Instance);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => initializer.EnsureBootstrapAdminAsync());
+        (await db.Admins.CountAsync()).Should().Be(0);
+    }
+
+    private static AppDbContext CreateBootstrapDb(bool includeMasterRole = true)
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase("BootstrapAdminTestDb_" + Guid.NewGuid())
+            .Options;
+        var db = new AppDbContext(options);
+        if (includeMasterRole)
+        {
+            db.Roles.Add(new LegacyRole
+            {
+                MaCV = 1,
+                TenChucVu = "Quản trị hệ thống",
+                IsMaster = true,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            });
+            db.SaveChanges();
+        }
+        return db;
+    }
+
+    private static IConfiguration CreateBootstrapConfiguration(string username, string password) => new ConfigurationBuilder()
+        .AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["BOOTSTRAP_ADMIN_USERNAME"] = username,
+            ["BOOTSTRAP_ADMIN_PASSWORD"] = password
+        })
+        .Build();
+
+    private sealed class ListLogger<T> : ILogger<T>
+    {
+        public List<(LogLevel Level, string Message)> Entries { get; } = new();
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            Entries.Add((logLevel, formatter(state, exception)));
+        }
     }
 
     [Fact]

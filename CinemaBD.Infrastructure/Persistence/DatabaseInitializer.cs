@@ -366,31 +366,35 @@ WHERE NOT EXISTS (SELECT 1 FROM [dbo].[PhanQuyen] pq WHERE pq.[MaCV] = @AdminRol
 
         if (string.IsNullOrWhiteSpace(bootstrapUsername) || string.IsNullOrWhiteSpace(bootstrapPassword))
         {
+            _logger.LogWarning("Bootstrap admin was not created because BOOTSTRAP_ADMIN_USERNAME and/or BOOTSTRAP_ADMIN_PASSWORD is missing.");
             return;
         }
 
-        var existingAdmin = await _db.Admins.FirstOrDefaultAsync(x => x.Username == bootstrapUsername, cancellationToken);
-        if (existingAdmin != null)
+        if (await _db.Admins.AnyAsync(cancellationToken))
         {
+            _logger.LogInformation("Bootstrap admin creation skipped because an administrator account already exists.");
             return;
+        }
+
+        if (!IsStrongBootstrapPassword(bootstrapPassword))
+        {
+            throw new InvalidOperationException("BOOTSTRAP_ADMIN_PASSWORD must be at least 12 characters and include uppercase, lowercase, numeric, and non-alphanumeric characters.");
         }
 
         var adminRoleId = await _db.Roles.AsNoTracking()
-            .Where(x => x.TenChucVu == "Quản trị hệ thống")
+            .Where(x => x.TenChucVu == "Quản trị hệ thống" && x.IsMaster)
             .Select(x => (int?)x.MaCV)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (adminRoleId == null || adminRoleId == 0)
-        {
-            adminRoleId = await _db.Roles.AsNoTracking().Select(x => (int?)x.MaCV).FirstOrDefaultAsync(cancellationToken);
-        }
+        if (adminRoleId is null or 0)
+            throw new InvalidOperationException("The master administrator role is missing; bootstrap admin was not created.");
 
         var passwordHasher = new Md5PasswordHasher();
         var hashedPassword = passwordHasher.Hash(bootstrapPassword);
 
         var newAdmin = new LegacyAdmin
         {
-            Username = bootstrapUsername,
+            Username = bootstrapUsername.Trim(),
             Password = hashedPassword,
             FullName = "Bootstrap Administrator",
             Email = "admin@cinemabd.local",
@@ -407,7 +411,16 @@ WHERE NOT EXISTS (SELECT 1 FROM [dbo].[PhanQuyen] pq WHERE pq.[MaCV] = @AdminRol
         await _db.SaveChangesAsync(cancellationToken);
 
         // TUYỆT ĐỐI KHÔNG GHI LOG MẬT KHẨU
-        _logger.LogInformation("Đã khởi tạo tài khoản bootstrap admin cho username '{Username}'. Mật khẩu bắt buộc đổi trong vòng 7 ngày.", bootstrapUsername);
+        _logger.LogInformation("Bootstrap administrator account was created and must be rotated by the operator.");
+    }
+
+    private static bool IsStrongBootstrapPassword(string password)
+    {
+        return password.Length >= 12
+            && password.Any(char.IsUpper)
+            && password.Any(char.IsLower)
+            && password.Any(char.IsDigit)
+            && password.Any(character => !char.IsLetterOrDigit(character));
     }
 
     private async Task EnsureDemoDataAsync(bool allowDemoData, CancellationToken cancellationToken)

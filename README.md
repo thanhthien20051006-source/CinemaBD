@@ -156,9 +156,10 @@ Mặc định local:
 Hệ thống tách biệt rõ giữa cấu trúc schema và dữ liệu mẫu:
 - **`CinemaBD.schema.sql`**: Chứa toàn bộ DDL (bảng, khóa chính, khóa ngoại, chỉ mục) và luôn luôn được thực thi khi database hoàn toàn trống, đảm bảo API luôn hoạt động đúng cấu trúc schema.
 - **`CinemaBD.data.sql` / `CinemaBD.sql`**: Chứa dữ liệu mẫu (phim, rạp, phòng, suất chiếu, combo, khách hàng và admin demo). Script này chỉ được nạp khi cờ `DatabaseSeed:AllowDemoData` là `true` (mặc định đã được bật trong `appsettings.Development.json` cho môi trường Development).
-- **Môi trường Production (`DatabaseSeed:AllowDemoData = false`)**: Không nạp dữ liệu mẫu để phòng ngừa rủi ro rò rỉ tài khoản demo. Người quản trị khởi tạo tài khoản quản trị viên ban đầu (Bootstrap Admin) bằng cách thiết lập cặp biến môi trường `BOOTSTRAP_ADMIN_USERNAME` và `BOOTSTRAP_ADMIN_PASSWORD` trong file `.env`. Mật khẩu bootstrap được băm bảo mật theo chuẩn PBKDF2 (`IDENTITY:`) và bắt buộc đổi trong vòng 7 ngày đầu tiên (`MustChangePassword = true`).
+- **Môi trường Production (`DatabaseSeed:AllowDemoData = false`)**: Không nạp dữ liệu mẫu để phòng ngừa rủi ro rò rỉ tài khoản demo. Người quản trị khởi tạo tài khoản quản trị viên ban đầu (Bootstrap Admin) bằng cách thiết lập `BOOTSTRAP_ADMIN_USERNAME` và `BOOTSTRAP_ADMIN_PASSWORD`. Mật khẩu bootstrap phải có tối thiểu 12 ký tự, gồm chữ hoa, chữ thường, chữ số và ký tự không phải chữ/số. Mật khẩu được lưu dưới dạng hash PBKDF2 (`IDENTITY:`); cờ `MustChangePassword = true` và hạn 7 ngày được ghi vào database.
+- **Sau lần đăng nhập bootstrap đầu tiên**: xóa `BOOTSTRAP_ADMIN_PASSWORD` khỏi `.env`/cấu hình triển khai và đổi mật khẩu qua quy trình quản trị phù hợp. Lưu ý: hiện API/Web chưa có luồng đổi mật khẩu quản trị viên và chưa thực thi bắt buộc cờ `MustChangePassword`; triển khai đổi mật khẩu an toàn trước khi đưa tài khoản bootstrap vào vận hành thật.
 
-Nếu cần tài khoản admin/user demo trong Development, kiểm tra trong script `CinemaBD.sql` hoặc màn hình đăng nhập sau khi seed xong (admin: `admin` / `admin123`).
+Nếu cần tài khoản admin/user demo trong Development, dữ liệu được nạp từ `CinemaBD.data.sql` (admin: `admin` / `admin123`).
 
 ## 8. Lỗi thường gặp
 
