@@ -24,10 +24,11 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
     public AdminAuthLogoutIntegrationTests(TestApiFactory factory) => _factory = factory;
 
     [Fact]
-    public async Task AdminToken_WithMasterRoleFlag_ShouldAccessAdminEndpoint()
+    public async Task AdminToken_WithMasterAndPermissionClaims_ShouldAccessAdminEndpoint()
     {
         var client = _factory.CreateClient();
-        var token = CreateTestAdminToken("admin:1");
+        var sessionId = _factory.CreateActiveSession();
+        var token = CreateTestAdminToken("admin:1", sessionId, isMaster: true, permissions: ["phanquyen"]);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var response = await client.GetAsync("/api/admin/roles");
@@ -39,7 +40,8 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
     public async Task AdminToken_AfterLogout_ShouldReturn401WhenReused()
     {
         var client = _factory.CreateClient();
-        var token = CreateTestAdminToken("admin:1");
+        var sessionId = _factory.CreateActiveSession();
+        var token = CreateTestAdminToken("admin:1", sessionId, isMaster: true, permissions: ["phanquyen"]);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var logoutResponse = await client.PostAsync("/api/admin/auth/logout", null);
@@ -50,10 +52,25 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
     }
 
     [Fact]
-    public async Task AdminToken_WhenAdminHasNoActiveRole_ShouldBeDenied()
+    public async Task AdminToken_WithoutSessionId_ShouldReturn401()
     {
         var client = _factory.CreateClient();
-        var token = CreateTestAdminToken("admin:2");
+        var token = CreateTestAdminToken("admin:1", sessionId: null, includeSessionId: false, isMaster: true, permissions: ["phanquyen"]);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await client.GetAsync("/api/admin/roles");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task AdminToken_WithStaleMasterClaimButNoPermissionClaim_ShouldReturn403()
+    {
+        var client = _factory.CreateClient();
+        var sessionId = _factory.CreateActiveSession();
+        // The token claims master access, but the current database says admin:2 is not
+        // master and the token has no route permission. Current authorization must deny it.
+        var token = CreateTestAdminToken("admin:2", sessionId, isMaster: true);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var response = await client.GetAsync("/api/admin/roles");
@@ -61,22 +78,51 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
-    private static string CreateTestAdminToken(string subject)
+    [Fact]
+    public async Task AdminToken_WhenAdminHasNoActiveRole_ShouldBeDenied()
     {
+        var client = _factory.CreateClient();
+        var sessionId = _factory.CreateActiveSession();
+        var token = CreateTestAdminToken("admin:3", sessionId);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await client.GetAsync("/api/admin/roles");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    private static string CreateTestAdminToken(
+        string subject,
+        Guid? sessionId,
+        bool includeSessionId = true,
+        bool isMaster = false,
+        params string[] permissions)
+    {
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, subject),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
+            new(JwtRegisteredClaimNames.UniqueName, "admin_test"),
+            new("full_name", "Admin Test User"),
+            new("account_type", "admin"),
+            new(ClaimTypes.Role, "Admin"),
+            new("is_master", isMaster ? "true" : "false")
+        };
+
+        if (includeSessionId)
+        {
+            if (sessionId is null || sessionId == Guid.Empty)
+                throw new ArgumentException("A valid session id is required when the sid claim is included.", nameof(sessionId));
+            claims.Add(new Claim("sid", sessionId.Value.ToString("D")));
+        }
+
+        claims.AddRange(permissions.Select(permission => new Claim("permission", permission)));
+
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.UTF8.GetBytes(TestApiFactory.TestJwtKey);
         var tokenDescriptor = new SecurityTokenDescriptor
         {
-            Subject = new ClaimsIdentity(new[]
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, subject),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
-                new Claim(JwtRegisteredClaimNames.UniqueName, "admin_test"),
-                new Claim("full_name", "Admin Test User"),
-                new Claim("account_type", "admin"),
-                new Claim("sid", TestApiFactory.SessionId.ToString("D")),
-                new Claim(ClaimTypes.Role, "Admin")
-            }),
+            Subject = new ClaimsIdentity(claims),
             Expires = DateTime.UtcNow.AddHours(1),
             Issuer = TestApiFactory.TestJwtIssuer,
             Audience = TestApiFactory.TestJwtAudience,
@@ -94,6 +140,9 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
         public const string TestQrKey = "SuperSecretQrSigningKeyForTesting1234567890!";
         public static readonly Guid SessionId = Guid.NewGuid();
         private readonly string _databaseName = "AdminAuthLogoutTestDb_" + Guid.NewGuid();
+        private readonly TestIdentitySessionService _identitySessionService = new();
+
+        public Guid CreateActiveSession() => _identitySessionService.CreateActiveSession();
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
@@ -120,7 +169,7 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
                 RemoveService<IRevokedTokenService>(services);
                 services.AddSingleton<IRevokedTokenService, InMemoryRevokedTokenService>();
                 RemoveService<IIdentitySessionService>(services);
-                services.AddSingleton<IIdentitySessionService>(new TestIdentitySessionService());
+                services.AddSingleton<IIdentitySessionService>(_identitySessionService);
                 RemoveService<IRefreshTokenService>(services);
                 services.AddScoped<IRefreshTokenService, TestRefreshTokenService>();
             });
@@ -141,13 +190,40 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
 
         private sealed class TestIdentitySessionService : IIdentitySessionService
         {
-            public Task<Guid> CreateSessionAsync(string accountType, string accountId, string? deviceName = null, string? userAgent = null, CancellationToken cancellationToken = default) => Task.FromResult(SessionId);
+            private readonly ConcurrentDictionary<Guid, bool> _activeSessions = new();
+
+            public Guid CreateActiveSession()
+            {
+                var sessionId = Guid.NewGuid();
+                _activeSessions[sessionId] = true;
+                return sessionId;
+            }
+
+            public Task<Guid> CreateSessionAsync(string accountType, string accountId, string? deviceName = null, string? userAgent = null, CancellationToken cancellationToken = default)
+            {
+                var sessionId = CreateActiveSession();
+                return Task.FromResult(sessionId);
+            }
+
             public Task<string> IssueRefreshTokenAsync(Guid sessionId, CancellationToken cancellationToken = default) => Task.FromResult("test-refresh-token");
-            public Task<bool> IsActiveAsync(Guid sessionId, CancellationToken cancellationToken = default) => Task.FromResult(sessionId == SessionId);
+            public Task<bool> IsActiveAsync(Guid sessionId, CancellationToken cancellationToken = default) => Task.FromResult(_activeSessions.TryGetValue(sessionId, out var active) && active);
             public Task<IReadOnlyCollection<IdentitySessionInfo>> ListSessionsAsync(string accountType, string accountId, Guid currentSessionId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyCollection<IdentitySessionInfo>>([]);
-            public Task<bool> RevokeSessionAsync(Guid sessionId, string accountType, string accountId, string reason, CancellationToken cancellationToken = default) => Task.FromResult(sessionId == SessionId);
+
+            public Task<bool> RevokeSessionAsync(Guid sessionId, string accountType, string accountId, string reason, CancellationToken cancellationToken = default)
+            {
+                if (!_activeSessions.TryGetValue(sessionId, out var active) || !active)
+                    return Task.FromResult(false);
+                _activeSessions[sessionId] = false;
+                return Task.FromResult(true);
+            }
+
             public Task<bool> RevokeSessionByRefreshTokenAsync(string refreshToken, string accountType, string accountId, string reason, CancellationToken cancellationToken = default) => Task.FromResult(false);
-            public Task RevokeAllAsync(string accountType, string accountId, string reason, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task RevokeAllAsync(string accountType, string accountId, string reason, CancellationToken cancellationToken = default)
+            {
+                foreach (var sessionId in _activeSessions.Keys)
+                    _activeSessions[sessionId] = false;
+                return Task.CompletedTask;
+            }
         }
 
         private sealed class TestAdminAuthorizationService : IAdminAuthorizationService

@@ -119,7 +119,8 @@ public class AdminAuthController : ControllerBase
 
     private int? GetAdminId()
     {
-        var subject = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        var subject = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+            ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         return subject is not null && subject.StartsWith("admin:", StringComparison.OrdinalIgnoreCase)
             && int.TryParse(subject["admin:".Length..], out var adminId) && adminId > 0 ? adminId : null;
     }
