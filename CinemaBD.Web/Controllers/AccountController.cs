@@ -331,7 +331,7 @@ public class AccountController : Controller
     {
         var token = HttpContext.Session.GetString("UserToken");
         if (!string.IsNullOrWhiteSpace(token))
-            await _apiClient.LogoutAsync(token, cancellationToken);
+            await _apiClient.RevokeCurrentSessionAsync(token, isAdmin: false, cancellationToken);
 
         HttpContext.Session.Clear();
         return RedirectToAction("Index", "Home");

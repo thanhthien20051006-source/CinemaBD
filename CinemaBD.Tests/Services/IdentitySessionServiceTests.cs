@@ -12,17 +12,21 @@ public sealed class IdentitySessionServiceTests
         .Options);
 
     [Fact]
-    public async Task CreateSessionAsync_PersistsCanonicalIdentityAndActiveSession()
+    public async Task CreateSessionAsync_PersistsCanonicalIdentityAndBoundedDeviceMetadata()
     {
         using var db = CreateDb();
         var service = new IdentitySessionService(db);
+        var longLabel = new string('d', 140);
+        var longAgent = new string('u', 600);
 
-        var id = await service.CreateSessionAsync("KHACHHANG", "KH-123");
+        var id = await service.CreateSessionAsync("KHACHHANG", "KH-123", longLabel, longAgent);
 
         var session = await db.IdentitySessions.SingleAsync();
         session.SessionId.Should().Be(id);
         session.AccountType.Should().Be("KHACHHANG");
         session.AccountId.Should().Be("KH-123");
+        session.DeviceName.Should().HaveLength(100);
+        session.UserAgent.Should().HaveLength(512);
         session.RevokedAtUtc.Should().BeNull();
         session.ExpiresAtUtc.Should().BeAfter(DateTime.UtcNow);
         (await service.IsActiveAsync(id)).Should().BeTrue();
@@ -59,5 +63,30 @@ public sealed class IdentitySessionServiceTests
         await db.SaveChangesAsync();
 
         (await service.IsActiveAsync(id)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RevokeSessionAsync_DoesNotAllowCrossAccountRevocation()
+    {
+        using var db = CreateDb();
+        var service = new IdentitySessionService(db);
+        var id = await service.CreateSessionAsync("KHACHHANG", "KH-1");
+
+        (await service.RevokeSessionAsync(id, "KHACHHANG", "KH-2", "logout")).Should().BeFalse();
+        (await service.IsActiveAsync(id)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ListSessionsAsync_ReturnsOnlyOwnerSessionsAndMarksCurrent()
+    {
+        using var db = CreateDb();
+        var service = new IdentitySessionService(db);
+        var current = await service.CreateSessionAsync("Admin", "1", "Laptop", "Agent A");
+        await service.CreateSessionAsync("Admin", "2", "Other", "Agent B");
+        var rows = await service.ListSessionsAsync("Admin", "1", current);
+
+        rows.Should().ContainSingle();
+        rows.Single().IsCurrent.Should().BeTrue();
+        rows.Single().DeviceName.Should().Be("Laptop");
     }
 }

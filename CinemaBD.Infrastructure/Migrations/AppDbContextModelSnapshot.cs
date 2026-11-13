@@ -13,6 +13,8 @@ namespace CinemaBD.Infrastructure.Migrations
     [DbContext(typeof(AppDbContext))]
     partial class AppDbContextModelSnapshot : ModelSnapshot
     {
+        public void BuildFullModel(ModelBuilder modelBuilder) => BuildModel(modelBuilder);
+
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
@@ -47,12 +49,20 @@ namespace CinemaBD.Infrastructure.Migrations
                     b.Property<DateTime>("LastSeenAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("DeviceName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<string>("RevocationReason")
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
 
                     b.Property<DateTime?>("RevokedAtUtc")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
 
                     b.HasKey("SessionId");
 

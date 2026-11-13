@@ -1,3 +1,3 @@
 namespace CinemaBD.Api.Contracts.Admin;
 
-public record AdminLoginRequest(string Username, string Password);
+public record AdminLoginRequest(string Username, string Password, string? DeviceName = null);

@@ -20,7 +20,10 @@ public class AdminAuthLogoutTests
         var revokedTokenServiceMock = new Mock<IRevokedTokenService>();
 
         var accountPasswordServiceMock = new Mock<IAccountPasswordService>();
-        var controller = new AdminAuthController(adminAuthServiceMock.Object, revokedTokenServiceMock.Object, accountPasswordServiceMock.Object);
+        var sessionServiceMock = new Mock<IIdentitySessionService>();
+        var sid = Guid.NewGuid();
+        sessionServiceMock.Setup(x => x.RevokeSessionAsync(sid, "Admin", "12", "logout", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        var controller = new AdminAuthController(adminAuthServiceMock.Object, revokedTokenServiceMock.Object, accountPasswordServiceMock.Object, sessionServiceMock.Object);
 
         var testJti = Guid.NewGuid().ToString("N");
         var expiryTime = DateTimeOffset.UtcNow.AddHours(1);
@@ -30,6 +33,9 @@ public class AdminAuthLogoutTests
         {
             new Claim(JwtRegisteredClaimNames.Jti, testJti),
             new Claim(JwtRegisteredClaimNames.Exp, expiryUnixSeconds),
+            new Claim(JwtRegisteredClaimNames.Sub, "admin:12"),
+            new Claim("sid", sid.ToString("D")),
+            new Claim("account_type", "admin"),
             new Claim(ClaimTypes.Role, "Admin")
         };
         var identity = new ClaimsIdentity(claims, "Bearer");
@@ -60,7 +66,8 @@ public class AdminAuthLogoutTests
         var adminAuthServiceMock = new Mock<IAdminAuthApiService>();
         var revokedTokenServiceMock = new Mock<IRevokedTokenService>();
         var passwordServiceMock = new Mock<IAccountPasswordService>();
-        var controller = new AdminAuthController(adminAuthServiceMock.Object, revokedTokenServiceMock.Object, passwordServiceMock.Object);
+        var sessionServiceMock = new Mock<IIdentitySessionService>();
+        var controller = new AdminAuthController(adminAuthServiceMock.Object, revokedTokenServiceMock.Object, passwordServiceMock.Object, sessionServiceMock.Object);
         var expires = DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeSeconds();
         controller.ControllerContext = new ControllerContext
         {
@@ -90,7 +97,7 @@ public class AdminAuthLogoutTests
         var revokedTokenServiceMock = new Mock<IRevokedTokenService>();
 
         var accountPasswordServiceMock = new Mock<IAccountPasswordService>();
-        var controller = new AdminAuthController(adminAuthServiceMock.Object, revokedTokenServiceMock.Object, accountPasswordServiceMock.Object);
+        var controller = new AdminAuthController(adminAuthServiceMock.Object, revokedTokenServiceMock.Object, accountPasswordServiceMock.Object, Mock.Of<IIdentitySessionService>());
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity()) }

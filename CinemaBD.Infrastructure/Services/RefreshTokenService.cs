@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Microsoft.EntityFrameworkCore;
 using CinemaBD.Application.Interfaces;
 using CinemaBD.Infrastructure.Persistence;
 
@@ -9,14 +10,16 @@ public sealed class RefreshTokenService : IRefreshTokenService
     private const int RefreshTokenLifetimeDays = 30;
     private readonly AppDbContext _db;
     private readonly IRefreshTokenStore _store;
+    private readonly ITokenService _tokenService;
 
-    public RefreshTokenService(AppDbContext db, IRefreshTokenStore store)
+    public RefreshTokenService(AppDbContext db, IRefreshTokenStore store, ITokenService tokenService)
     {
         _db = db;
         _store = store;
+        _tokenService = tokenService;
     }
 
-    public async Task<RefreshRotationResult> RotateAsync(string refreshToken, CancellationToken cancellationToken = default)
+    public async Task<RefreshRotationResult> RotateAsync(string refreshToken, string expectedAccountType, string expectedAccountId, CancellationToken cancellationToken = default)
     {
         if (!TryDecode(refreshToken, out var rawBytes))
             throw new UnauthorizedAccessException("Refresh token is invalid.");
@@ -32,16 +35,59 @@ public sealed class RefreshTokenService : IRefreshTokenService
         var now = DateTime.UtcNow;
         var replacementExpiresAt = now.AddDays(RefreshTokenLifetimeDays);
 
-        var result = await _store.RotateAsync(presentedHash, replacementHash, replacementId, now, replacementExpiresAt, cancellationToken);
-        CryptographicOperations.ZeroMemory(presentedHash);
-        CryptographicOperations.ZeroMemory(replacementHash);
+        RefreshTokenStoreResult result;
+        try
+        {
+            result = await _store.RotateAsync(presentedHash, replacementHash, replacementId, expectedAccountType, expectedAccountId, now, replacementExpiresAt, cancellationToken);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(presentedHash);
+            CryptographicOperations.ZeroMemory(replacementHash);
+        }
 
         if (result.Outcome == RefreshTokenStoreOutcome.Reused)
             throw new UnauthorizedAccessException("Refresh token reuse detected; session revoked.");
         if (result.Outcome != RefreshTokenStoreOutcome.Rotated || result.SessionId is null)
             throw new UnauthorizedAccessException("Refresh token is invalid or expired.");
 
-        return new RefreshRotationResult(replacementToken, result.SessionId.Value);
+        if (result.AccountType is null || result.AccountId is null
+            || !string.Equals(result.AccountType, expectedAccountType, StringComparison.Ordinal)
+            || !string.Equals(result.AccountId, expectedAccountId, StringComparison.Ordinal))
+        {
+            await new IdentitySessionService(_db).RevokeSessionAsync(result.SessionId.Value, result.AccountType ?? string.Empty, result.AccountId ?? string.Empty, "refresh_identity_mismatch", cancellationToken);
+            throw new UnauthorizedAccessException("Refresh token account does not match the access token.");
+        }
+        var account = await LoadAccountAsync(result.AccountType, result.AccountId, cancellationToken);
+        var accessToken = _tokenService.CreateToken(account, result.SessionId.Value, account.MustChangePassword || account.PasswordExpired);
+        return new RefreshRotationResult(accessToken, replacementToken, result.SessionId.Value, result.AccountType, result.AccountId);
+    }
+
+    private async Task<CinemaBD.Domain.Entities.UserAccount> LoadAccountAsync(string accountType, string accountId, CancellationToken cancellationToken)
+    {
+        if (string.Equals(accountType, "Admin", StringComparison.Ordinal))
+        {
+            if (!int.TryParse(accountId, out var adminId)) throw new UnauthorizedAccessException("Refresh token account is invalid.");
+            var admin = await _db.Admins.SingleOrDefaultAsync(x => x.AdminID == adminId && x.IsActive, cancellationToken)
+                ?? throw new UnauthorizedAccessException("Refresh token account is inactive.");
+            var access = await new AdminAuthorizationService(_db).GetAccessForAdminAsync(adminId, cancellationToken);
+            return new CinemaBD.Domain.Entities.UserAccount
+            {
+                Id = $"admin:{adminId}", Username = admin.Username, FullName = admin.FullName ?? admin.Username,
+                PasswordHash = admin.Password, MustChangePassword = admin.MustChangePassword,
+                PasswordExpired = admin.PasswordExpiresAt is not null && admin.PasswordExpiresAt <= DateTime.UtcNow,
+                RoleId = access.RoleId, IsMaster = access.IsMaster, Permissions = access.Permissions
+            };
+        }
+
+        var customer = await _db.Customers.SingleOrDefaultAsync(x => x.MaKH == accountId, cancellationToken)
+            ?? throw new UnauthorizedAccessException("Refresh token account is inactive.");
+        var expired = customer.PasswordExpiresAt is not null && customer.PasswordExpiresAt <= DateTime.UtcNow;
+        return new CinemaBD.Domain.Entities.UserAccount
+        {
+            Id = customer.MaKH, Username = customer.TKhoan, FullName = customer.HoTen, PasswordHash = customer.MatKhau,
+            MustChangePassword = customer.MustChangePassword, PasswordExpired = expired
+        };
     }
 
     public static string CreateOpaqueToken()

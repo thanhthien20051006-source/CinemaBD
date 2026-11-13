@@ -50,7 +50,7 @@ public class AdminAccountController : Controller
         var token = HttpContext.Session.GetString("AdminToken");
         if (!string.IsNullOrWhiteSpace(token))
         {
-            await _apiClient.AdminLogoutAsync(token, cancellationToken);
+            await _apiClient.RevokeCurrentSessionAsync(token, isAdmin: true, cancellationToken);
         }
 
         HttpContext.Session.Clear();

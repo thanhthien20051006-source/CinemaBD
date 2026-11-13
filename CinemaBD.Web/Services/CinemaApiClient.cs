@@ -120,7 +120,7 @@ public class CinemaApiClient
     {
         try
         {
-            using var response = await _httpClient.PostAsJsonAsync("api/auth/login", new { username, password }, cancellationToken);
+            using var response = await _httpClient.PostAsJsonAsync("api/auth/login", new { username, password, deviceName = "CinemaBD Web" }, cancellationToken);
             if (!response.IsSuccessStatusCode)
                 return null;
 
@@ -137,7 +137,7 @@ public class CinemaApiClient
     {
         try
         {
-            using var response = await _httpClient.PostAsJsonAsync("api/admin/auth/login", new { username, password }, cancellationToken);
+            using var response = await _httpClient.PostAsJsonAsync("api/admin/auth/login", new { username, password, deviceName = "CinemaBD Web Admin" }, cancellationToken);
             if (!response.IsSuccessStatusCode)
                 return null;
 
@@ -148,6 +148,41 @@ public class CinemaApiClient
         {
             return null;
         }
+    }
+
+    public async Task<(string Token, string RefreshToken, Guid SessionId)?> RefreshCustomerSessionAsync(string accessToken, string refreshToken, CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.PostAsJsonAsync("api/auth/refresh", new { accessToken, refreshToken }, cancellationToken);
+        if (!response.IsSuccessStatusCode) return null;
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<RefreshResult>>(cancellationToken: cancellationToken);
+        return payload?.Data is { } data ? (data.Token, data.RefreshToken, data.SessionId) : null;
+    }
+
+    public async Task<(string Token, string RefreshToken, Guid SessionId)?> RefreshAdminSessionAsync(string accessToken, string refreshToken, CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.PostAsJsonAsync("api/admin/auth/refresh", new { accessToken, refreshToken }, cancellationToken);
+        if (!response.IsSuccessStatusCode) return null;
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<RefreshResult>>(cancellationToken: cancellationToken);
+        return payload?.Data is { } data ? (data.Token, data.RefreshToken, data.SessionId) : null;
+    }
+
+    private sealed class RefreshResult
+    {
+        [JsonPropertyName("token")]
+        public string Token { get; set; } = string.Empty;
+        [JsonPropertyName("refreshToken")]
+        public string RefreshToken { get; set; } = string.Empty;
+        [JsonPropertyName("sessionId")]
+        public Guid SessionId { get; set; }
+    }
+
+    public async Task<bool> RevokeCurrentSessionAsync(string token, bool isAdmin, CancellationToken cancellationToken = default)
+    {
+        var endpoint = isAdmin ? "api/admin/auth/logout" : "api/auth/logout";
+        using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        return response.IsSuccessStatusCode;
     }
 
     public async Task<bool> AdminLogoutAsync(string token, CancellationToken cancellationToken = default)
@@ -173,7 +208,8 @@ public class CinemaApiClient
             username,
             password,
             email,
-            phoneNumber
+            phoneNumber,
+            deviceName = "CinemaBD Web"
         }, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
@@ -494,6 +530,8 @@ public class CinemaApiClient
         public string Username { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
         public string Token { get; set; } = string.Empty;
+        public string? RefreshToken { get; set; }
+        public Guid? SessionId { get; set; }
         public bool MustChangePassword { get; set; }
         public bool PasswordExpired { get; set; }
     }
@@ -505,6 +543,8 @@ public class CinemaApiClient
         public string FullName { get; set; } = string.Empty;
         public string? Role { get; set; }
         public string Token { get; set; } = string.Empty;
+        public string? RefreshToken { get; set; }
+        public Guid? SessionId { get; set; }
         public bool MustChangePassword { get; set; }
         public bool PasswordExpired { get; set; }
     }

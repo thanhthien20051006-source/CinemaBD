@@ -15,6 +15,12 @@ namespace CinemaBD.Tests.Services;
 
 public class AuthServiceRehashTests
 {
+    private sealed class TestAdminAuthorizationService : IAdminAuthorizationService
+    {
+        public Task<AdminAuthorizationAccess> GetAccessForAdminAsync(int adminId, CancellationToken cancellationToken = default)
+            => Task.FromResult(new AdminAuthorizationAccess(1, true, Array.Empty<string>()));
+    }
+
     private static string ComputeMd5(string input)
     {
         using var md5 = MD5.Create();
@@ -48,7 +54,7 @@ public class AuthServiceRehashTests
         });
         await db.SaveChangesAsync();
 
-        var adminService = new AdminAuthApiService(db, hasher, tokenServiceMock.Object, new CinemaBD.Infrastructure.Services.IdentitySessionService(db));
+        var adminService = new AdminAuthApiService(db, hasher, tokenServiceMock.Object, new CinemaBD.Infrastructure.Services.IdentitySessionService(db), new TestAdminAuthorizationService());
 
         // Act
         var result = await adminService.LoginAsync("admin_md5", rawPassword);

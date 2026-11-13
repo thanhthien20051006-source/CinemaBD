@@ -73,7 +73,9 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
                 new Claim(JwtRegisteredClaimNames.UniqueName, "admin_test"),
                 new Claim("full_name", "Admin Test User"),
-                new Claim("account_type", "admin")
+                new Claim("account_type", "admin"),
+                new Claim("sid", TestApiFactory.SessionId.ToString("D")),
+                new Claim(ClaimTypes.Role, "Admin")
             }),
             Expires = DateTime.UtcNow.AddHours(1),
             Issuer = TestApiFactory.TestJwtIssuer,
@@ -90,6 +92,7 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
         public const string TestJwtIssuer = "CinemaBD.Test";
         public const string TestJwtAudience = "CinemaBD.Client.Test";
         public const string TestQrKey = "SuperSecretQrSigningKeyForTesting1234567890!";
+        public static readonly Guid SessionId = Guid.NewGuid();
         private readonly string _databaseName = "AdminAuthLogoutTestDb_" + Guid.NewGuid();
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -101,6 +104,8 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
             builder.UseSetting("Security:QrSigningKey", TestQrKey);
             builder.UseSetting("ConnectionStrings:DefaultConnection", "Server=unused.invalid;Database=AdminAuthTest;User Id=test;Password=test");
             builder.UseSetting("DatabaseSeed:AllowDemoData", "false");
+            builder.UseSetting("Database:AllowAutoMigrate", "false");
+            builder.UseSetting("Database:AllowedNames:0", string.Empty);
 
             builder.ConfigureServices(services =>
             {
@@ -114,6 +119,10 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
                 services.AddScoped<IAdminRoleService, TestAdminRoleService>();
                 RemoveService<IRevokedTokenService>(services);
                 services.AddSingleton<IRevokedTokenService, InMemoryRevokedTokenService>();
+                RemoveService<IIdentitySessionService>(services);
+                services.AddSingleton<IIdentitySessionService>(new TestIdentitySessionService());
+                RemoveService<IRefreshTokenService>(services);
+                services.AddScoped<IRefreshTokenService, TestRefreshTokenService>();
             });
         }
 
@@ -122,6 +131,23 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
             var descriptors = services.Where(descriptor => descriptor.ServiceType == typeof(TService)).ToList();
             foreach (var descriptor in descriptors)
                 services.Remove(descriptor);
+        }
+
+        private sealed class TestRefreshTokenService : IRefreshTokenService
+        {
+            public Task<RefreshRotationResult> RotateAsync(string refreshToken, string expectedAccountType, string expectedAccountId, CancellationToken cancellationToken = default)
+                => Task.FromResult(new RefreshRotationResult("access", "refresh", SessionId, "Admin", "1"));
+        }
+
+        private sealed class TestIdentitySessionService : IIdentitySessionService
+        {
+            public Task<Guid> CreateSessionAsync(string accountType, string accountId, string? deviceName = null, string? userAgent = null, CancellationToken cancellationToken = default) => Task.FromResult(SessionId);
+            public Task<string> IssueRefreshTokenAsync(Guid sessionId, CancellationToken cancellationToken = default) => Task.FromResult("test-refresh-token");
+            public Task<bool> IsActiveAsync(Guid sessionId, CancellationToken cancellationToken = default) => Task.FromResult(sessionId == SessionId);
+            public Task<IReadOnlyCollection<IdentitySessionInfo>> ListSessionsAsync(string accountType, string accountId, Guid currentSessionId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyCollection<IdentitySessionInfo>>([]);
+            public Task<bool> RevokeSessionAsync(Guid sessionId, string accountType, string accountId, string reason, CancellationToken cancellationToken = default) => Task.FromResult(sessionId == SessionId);
+            public Task<bool> RevokeSessionByRefreshTokenAsync(string refreshToken, string accountType, string accountId, string reason, CancellationToken cancellationToken = default) => Task.FromResult(false);
+            public Task RevokeAllAsync(string accountType, string accountId, string reason, CancellationToken cancellationToken = default) => Task.CompletedTask;
         }
 
         private sealed class TestAdminAuthorizationService : IAdminAuthorizationService

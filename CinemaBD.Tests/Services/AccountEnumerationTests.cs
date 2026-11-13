@@ -73,7 +73,7 @@ public class AccountEnumerationTests
         });
         await db.SaveChangesAsync();
 
-        var adminService = new AdminAuthApiService(db, hasher, tokenServiceMock.Object, new CinemaBD.Infrastructure.Services.IdentitySessionService(db));
+        var adminService = new AdminAuthApiService(db, hasher, tokenServiceMock.Object, new CinemaBD.Infrastructure.Services.IdentitySessionService(db), new CinemaBD.Infrastructure.Services.AdminAuthorizationService(db));
 
         // Case 1: Non-existent admin
         var actNonExistent = () => adminService.LoginAsync("nonexistentadmin", "somepassword");
@@ -160,7 +160,7 @@ public class AccountEnumerationTests
 
         var tokenServiceMock = new Mock<ITokenService>();
 
-        var adminService = new AdminAuthApiService(db, hasher, tokenServiceMock.Object, new CinemaBD.Infrastructure.Services.IdentitySessionService(db));
+        var adminService = new AdminAuthApiService(db, hasher, tokenServiceMock.Object, new CinemaBD.Infrastructure.Services.IdentitySessionService(db), new CinemaBD.Infrastructure.Services.AdminAuthorizationService(db));
 
         var act = () => adminService.LoginAsync("nonexistentadmin", "testpassword123");
         await act.Should().ThrowAsync<InvalidOperationException>()

@@ -10,6 +10,7 @@ import com.cinemabd.app.core.session.SessionManager
 import com.cinemabd.app.feature.booking.BookingCartManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -71,6 +72,10 @@ class ProfileRepository @Inject constructor(
     }
 
     suspend fun logout() = withContext(Dispatchers.IO) {
+        val current = tokenDataStore.sessionFlow.first()
+        if (current != null) {
+            try { accountApi.logout("Bearer ${current.accessToken}") } catch (_: Exception) { /* Always clear local state even if server is unavailable. */ }
+        }
         sessionManager.clearSession()
         tokenDataStore.clearSession()
         cinemaDatabase.clearAllTables()

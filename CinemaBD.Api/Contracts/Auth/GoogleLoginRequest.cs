@@ -1,3 +1,3 @@
 namespace CinemaBD.Api.Contracts.Auth;
 
-public record GoogleLoginRequest(string IdToken);
+public record GoogleLoginRequest(string IdToken, string? DeviceName = null);

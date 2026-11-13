@@ -98,23 +98,28 @@ public class DatabaseInitializerTests
     }
 
     [Fact]
-    public void ApiStartup_WhenConnectionStringIsMissing_FailsWithClearConfigurationError()
+    public void ApiStartup_WithInMemoryProviderAndInitializerDisabled_DoesNotConnectToSqlServer()
     {
         using var factory = new WebApplicationFactory<CinemaBD.Api.Program>()
-            .WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, configuration) =>
-                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            .WithWebHostBuilder(builder =>
+            {
+                builder.UseEnvironment("Test");
+                builder.UseSetting("Jwt:Key", "0123456789abcdef0123456789abcdef");
+                builder.UseSetting("Security:QrSigningKey", "abcdef0123456789abcdef0123456789");
+                builder.UseSetting("Jwt:Issuer", "test-issuer");
+                builder.UseSetting("Jwt:Audience", "test-audience");
+                builder.UseSetting("ConnectionStrings:DefaultConnection", "Server=never-resolve.invalid;Database=NoConnect;User Id=test;Password=test");
+                builder.UseSetting("Database:AllowAutoMigrate", "false");
+                builder.UseSetting("DatabaseSeed:AllowDemoData", "false");
+                builder.ConfigureServices(services =>
                 {
-                    ["ConnectionStrings:DefaultConnection"] = " ",
-                    ["Jwt:Key"] = "0123456789abcdef0123456789abcdef",
-                    ["Security:QrSigningKey"] = "abcdef0123456789abcdef0123456789",
-                    ["Jwt:Issuer"] = "test-issuer",
-                    ["Jwt:Audience"] = "test-audience"
-                })));
+                    foreach (var descriptor in services.Where(x => x.ServiceType == typeof(DbContextOptions<AppDbContext>)).ToList()) services.Remove(descriptor);
+                    services.AddDbContext<AppDbContext>(db => db.UseInMemoryDatabase(Guid.NewGuid().ToString()));
+                });
+            });
 
-        var action = () => factory.CreateClient();
-
-        action.Should().Throw<InvalidOperationException>()
-            .Which.ToString().Should().Contain("ConnectionStrings__DefaultConnection");
+        var client = factory.CreateClient();
+        client.Should().NotBeNull();
     }
 
     private sealed class ListLogger<T> : ILogger<T>

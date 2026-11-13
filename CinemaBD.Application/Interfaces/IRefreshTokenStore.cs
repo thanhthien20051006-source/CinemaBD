@@ -7,7 +7,7 @@ public enum RefreshTokenStoreOutcome
     Invalid
 }
 
-public sealed record RefreshTokenStoreResult(RefreshTokenStoreOutcome Outcome, Guid? SessionId);
+public sealed record RefreshTokenStoreResult(RefreshTokenStoreOutcome Outcome, Guid? SessionId, string? AccountType = null, string? AccountId = null);
 
 public interface IRefreshTokenStore
 {
@@ -15,6 +15,8 @@ public interface IRefreshTokenStore
         byte[] presentedTokenHash,
         byte[] replacementTokenHash,
         Guid replacementTokenId,
+        string expectedAccountType,
+        string expectedAccountId,
         DateTime nowUtc,
         DateTime replacementExpiresAtUtc,
         CancellationToken cancellationToken = default);

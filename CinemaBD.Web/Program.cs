@@ -79,10 +79,11 @@ builder.Services.AddScoped<ITicketPdfService, TicketPdfService>();
 builder.Services.AddScoped<IInvoiceNotificationService, InvoiceNotificationService>();
 builder.Services.AddHttpClient();
 
+builder.Services.AddTransient<ApiSessionTokenRefreshHandler>();
 builder.Services.AddHttpClient<CinemaApiClient>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5188/");
-});
+}).AddHttpMessageHandler<ApiSessionTokenRefreshHandler>();
 
 builder.Services.AddAuthentication(options =>
 {

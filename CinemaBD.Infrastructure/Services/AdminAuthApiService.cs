@@ -13,16 +13,18 @@ public class AdminAuthApiService : IAdminAuthApiService
     private readonly Pbkdf2PasswordHasher _passwordHasher;
     private readonly ITokenService _tokenService;
     private readonly IIdentitySessionService _identitySessionService;
+    private readonly IAdminAuthorizationService _adminAuthorizationService;
 
-    public AdminAuthApiService(AppDbContext db, Pbkdf2PasswordHasher passwordHasher, ITokenService tokenService, IIdentitySessionService identitySessionService)
+    public AdminAuthApiService(AppDbContext db, Pbkdf2PasswordHasher passwordHasher, ITokenService tokenService, IIdentitySessionService identitySessionService, IAdminAuthorizationService adminAuthorizationService)
     {
         _db = db;
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
         _identitySessionService = identitySessionService;
+        _adminAuthorizationService = adminAuthorizationService;
     }
 
-    public async Task<(int AdminId, string Username, string FullName, string? Role, string Token, bool MustChangePassword, bool PasswordExpired)> LoginAsync(string username, string password, CancellationToken cancellationToken = default)
+    public async Task<(int AdminId, string Username, string FullName, string? Role, string Token, string RefreshToken, Guid SessionId, bool MustChangePassword, bool PasswordExpired)> LoginAsync(string username, string password, string? deviceName = null, string? userAgent = null, CancellationToken cancellationToken = default)
     {
         var admin = await _db.Admins.FirstOrDefaultAsync(x => x.Username == username && x.IsActive, cancellationToken);
         if (admin == null)
@@ -58,8 +60,23 @@ public class AdminAuthApiService : IAdminAuthApiService
             PasswordExpired = passwordExpired
         };
 
-        var sessionId = await _identitySessionService.CreateSessionAsync("Admin", admin.AdminID.ToString(System.Globalization.CultureInfo.InvariantCulture), cancellationToken);
-        var token = _tokenService.CreateToken(account, sessionId, mustChangePassword);
-        return (admin.AdminID, admin.Username, account.FullName, admin.Role, token, mustChangePassword, passwordExpired);
+        var access = await _adminAuthorizationService.GetAccessForAdminAsync(admin.AdminID, cancellationToken);
+        account.RoleId = access.RoleId;
+        account.IsMaster = access.IsMaster;
+        account.Permissions = access.Permissions;
+
+        var accountId = admin.AdminID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var sessionId = await _identitySessionService.CreateSessionAsync("Admin", accountId, deviceName, userAgent, cancellationToken);
+        try
+        {
+            var token = _tokenService.CreateToken(account, sessionId, mustChangePassword);
+            var refreshToken = await _identitySessionService.IssueRefreshTokenAsync(sessionId, cancellationToken);
+            return (admin.AdminID, admin.Username, account.FullName, admin.Role, token, refreshToken, sessionId, mustChangePassword, passwordExpired);
+        }
+        catch
+        {
+            await _identitySessionService.RevokeSessionAsync(sessionId, "Admin", accountId, "token_issuance_failed", cancellationToken);
+            throw;
+        }
     }
 }

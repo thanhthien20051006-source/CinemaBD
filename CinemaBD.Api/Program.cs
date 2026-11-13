@@ -15,9 +15,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddProblemDetails();
 builder.Services.AddScoped<CinemaBD.Api.Filters.AdminPermissionAuthorizationFilter>();
 builder.Services.AddScoped<CinemaBD.Api.Filters.PasswordChangeRestrictionFilter>();
+builder.Services.AddScoped<CinemaBD.Api.Filters.AdminPermissionClaimAuthorizationFilter>();
+builder.Services.AddScoped<CinemaBD.Api.Security.AccessTokenProofValidator>();
+builder.Services.AddScoped<CinemaBD.Api.Security.IdentityRequestResolver>();
 builder.Services.AddControllers(options =>
 {
     options.Filters.AddService<CinemaBD.Api.Filters.AdminPermissionAuthorizationFilter>();
+    options.Filters.AddService<CinemaBD.Api.Filters.AdminPermissionClaimAuthorizationFilter>();
     options.Filters.AddService<CinemaBD.Api.Filters.PasswordChangeRestrictionFilter>();
 });
 builder.Services.AddCors(options => options.AddPolicy("WebClients", policy =>

@@ -27,7 +27,7 @@ public class AuthService : IAuthService
         _configuration = configuration;
     }
 
-    public async Task<(string Token, bool MustChangePassword, bool PasswordExpired)> LoginAsync(string username, string password, CancellationToken cancellationToken = default)
+    public async Task<(string Token, string RefreshToken, Guid SessionId, bool MustChangePassword, bool PasswordExpired)> LoginAsync(string username, string password, string? deviceName = null, string? userAgent = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
             throw new ArgumentException("Thiếu tài khoản hoặc mật khẩu.");
@@ -71,11 +71,21 @@ public class AuthService : IAuthService
             PasswordExpired = passwordExpired
         };
 
-        var sessionId = await _identitySessionService.CreateSessionAsync("KHACHHANG", user.MaKH, cancellationToken);
-        return (_tokenService.CreateToken(account, sessionId, mustChangePassword), mustChangePassword, passwordExpired);
+        var sessionId = await _identitySessionService.CreateSessionAsync("KHACHHANG", user.MaKH, deviceName, userAgent, cancellationToken);
+        try
+        {
+            var accessToken = _tokenService.CreateToken(account, sessionId, mustChangePassword);
+            var refreshToken = await _identitySessionService.IssueRefreshTokenAsync(sessionId, cancellationToken);
+            return (accessToken, refreshToken, sessionId, mustChangePassword, passwordExpired);
+        }
+        catch
+        {
+            await _identitySessionService.RevokeSessionAsync(sessionId, "KHACHHANG", user.MaKH, "token_issuance_failed", cancellationToken);
+            throw;
+        }
     }
 
-    public async Task<string> RegisterAsync(string fullName, string username, string password, string? email, string? phoneNumber, CancellationToken cancellationToken = default)
+    public async Task<(string Token, string RefreshToken, Guid SessionId)> RegisterAsync(string fullName, string username, string password, string? email, string? phoneNumber, string? deviceName = null, string? userAgent = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(fullName) || string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
             throw new ArgumentException("Thiếu thông tin đăng ký bắt buộc.");
@@ -109,11 +119,21 @@ public class AuthService : IAuthService
             PhoneNumber = customer.SDT
         };
 
-        var sessionId = await _identitySessionService.CreateSessionAsync("KHACHHANG", customer.MaKH, cancellationToken);
-        return _tokenService.CreateToken(account, sessionId);
+        var sessionId = await _identitySessionService.CreateSessionAsync("KHACHHANG", customer.MaKH, deviceName, userAgent, cancellationToken);
+        try
+        {
+            var accessToken = _tokenService.CreateToken(account, sessionId);
+            var refreshToken = await _identitySessionService.IssueRefreshTokenAsync(sessionId, cancellationToken);
+            return (accessToken, refreshToken, sessionId);
+        }
+        catch
+        {
+            await _identitySessionService.RevokeSessionAsync(sessionId, "KHACHHANG", customer.MaKH, "token_issuance_failed", cancellationToken);
+            throw;
+        }
     }
 
-    public async Task<string> GoogleLoginAsync(string idToken, CancellationToken cancellationToken = default)
+    public async Task<(string Token, string RefreshToken, Guid SessionId)> GoogleLoginAsync(string idToken, string? deviceName = null, string? userAgent = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(idToken))
             throw new ArgumentException("Thiếu token Google.");
@@ -171,8 +191,18 @@ public class AuthService : IAuthService
             MustChangePassword = customer.MustChangePassword || (customer.PasswordExpiresAt is not null && customer.PasswordExpiresAt <= DateTime.UtcNow)
         };
 
-        var sessionId = await _identitySessionService.CreateSessionAsync("KHACHHANG", customer.MaKH, cancellationToken);
-        return _tokenService.CreateToken(account, sessionId, account.MustChangePassword);
+        var sessionId = await _identitySessionService.CreateSessionAsync("KHACHHANG", customer.MaKH, deviceName, userAgent, cancellationToken);
+        try
+        {
+            var accessToken = _tokenService.CreateToken(account, sessionId, account.MustChangePassword);
+            var refreshToken = await _identitySessionService.IssueRefreshTokenAsync(sessionId, cancellationToken);
+            return (accessToken, refreshToken, sessionId);
+        }
+        catch
+        {
+            await _identitySessionService.RevokeSessionAsync(sessionId, "KHACHHANG", customer.MaKH, "token_issuance_failed", cancellationToken);
+            throw;
+        }
     }
 
     private static void ValidateNewPassword(string password)

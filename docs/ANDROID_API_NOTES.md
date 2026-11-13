@@ -97,7 +97,11 @@ Gửi token cho các route có JWT:
 Authorization: Bearer <data.token>
 ```
 
-JWT được ký HMAC SHA-256, kiểm tra issuer, audience, chữ ký và hạn dùng. Token hiện hết hạn sau **12 giờ UTC**. Claim gồm `sub`, `unique_name`, `full_name`, role và `account_type`. API dùng `sub` để xác định khách hàng hiện tại.
+(Kế hoạch B3b, chưa xác minh triển khai): JWT được ký HMAC SHA-256, kiểm tra issuer, audience, chữ ký, hạn dùng và phiên server-side ở mỗi request. Access token dự kiến hết hạn sau **15 phút UTC** và chứa `sid`; JWT cũ không có `sid` sẽ bị từ chối, cần đăng nhập lại. Claim dự kiến gồm `sub`, `unique_name`, `full_name`, role, `account_type`, `sid`; API dùng `sub` để xác định khách hàng hiện tại.
+
+Login/đăng ký trả thêm `refreshToken` và `sessionId`. Refresh token là giá trị opaque, chỉ được giữ an toàn phía client; khi refresh gửi `POST /api/auth/refresh` với `{ "accessToken": "...", "refreshToken": "..." }`. Rotation thay refresh token cũ, chỉ dùng một lần. Nếu server phát hiện reuse token đã tiêu thụ, phiên tương ứng bị thu hồi. Không log các token.
+
+`GET /api/auth/sessions` liệt kê phiên thuộc khách hàng hiện tại, bao gồm nhãn thiết bị/User-Agent đã lưu và cờ phiên hiện tại; `DELETE /api/auth/sessions/{sessionId}` thu hồi một phiên do khách hàng sở hữu. `POST /api/auth/logout` thu hồi phiên hiện tại; đổi mật khẩu thu hồi mọi phiên của tài khoản. `401` vẫn cần xử lý an toàn: app có thể thử refresh một lần trước khi xóa session/điều hướng đăng nhập, không lặp refresh khi refresh thất bại.
 
 Không có refresh-token endpoint. Khi nhận `401`, Android nên xóa token cũ, đưa người dùng về đăng nhập, và không tự gửi lại mật khẩu.
 

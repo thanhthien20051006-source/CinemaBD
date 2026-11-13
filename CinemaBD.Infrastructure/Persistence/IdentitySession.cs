@@ -14,4 +14,6 @@ public sealed class IdentitySession
     public DateTime ExpiresAtUtc { get; set; }
     public DateTime? RevokedAtUtc { get; set; }
     public string? RevocationReason { get; set; }
+    public string? DeviceName { get; set; }
+    public string? UserAgent { get; set; }
 }

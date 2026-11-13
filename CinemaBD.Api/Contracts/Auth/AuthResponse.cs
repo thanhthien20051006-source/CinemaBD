@@ -1,3 +1,3 @@
 namespace CinemaBD.Api.Contracts.Auth;
 
-public record AuthResponse(string UserId, string Username, string FullName, string Token, bool MustChangePassword = false, bool PasswordExpired = false);
+public record AuthResponse(string UserId, string Username, string FullName, string Token, bool MustChangePassword = false, bool PasswordExpired = false, string? RefreshToken = null, Guid? SessionId = null);

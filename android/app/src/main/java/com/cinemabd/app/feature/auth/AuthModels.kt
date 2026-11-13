@@ -5,7 +5,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class LoginRequest(
     val username: String,
-    val password: String
+    val password: String,
+    val deviceName: String? = "Android app"
 )
 
 @Serializable
@@ -20,7 +21,8 @@ data class RegisterRequest(
     val username: String,
     val password: String,
     val email: String? = null,
-    val phoneNumber: String? = null
+    val phoneNumber: String? = null,
+    val deviceName: String? = "Android app"
 )
 
 @Serializable
@@ -47,5 +49,7 @@ data class AdminAuthResponse(
     val role: String? = null,
     val token: String = "",
     val mustChangePassword: Boolean = false,
-    val passwordExpired: Boolean = false
+    val passwordExpired: Boolean = false,
+    val refreshToken: String? = null,
+    val sessionId: String? = null
 )
