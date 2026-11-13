@@ -4,6 +4,7 @@ using CinemaBD.Application.Interfaces;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Moq;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -12,6 +13,21 @@ namespace CinemaBD.Tests.Controllers;
 
 public class AdminAuthLogoutTests
 {
+    private static CinemaBD.Api.Security.IdentityRequestResolver CreateRequestResolver()
+    {
+        var config = new Microsoft.Extensions.Configuration.ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Jwt:Key"] = "0123456789abcdef0123456789abcdef",
+            ["Jwt:Issuer"] = "test",
+            ["Jwt:Audience"] = "test"
+        }).Build();
+        return new CinemaBD.Api.Security.IdentityRequestResolver(
+            new CinemaBD.Api.Security.AccessTokenProofValidator(config),
+            Mock.Of<IIdentitySessionService>(),
+            Mock.Of<IRevokedTokenService>(),
+            Mock.Of<Microsoft.Extensions.Logging.ILogger<CinemaBD.Api.Security.IdentityRequestResolver>>());
+    }
+
     [Fact]
     public async Task AdminLogout_WithValidJwtClaims_ShouldRevokeTokenAndReturnSuccess()
     {
@@ -23,7 +39,7 @@ public class AdminAuthLogoutTests
         var sessionServiceMock = new Mock<IIdentitySessionService>();
         var sid = Guid.NewGuid();
         sessionServiceMock.Setup(x => x.RevokeSessionAsync(sid, "Admin", "12", "logout", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        var controller = new AdminAuthController(adminAuthServiceMock.Object, revokedTokenServiceMock.Object, accountPasswordServiceMock.Object, sessionServiceMock.Object);
+        var controller = new AdminAuthController(adminAuthServiceMock.Object, revokedTokenServiceMock.Object, accountPasswordServiceMock.Object, sessionServiceMock.Object, identityRequestResolver: CreateRequestResolver());
 
         var testJti = Guid.NewGuid().ToString("N");
         var expiryTime = DateTimeOffset.UtcNow.AddHours(1);
@@ -67,7 +83,7 @@ public class AdminAuthLogoutTests
         var revokedTokenServiceMock = new Mock<IRevokedTokenService>();
         var passwordServiceMock = new Mock<IAccountPasswordService>();
         var sessionServiceMock = new Mock<IIdentitySessionService>();
-        var controller = new AdminAuthController(adminAuthServiceMock.Object, revokedTokenServiceMock.Object, passwordServiceMock.Object, sessionServiceMock.Object);
+        var controller = new AdminAuthController(adminAuthServiceMock.Object, revokedTokenServiceMock.Object, passwordServiceMock.Object, sessionServiceMock.Object, identityRequestResolver: CreateRequestResolver());
         var expires = DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeSeconds();
         controller.ControllerContext = new ControllerContext
         {
@@ -97,7 +113,7 @@ public class AdminAuthLogoutTests
         var revokedTokenServiceMock = new Mock<IRevokedTokenService>();
 
         var accountPasswordServiceMock = new Mock<IAccountPasswordService>();
-        var controller = new AdminAuthController(adminAuthServiceMock.Object, revokedTokenServiceMock.Object, accountPasswordServiceMock.Object, Mock.Of<IIdentitySessionService>());
+        var controller = new AdminAuthController(adminAuthServiceMock.Object, revokedTokenServiceMock.Object, accountPasswordServiceMock.Object, Mock.Of<IIdentitySessionService>(), identityRequestResolver: CreateRequestResolver());
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity()) }

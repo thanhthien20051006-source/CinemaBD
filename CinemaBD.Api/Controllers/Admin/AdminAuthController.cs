@@ -17,19 +17,15 @@ public class AdminAuthController : ControllerBase
     private readonly IAccountPasswordService _accountPasswordService;
     private readonly IIdentitySessionService _identitySessionService;
     private readonly IRefreshTokenService _refreshTokenService;
-    private readonly ITokenService _tokenService;
-    private readonly IAdminAuthorizationService _adminAuthorizationService;
     private readonly CinemaBD.Api.Security.IdentityRequestResolver _identityRequestResolver;
 
-    public AdminAuthController(IAdminAuthApiService adminAuthService, IRevokedTokenService revokedTokenService, IAccountPasswordService accountPasswordService, IIdentitySessionService identitySessionService = null!, IRefreshTokenService refreshTokenService = null!, ITokenService tokenService = null!, IAdminAuthorizationService adminAuthorizationService = null!, CinemaBD.Api.Security.IdentityRequestResolver identityRequestResolver = null!)
+    public AdminAuthController(IAdminAuthApiService adminAuthService, IRevokedTokenService revokedTokenService, IAccountPasswordService accountPasswordService, IIdentitySessionService identitySessionService = null!, IRefreshTokenService refreshTokenService = null!, CinemaBD.Api.Security.IdentityRequestResolver identityRequestResolver = null!)
     {
         _adminAuthService = adminAuthService;
         _revokedTokenService = revokedTokenService;
         _accountPasswordService = accountPasswordService;
         _identitySessionService = identitySessionService;
         _refreshTokenService = refreshTokenService;
-        _tokenService = tokenService;
-        _adminAuthorizationService = adminAuthorizationService;
         _identityRequestResolver = identityRequestResolver;
     }
 

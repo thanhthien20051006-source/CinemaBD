@@ -1,4 +1,3 @@
-using CinemaBD.Application.Interfaces;
 using CinemaBD.Domain.Entities;
 using CinemaBD.Infrastructure.Persistence;
 using CinemaBD.Infrastructure.Security;
