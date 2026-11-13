@@ -33,6 +33,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITokenService, JwtTokenService>();
         services.AddScoped<IRevokedTokenService, RevokedTokenService>();
         services.AddScoped<IIdentitySessionService, IdentitySessionService>();
+        services.AddScoped<IRefreshTokenStore, EfRefreshTokenStore>();
+        services.AddScoped<IRefreshTokenService, RefreshTokenService>();
         services.AddSingleton<IQrCodeSecurityService, HmacQrCodeSecurityService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAdminAuthApiService, AdminAuthApiService>();
