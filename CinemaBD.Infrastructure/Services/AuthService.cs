@@ -15,13 +15,15 @@ public class AuthService : IAuthService
     private readonly AppDbContext _db;
     private readonly Pbkdf2PasswordHasher _passwordHasher;
     private readonly ITokenService _tokenService;
+    private readonly IIdentitySessionService _identitySessionService;
     private readonly IConfiguration _configuration;
 
-    public AuthService(AppDbContext db, Pbkdf2PasswordHasher passwordHasher, ITokenService tokenService, IConfiguration configuration)
+    public AuthService(AppDbContext db, Pbkdf2PasswordHasher passwordHasher, ITokenService tokenService, IIdentitySessionService identitySessionService, IConfiguration configuration)
     {
         _db = db;
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
+        _identitySessionService = identitySessionService;
         _configuration = configuration;
     }
 
@@ -69,7 +71,8 @@ public class AuthService : IAuthService
             PasswordExpired = passwordExpired
         };
 
-        return (_tokenService.CreateToken(account, mustChangePassword), mustChangePassword, passwordExpired);
+        var sessionId = await _identitySessionService.CreateSessionAsync("KHACHHANG", user.MaKH, cancellationToken);
+        return (_tokenService.CreateToken(account, sessionId, mustChangePassword), mustChangePassword, passwordExpired);
     }
 
     public async Task<string> RegisterAsync(string fullName, string username, string password, string? email, string? phoneNumber, CancellationToken cancellationToken = default)
@@ -106,7 +109,8 @@ public class AuthService : IAuthService
             PhoneNumber = customer.SDT
         };
 
-        return _tokenService.CreateToken(account);
+        var sessionId = await _identitySessionService.CreateSessionAsync("KHACHHANG", customer.MaKH, cancellationToken);
+        return _tokenService.CreateToken(account, sessionId);
     }
 
     public async Task<string> GoogleLoginAsync(string idToken, CancellationToken cancellationToken = default)
@@ -167,7 +171,8 @@ public class AuthService : IAuthService
             MustChangePassword = customer.MustChangePassword || (customer.PasswordExpiresAt is not null && customer.PasswordExpiresAt <= DateTime.UtcNow)
         };
 
-        return _tokenService.CreateToken(account, account.MustChangePassword);
+        var sessionId = await _identitySessionService.CreateSessionAsync("KHACHHANG", customer.MaKH, cancellationToken);
+        return _tokenService.CreateToken(account, sessionId, account.MustChangePassword);
     }
 
     private static void ValidateNewPassword(string password)

@@ -32,8 +32,8 @@ public class AuthServiceRehashTests
         using var db = new AppDbContext(options);
         var hasher = new Pbkdf2PasswordHasher();
         var tokenServiceMock = new Mock<ITokenService>();
-        tokenServiceMock.Setup(x => x.CreateToken(It.IsAny<UserAccount>(), false)).Returns("dummy_token");
-        tokenServiceMock.Setup(x => x.CreateToken(It.IsAny<UserAccount>(), true)).Returns("restricted_dummy_token");
+        tokenServiceMock.Setup(x => x.CreateToken(It.IsAny<UserAccount>(), It.IsAny<Guid>(), false)).Returns("dummy_token");
+        tokenServiceMock.Setup(x => x.CreateToken(It.IsAny<UserAccount>(), It.IsAny<Guid>(), true)).Returns("restricted_dummy_token");
 
         var rawPassword = "adminSecretPassword123";
         var md5Hash = ComputeMd5(rawPassword);
@@ -48,7 +48,7 @@ public class AuthServiceRehashTests
         });
         await db.SaveChangesAsync();
 
-        var adminService = new AdminAuthApiService(db, hasher, tokenServiceMock.Object);
+        var adminService = new AdminAuthApiService(db, hasher, tokenServiceMock.Object, new CinemaBD.Infrastructure.Services.IdentitySessionService(db));
 
         // Act
         var result = await adminService.LoginAsync("admin_md5", rawPassword);
@@ -75,8 +75,8 @@ public class AuthServiceRehashTests
         using var db = new AppDbContext(options);
         var hasher = new Pbkdf2PasswordHasher();
         var tokenServiceMock = new Mock<ITokenService>();
-        tokenServiceMock.Setup(x => x.CreateToken(It.IsAny<UserAccount>(), false)).Returns("customer_token");
-        tokenServiceMock.Setup(x => x.CreateToken(It.IsAny<UserAccount>(), true)).Returns("restricted_customer_token");
+        tokenServiceMock.Setup(x => x.CreateToken(It.IsAny<UserAccount>(), It.IsAny<Guid>(), false)).Returns("customer_token");
+        tokenServiceMock.Setup(x => x.CreateToken(It.IsAny<UserAccount>(), It.IsAny<Guid>(), true)).Returns("restricted_customer_token");
 
         var configMock = new Mock<IConfiguration>();
 
@@ -92,7 +92,7 @@ public class AuthServiceRehashTests
         });
         await db.SaveChangesAsync();
 
-        var authService = new AuthService(db, hasher, tokenServiceMock.Object, configMock.Object);
+        var authService = new AuthService(db, hasher, tokenServiceMock.Object, new CinemaBD.Infrastructure.Services.IdentitySessionService(db), configMock.Object);
 
         // Act
         var token = await authService.LoginAsync("cust_md5", rawPassword);

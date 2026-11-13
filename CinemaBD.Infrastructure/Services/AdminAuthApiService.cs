@@ -12,12 +12,14 @@ public class AdminAuthApiService : IAdminAuthApiService
     private readonly AppDbContext _db;
     private readonly Pbkdf2PasswordHasher _passwordHasher;
     private readonly ITokenService _tokenService;
+    private readonly IIdentitySessionService _identitySessionService;
 
-    public AdminAuthApiService(AppDbContext db, Pbkdf2PasswordHasher passwordHasher, ITokenService tokenService)
+    public AdminAuthApiService(AppDbContext db, Pbkdf2PasswordHasher passwordHasher, ITokenService tokenService, IIdentitySessionService identitySessionService)
     {
         _db = db;
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
+        _identitySessionService = identitySessionService;
     }
 
     public async Task<(int AdminId, string Username, string FullName, string? Role, string Token, bool MustChangePassword, bool PasswordExpired)> LoginAsync(string username, string password, CancellationToken cancellationToken = default)
@@ -56,7 +58,8 @@ public class AdminAuthApiService : IAdminAuthApiService
             PasswordExpired = passwordExpired
         };
 
-        var token = _tokenService.CreateToken(account, mustChangePassword);
+        var sessionId = await _identitySessionService.CreateSessionAsync("Admin", admin.AdminID.ToString(System.Globalization.CultureInfo.InvariantCulture), cancellationToken);
+        var token = _tokenService.CreateToken(account, sessionId, mustChangePassword);
         return (admin.AdminID, admin.Username, account.FullName, admin.Role, token, mustChangePassword, passwordExpired);
     }
 }

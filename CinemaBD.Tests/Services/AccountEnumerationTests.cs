@@ -36,7 +36,7 @@ public class AccountEnumerationTests
         });
         await db.SaveChangesAsync();
 
-        var authService = new AuthService(db, hasher, tokenServiceMock.Object, configMock.Object);
+        var authService = new AuthService(db, hasher, tokenServiceMock.Object, new CinemaBD.Infrastructure.Services.IdentitySessionService(db), configMock.Object);
 
         // Case 1: Non-existent user
         var actNonExistent = () => authService.LoginAsync("nonexistentuser", "somepassword");
@@ -73,7 +73,7 @@ public class AccountEnumerationTests
         });
         await db.SaveChangesAsync();
 
-        var adminService = new AdminAuthApiService(db, hasher, tokenServiceMock.Object);
+        var adminService = new AdminAuthApiService(db, hasher, tokenServiceMock.Object, new CinemaBD.Infrastructure.Services.IdentitySessionService(db));
 
         // Case 1: Non-existent admin
         var actNonExistent = () => adminService.LoginAsync("nonexistentadmin", "somepassword");
@@ -110,7 +110,7 @@ public class AccountEnumerationTests
         });
         await db.SaveChangesAsync();
 
-        var authService = new AuthService(db, hasher, tokenServiceMock.Object, configMock.Object);
+        var authService = new AuthService(db, hasher, tokenServiceMock.Object, new CinemaBD.Infrastructure.Services.IdentitySessionService(db), configMock.Object);
 
         var act = () => authService.RegisterAsync("New Name", "duplicateuser", "newpass123", "new@example.com", "0900000000");
         var ex = await act.Should().ThrowAsync<InvalidOperationException>();
@@ -138,7 +138,7 @@ public class AccountEnumerationTests
         var tokenServiceMock = new Mock<ITokenService>();
         var configMock = new Mock<IConfiguration>();
 
-        var authService = new AuthService(db, hasher, tokenServiceMock.Object, configMock.Object);
+        var authService = new AuthService(db, hasher, tokenServiceMock.Object, new CinemaBD.Infrastructure.Services.IdentitySessionService(db), configMock.Object);
 
         var act = () => authService.LoginAsync("nonexistentuser", "testpassword123");
         await act.Should().ThrowAsync<InvalidOperationException>()
@@ -160,7 +160,7 @@ public class AccountEnumerationTests
 
         var tokenServiceMock = new Mock<ITokenService>();
 
-        var adminService = new AdminAuthApiService(db, hasher, tokenServiceMock.Object);
+        var adminService = new AdminAuthApiService(db, hasher, tokenServiceMock.Object, new CinemaBD.Infrastructure.Services.IdentitySessionService(db));
 
         var act = () => adminService.LoginAsync("nonexistentadmin", "testpassword123");
         await act.Should().ThrowAsync<InvalidOperationException>()

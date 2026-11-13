@@ -10,14 +10,17 @@ namespace CinemaBD.Infrastructure.Security;
 
 public class JwtTokenService : ITokenService
 {
-    private static readonly TimeSpan AccessTokenLifetime = TimeSpan.FromHours(12);
+    private static readonly TimeSpan AccessTokenLifetime = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan PasswordChangeTokenLifetime = TimeSpan.FromMinutes(10);
     private readonly IConfiguration _configuration;
 
     public JwtTokenService(IConfiguration configuration) => _configuration = configuration;
 
-    public string CreateToken(UserAccount user, bool restrictedToPasswordChange = false)
+    public string CreateToken(UserAccount user, Guid sessionId, bool restrictedToPasswordChange = false)
     {
+        if (sessionId == Guid.Empty)
+            throw new ArgumentException("A valid identity session is required to issue an access token.", nameof(sessionId));
+
         restrictedToPasswordChange |= user.MustChangePassword || user.PasswordExpired;
         var issuer = _configuration["Jwt:Issuer"] ?? "CinemaBD";
         var audience = _configuration["Jwt:Audience"] ?? "CinemaBD.Client";
@@ -27,6 +30,7 @@ public class JwtTokenService : ITokenService
         {
             new(JwtRegisteredClaimNames.Sub, user.Id),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
+            new("sid", sessionId.ToString("D")),
             new(JwtRegisteredClaimNames.UniqueName, user.Username),
             new("full_name", user.FullName),
             new(ClaimTypes.Role, isAdmin ? "Admin" : "Customer"),

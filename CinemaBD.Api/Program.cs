@@ -140,10 +140,25 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     return;
                 }
 
+                var sidClaims = context.Principal?.FindAll("sid").ToArray() ?? Array.Empty<System.Security.Claims.Claim>();
+                if (sidClaims.Length != 1 || !Guid.TryParse(sidClaims[0].Value, out var sessionId) || sessionId == Guid.Empty)
+                {
+                    context.Fail("JWT is missing a valid session identifier.");
+                    return;
+                }
+
                 var revokedTokens = context.HttpContext.RequestServices
                     .GetRequiredService<CinemaBD.Application.Interfaces.IRevokedTokenService>();
                 if (await revokedTokens.IsRevokedAsync(jti, context.HttpContext.RequestAborted))
+                {
                     context.Fail("JWT has been revoked.");
+                    return;
+                }
+
+                var identitySessions = context.HttpContext.RequestServices
+                    .GetRequiredService<CinemaBD.Application.Interfaces.IIdentitySessionService>();
+                if (!await identitySessions.IsActiveAsync(sessionId, context.HttpContext.RequestAborted))
+                    context.Fail("JWT identity session is inactive.");
             }
         };
     });

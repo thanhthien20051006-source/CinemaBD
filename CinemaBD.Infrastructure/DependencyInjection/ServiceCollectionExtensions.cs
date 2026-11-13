@@ -32,6 +32,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<DatabaseInitializer>();
         services.AddScoped<ITokenService, JwtTokenService>();
         services.AddScoped<IRevokedTokenService, RevokedTokenService>();
+        services.AddScoped<IIdentitySessionService, IdentitySessionService>();
         services.AddSingleton<IQrCodeSecurityService, HmacQrCodeSecurityService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAdminAuthApiService, AdminAuthApiService>();
