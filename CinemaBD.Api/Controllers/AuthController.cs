@@ -104,7 +104,7 @@ public class AuthController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(request.AccessToken) || string.IsNullOrWhiteSpace(request.RefreshToken))
             return Unauthorized(new ApiResponse<object>(false, "Refresh token không hợp lệ.", null));
-        var verified = await _identityRequestResolver.ResolveAsync($"Bearer {request.AccessToken}", cancellationToken);
+        var verified = await _identityRequestResolver.ResolveAsync($"Bearer {request.AccessToken}", cancellationToken, allowExpired: true);
         if (verified is null || verified.AccountType != "KHACHHANG")
             return Unauthorized(new ApiResponse<object>(false, "Phiên không hợp lệ.", null));
         var accountId = verified.AccountId;

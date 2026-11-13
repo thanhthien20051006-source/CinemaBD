@@ -85,7 +85,7 @@ public class AdminAuthController : ControllerBase
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> Refresh([FromBody] AdminRefreshRequest request, CancellationToken cancellationToken)
     {
-        var verified = await _identityRequestResolver.ResolveAsync($"Bearer {request.AccessToken}", cancellationToken);
+        var verified = await _identityRequestResolver.ResolveAsync($"Bearer {request.AccessToken}", cancellationToken, allowExpired: true);
         if (verified is null || verified.AccountType != "Admin") return Unauthorized();
         var accountId = verified.AccountId;
         var result = await _refreshTokenService.RotateAsync(request.RefreshToken, "Admin", accountId, cancellationToken);

@@ -9,10 +9,10 @@ public sealed class IdentityRequestResolver(
     IRevokedTokenService revokedTokenService,
     ILogger<IdentityRequestResolver> logger)
 {
-    public async Task<VerifiedAccessIdentity?> ResolveAsync(string authorization, CancellationToken cancellationToken = default)
+    public async Task<VerifiedAccessIdentity?> ResolveAsync(string authorization, CancellationToken cancellationToken = default, bool allowExpired = false)
     {
         var token = authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ? authorization[7..].Trim() : string.Empty;
-        var identity = proofValidator.Validate(token, allowExpired: true);
+        var identity = proofValidator.Validate(token, allowExpired: allowExpired);
         if (identity is null || !await sessionService.IsActiveAsync(identity.SessionId, cancellationToken)) return null;
         if (await revokedTokenService.IsRevokedAsync(identity.Jti, cancellationToken)) return null;
         logger.LogDebug("IAM session proof validated for {AccountType} account {AccountId}.", identity.AccountType, identity.AccountId);
