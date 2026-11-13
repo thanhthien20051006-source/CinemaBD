@@ -27,6 +27,8 @@ public class DatabaseInitializer
             throw new InvalidOperationException("Missing required configuration ConnectionStrings__DefaultConnection.");
 
         var databaseName = new SqlConnectionStringBuilder(connectionString).InitialCatalog;
+        if (string.IsNullOrWhiteSpace(databaseName))
+            throw new InvalidOperationException("ConnectionStrings__DefaultConnection must include Database/Initial Catalog.");
         var allowAutoMigrate = _configuration.GetValue<bool>("Database:AllowAutoMigrate", false);
         var allowedNames = _configuration.GetSection("Database:AllowedNames").Get<string[]>() ?? Array.Empty<string>();
         var databaseAllowed = !string.IsNullOrWhiteSpace(databaseName)
@@ -77,13 +79,6 @@ public class DatabaseInitializer
 
     private async Task InitializeEmptyDatabaseAsync(bool allowDemoData, CancellationToken cancellationToken)
     {
-        var connectionString = _configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("Missing ConnectionStrings:DefaultConnection.");
-
-        var databaseName = new SqlConnectionStringBuilder(connectionString).InitialCatalog;
-        if (string.IsNullOrWhiteSpace(databaseName))
-            throw new InvalidOperationException("DefaultConnection must include Database/Initial Catalog.");
-
         var schemaPath = ResolveSchemaSqlPath();
         if (!File.Exists(schemaPath))
             throw new FileNotFoundException($"Không tìm thấy file schema SQL: {schemaPath}", schemaPath);
