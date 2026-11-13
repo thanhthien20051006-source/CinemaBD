@@ -3,6 +3,7 @@ using CinemaBD.Infrastructure.Persistence;
 using CinemaBD.Infrastructure.Security;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace CinemaBD.Infrastructure.Services;
 
@@ -12,13 +13,17 @@ public sealed class AccountPasswordService : IAccountPasswordService
     private readonly Pbkdf2PasswordHasher _passwordHasher;
     private readonly IRevokedTokenService _revokedTokenService;
     private readonly IIdentitySessionService _identitySessionService;
+    private readonly ISecurityAuditWriter? _securityAuditWriter;
+    private readonly ILogger<AccountPasswordService>? _logger;
 
-    public AccountPasswordService(AppDbContext db, Pbkdf2PasswordHasher passwordHasher, IRevokedTokenService revokedTokenService, IIdentitySessionService identitySessionService)
+    public AccountPasswordService(AppDbContext db, Pbkdf2PasswordHasher passwordHasher, IRevokedTokenService revokedTokenService, IIdentitySessionService identitySessionService, ISecurityAuditWriter? securityAuditWriter = null, ILogger<AccountPasswordService>? logger = null)
     {
         _db = db;
         _passwordHasher = passwordHasher;
         _revokedTokenService = revokedTokenService;
         _identitySessionService = identitySessionService;
+        _securityAuditWriter = securityAuditWriter;
+        _logger = logger;
     }
 
     public async Task ChangeCustomerPasswordAsync(string customerId, string currentPassword, string newPassword, string? currentJti, DateTime? currentTokenExpiresAtUtc, CancellationToken cancellationToken = default)
@@ -26,14 +31,24 @@ public sealed class AccountPasswordService : IAccountPasswordService
         EnsureCurrentToken(currentJti, currentTokenExpiresAtUtc);
         var customer = await _db.Customers.SingleOrDefaultAsync(x => x.MaKH == customerId, cancellationToken)
             ?? throw new InvalidOperationException("Không tìm thấy tài khoản khách hàng.");
-        await ChangeAsync(customer.MatKhau, currentPassword, newPassword, hash =>
+        try
         {
-            customer.MatKhau = hash;
-            customer.MustChangePassword = false;
-            customer.PasswordExpiresAt = null;
-        }, cancellationToken);
+            await ChangeAsync(customer.MatKhau, currentPassword, newPassword, hash =>
+            {
+                customer.MatKhau = hash;
+                customer.MustChangePassword = false;
+                customer.PasswordExpiresAt = null;
+            }, cancellationToken);
+        }
+        catch (InvalidOperationException)
+        {
+            await WriteAuditSafelyAsync("password_change", "KHACHHANG", customerId, "failure", "Password change rejected; credential values omitted.", cancellationToken);
+            throw;
+        }
+
         await RevokeCurrentTokenAsync(currentJti!, currentTokenExpiresAtUtc!.Value, cancellationToken);
         await _identitySessionService.RevokeAllAsync("KHACHHANG", customerId, "password_changed", cancellationToken);
+        await WriteAuditSafelyAsync("password_change", "KHACHHANG", customerId, "success", "Password changed; credential values omitted.", cancellationToken);
     }
 
     public async Task ChangeAdminPasswordAsync(int adminId, string currentPassword, string newPassword, string? currentJti, DateTime? currentTokenExpiresAtUtc, CancellationToken cancellationToken = default)
@@ -41,14 +56,25 @@ public sealed class AccountPasswordService : IAccountPasswordService
         EnsureCurrentToken(currentJti, currentTokenExpiresAtUtc);
         var admin = await _db.Admins.SingleOrDefaultAsync(x => x.AdminID == adminId && x.IsActive, cancellationToken)
             ?? throw new InvalidOperationException("Không tìm thấy tài khoản quản trị.");
-        await ChangeAsync(admin.Password, currentPassword, newPassword, hash =>
+        try
         {
-            admin.Password = hash;
-            admin.MustChangePassword = false;
-            admin.PasswordExpiresAt = null;
-        }, cancellationToken);
+            await ChangeAsync(admin.Password, currentPassword, newPassword, hash =>
+            {
+                admin.Password = hash;
+                admin.MustChangePassword = false;
+                admin.PasswordExpiresAt = null;
+            }, cancellationToken);
+        }
+        catch (InvalidOperationException)
+        {
+            await WriteAuditSafelyAsync("password_change", "Admin", adminId.ToString(System.Globalization.CultureInfo.InvariantCulture), "failure", "Password change rejected; credential values omitted.", cancellationToken);
+            throw;
+        }
+
         await RevokeCurrentTokenAsync(currentJti!, currentTokenExpiresAtUtc!.Value, cancellationToken);
-        await _identitySessionService.RevokeAllAsync("Admin", adminId.ToString(System.Globalization.CultureInfo.InvariantCulture), "password_changed", cancellationToken);
+        var adminAccountId = adminId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        await _identitySessionService.RevokeAllAsync("Admin", adminAccountId, "password_changed", cancellationToken);
+        await WriteAuditSafelyAsync("password_change", "Admin", adminAccountId, "success", "Password changed; credential values omitted.", cancellationToken);
     }
 
     private async Task ChangeAsync(string currentHash, string currentPassword, string newPassword, Action<string> apply, CancellationToken cancellationToken)
@@ -62,6 +88,21 @@ public sealed class AccountPasswordService : IAccountPasswordService
 
         apply(_passwordHasher.Hash(newPassword));
         await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task WriteAuditSafelyAsync(string eventType, string accountType, string accountId, string result, string details, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (_securityAuditWriter is not null)
+                await _securityAuditWriter.WriteAsync(new SecurityAuditEvent(eventType, accountType, accountId, Result: result, Details: details), cancellationToken);
+            else
+                _logger?.LogInformation("Security event {EventType} for {AccountType} {AccountId}: {Details}", eventType, accountType, accountId, details);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            _logger?.LogError(exception, "Failed to persist security audit event {EventType} for {AccountType}.", eventType, accountType);
+        }
     }
 
     private static void EnsureCurrentToken(string? jti, DateTime? expiresAtUtc)

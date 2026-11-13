@@ -1,6 +1,8 @@
 using CinemaBD.Application.Interfaces;
 using CinemaBD.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 namespace CinemaBD.Infrastructure.Services;
 
@@ -11,8 +13,17 @@ namespace CinemaBD.Infrastructure.Services;
 public sealed class EfRefreshTokenStore : IRefreshTokenStore
 {
     private readonly AppDbContext _db;
+    private readonly ISecurityAuditWriter? _securityAuditWriter;
+    private readonly ILogger<EfRefreshTokenStore>? _logger;
+    private readonly IHttpContextAccessor? _httpContextAccessor;
 
-    public EfRefreshTokenStore(AppDbContext db) => _db = db;
+    public EfRefreshTokenStore(AppDbContext db, ISecurityAuditWriter? securityAuditWriter = null, ILogger<EfRefreshTokenStore>? logger = null, IHttpContextAccessor? httpContextAccessor = null)
+    {
+        _db = db;
+        _securityAuditWriter = securityAuditWriter;
+        _logger = logger;
+        _httpContextAccessor = httpContextAccessor;
+    }
 
     public async Task<RefreshTokenStoreResult> RotateAsync(byte[] presentedTokenHash, byte[] replacementTokenHash,
         Guid replacementTokenId, string expectedAccountType, string expectedAccountId, DateTime nowUtc, DateTime replacementExpiresAtUtc,
@@ -35,16 +46,9 @@ public sealed class EfRefreshTokenStore : IRefreshTokenStore
             {
                 session.RevokedAtUtc = nowUtc;
                 session.RevocationReason = Security.SecurityMetadataSanitizer.SanitizeRevocationReason("refresh_token_reuse");
-                _db.SecurityAudit.Add(new SecurityAuditRecord
-                {
-                    OccurredAtUtc = nowUtc,
-                    EventType = "refresh_token_reuse",
-                    AccountType = session.AccountType,
-                    AccountId = session.AccountId,
-                    SessionId = session.SessionId,
-                    Details = Security.SecurityMetadataSanitizer.SanitizeDetails("Previously used credential presented again; session revoked.")
-                });
+                _logger?.LogWarning("Refresh credential reuse detected for {AccountType} account {AccountId}, session {SessionId}; session revoked.", session.AccountType, session.AccountId, session.SessionId);
                 await _db.SaveChangesAsync(cancellationToken);
+                await WriteReuseAuditAsync(session.AccountType, session.AccountId, session.SessionId, cancellationToken);
             }
             return new RefreshTokenStoreResult(RefreshTokenStoreOutcome.Reused, candidate.SessionId, candidate.AccountType, candidate.AccountId);
         }
@@ -92,16 +96,9 @@ public sealed class EfRefreshTokenStore : IRefreshTokenStore
                 {
                     session.RevokedAtUtc = nowUtc;
                     session.RevocationReason = Security.SecurityMetadataSanitizer.SanitizeRevocationReason("refresh_token_reuse");
-                    _db.SecurityAudit.Add(new SecurityAuditRecord
-                    {
-                        OccurredAtUtc = nowUtc,
-                        EventType = "refresh_token_reuse",
-                        AccountType = session.AccountType,
-                        AccountId = session.AccountId,
-                        SessionId = session.SessionId,
-                        Details = Security.SecurityMetadataSanitizer.SanitizeDetails("Previously used credential presented again; session revoked.")
-                    });
+                    _logger?.LogWarning("Refresh credential reuse detected for {AccountType} account {AccountId}, session {SessionId}; session revoked.", session.AccountType, session.AccountId, session.SessionId);
                     await _db.SaveChangesAsync(cancellationToken);
+                    await WriteReuseAuditAsync(session.AccountType, session.AccountId, session.SessionId, cancellationToken);
                 }
                 return new RefreshTokenStoreResult(RefreshTokenStoreOutcome.Reused, candidate.SessionId, candidate.AccountType, candidate.AccountId);
             }
@@ -119,5 +116,19 @@ public sealed class EfRefreshTokenStore : IRefreshTokenStore
         await _db.SaveChangesAsync(cancellationToken);
         if (transaction is not null) await transaction.CommitAsync(cancellationToken);
         return new RefreshTokenStoreResult(RefreshTokenStoreOutcome.Rotated, candidate.SessionId, candidate.AccountType, candidate.AccountId);
+    }
+
+    private async Task WriteReuseAuditAsync(string accountType, string accountId, Guid sessionId, CancellationToken cancellationToken)
+    {
+        if (_securityAuditWriter is not null)
+            await _securityAuditWriter.WriteAsync(new SecurityAuditEvent("refresh_token_reuse", accountType, accountId, sessionId, Result: "detected", Details: "Previously used credential presented again; session revoked. Credential values omitted."), cancellationToken);
+        else
+        {
+            _logger?.LogWarning("Refresh credential reuse detected for {AccountType} account {AccountId}; session {SessionId} revoked.", accountType, accountId, sessionId);
+            await new SecurityAuditWriter(_db, _httpContextAccessor).WriteAsync(
+                new SecurityAuditEvent("refresh_token_reuse", accountType, accountId, sessionId,
+                    Result: "detected", Details: "Previously used credential presented again; session revoked. Credential values omitted."),
+                cancellationToken);
+        }
     }
 }

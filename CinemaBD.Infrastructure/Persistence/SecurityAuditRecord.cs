@@ -1,7 +1,7 @@
 namespace CinemaBD.Infrastructure.Persistence;
 
 /// <summary>
-/// Security event metadata. Deliberately has no token or token-hash fields.
+/// Security event metadata. Credential material is not modeled as persistable fields.
 /// </summary>
 public sealed class SecurityAuditRecord
 {
@@ -14,4 +14,5 @@ public sealed class SecurityAuditRecord
     public string? SourceIp { get; set; }
     public string? CorrelationId { get; set; }
     public string? Details { get; set; }
+
 }
