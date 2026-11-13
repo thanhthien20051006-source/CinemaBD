@@ -61,7 +61,7 @@ public class DatabaseInitializer
         var hasTables = await CanConnectAndHasTablesAsync(cancellationToken);
         if (!hasTables)
         {
-            await InitializeEmptyDatabaseAsync(allowDemoData, cancellationToken);
+            await InitializeEmptyDatabaseAsync(connectionString, databaseName, allowDemoData, cancellationToken);
         }
 
         await ApplyPendingMigrationsIfAvailableAsync(cancellationToken);
@@ -77,7 +77,7 @@ public class DatabaseInitializer
         }
     }
 
-    private async Task InitializeEmptyDatabaseAsync(bool allowDemoData, CancellationToken cancellationToken)
+    private async Task InitializeEmptyDatabaseAsync(string connectionString, string databaseName, bool allowDemoData, CancellationToken cancellationToken)
     {
         var schemaPath = ResolveSchemaSqlPath();
         if (!File.Exists(schemaPath))
