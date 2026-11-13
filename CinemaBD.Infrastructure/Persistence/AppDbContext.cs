@@ -16,12 +16,60 @@ public class AppDbContext : DbContext
             .HasIndex(x => x.GatewayTxnRef)
             .IsUnique()
             .HasFilter("[GatewayTxnRef] IS NOT NULL AND [GatewayTxnRef] <> ''");
+        modelBuilder.Entity<LegacyInvoice>()
+            .Ignore(x => x.DaCheckIn)
+            .Ignore(x => x.ThoiGianCheckIn);
+        modelBuilder.Entity<LegacyTicket>()
+            .Ignore(x => x.DaCheckIn)
+            .Ignore(x => x.ThoiGianCheckIn);
 
         modelBuilder.Entity<RevokedToken>()
             .ToTable("RevokedTokens")
             .HasKey(x => x.Jti);
         modelBuilder.Entity<RevokedToken>()
             .HasIndex(x => x.ExpiresAtUtc);
+
+        modelBuilder.Entity<IdentitySession>(entity =>
+        {
+            entity.ToTable("IdentitySessions");
+            entity.HasKey(x => x.SessionId);
+            entity.Property(x => x.AccountType).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.AccountId).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.RevocationReason).HasMaxLength(128);
+            entity.HasIndex(x => new { x.AccountType, x.AccountId, x.RevokedAtUtc });
+            entity.HasIndex(x => x.ExpiresAtUtc);
+        });
+
+        modelBuilder.Entity<RefreshTokenRecord>(entity =>
+        {
+            entity.ToTable("RefreshTokens");
+            entity.HasKey(x => x.RefreshTokenId);
+            entity.Property(x => x.TokenHash).HasColumnType("binary(32)").IsRequired();
+            entity.HasIndex(x => x.TokenHash).IsUnique();
+            entity.HasIndex(x => new { x.SessionId, x.ExpiresAtUtc });
+            entity.HasOne(x => x.Session)
+                .WithMany()
+                .HasForeignKey(x => x.SessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<RefreshTokenRecord>()
+                .WithMany()
+                .HasForeignKey(x => x.ReplacedByRefreshTokenId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<SecurityAuditRecord>(entity =>
+        {
+            entity.ToTable("SecurityAudit");
+            entity.HasKey(x => x.AuditId);
+            entity.Property(x => x.EventType).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.AccountType).HasMaxLength(32);
+            entity.Property(x => x.AccountId).HasMaxLength(128);
+            entity.Property(x => x.SourceIp).HasMaxLength(45);
+            entity.Property(x => x.CorrelationId).HasMaxLength(128);
+            entity.Property(x => x.Details).HasMaxLength(1000);
+            entity.HasIndex(x => x.OccurredAtUtc);
+            entity.HasIndex(x => new { x.EventType, x.OccurredAtUtc });
+        });
 
         modelBuilder.Entity<LegacySeat>()
             .HasKey(x => new { x.MaPhong, x.MaGhe });
@@ -66,4 +114,7 @@ public class AppDbContext : DbContext
     public DbSet<LegacyLoyaltyPoints> LoyaltyPoints => Set<LegacyLoyaltyPoints>();
     public DbSet<LegacyRefundRequest> RefundRequests => Set<LegacyRefundRequest>();
     public DbSet<RevokedToken> RevokedTokens => Set<RevokedToken>();
+    public DbSet<IdentitySession> IdentitySessions => Set<IdentitySession>();
+    public DbSet<RefreshTokenRecord> RefreshTokens => Set<RefreshTokenRecord>();
+    public DbSet<SecurityAuditRecord> SecurityAudit => Set<SecurityAuditRecord>();
 }

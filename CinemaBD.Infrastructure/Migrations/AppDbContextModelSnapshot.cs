@@ -22,6 +22,47 @@ namespace CinemaBD.Infrastructure.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("CinemaBD.Infrastructure.Persistence.IdentitySession", b =>
+                {
+                    b.Property<Guid>("SessionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AccountId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("AccountType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastSeenAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RevocationReason")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("SessionId");
+
+                    b.HasIndex("ExpiresAtUtc");
+
+                    b.HasIndex("AccountType", "AccountId", "RevokedAtUtc");
+
+                    b.ToTable("IdentitySessions", (string)null);
+                });
+
             modelBuilder.Entity("CinemaBD.Infrastructure.Persistence.LegacyAdmin", b =>
                 {
                     b.Property<int>("AdminID")
@@ -45,9 +86,15 @@ namespace CinemaBD.Infrastructure.Migrations
                     b.Property<int?>("MaCV")
                         .HasColumnType("int");
 
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Password")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("PasswordExpiresAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Phone")
                         .HasColumnType("nvarchar(max)");
@@ -184,7 +231,13 @@ namespace CinemaBD.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("bit");
+
                     b.Property<DateTime?>("NgaySinh")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("PasswordExpiresAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("SDT")
@@ -803,6 +856,125 @@ namespace CinemaBD.Infrastructure.Migrations
                     b.HasKey("MaVoucher");
 
                     b.ToTable("VOUCHER");
+                });
+
+            modelBuilder.Entity("CinemaBD.Infrastructure.Persistence.RefreshTokenRecord", b =>
+                {
+                    b.Property<Guid>("RefreshTokenId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ConsumedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ReplacedByRefreshTokenId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("binary(32)");
+
+                    b.HasKey("RefreshTokenId");
+
+                    b.HasIndex("ReplacedByRefreshTokenId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("SessionId", "ExpiresAtUtc");
+
+                    b.ToTable("RefreshTokens", (string)null);
+                });
+
+            modelBuilder.Entity("CinemaBD.Infrastructure.Persistence.RevokedToken", b =>
+                {
+                    b.Property<string>("Jti")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Jti");
+
+                    b.HasIndex("ExpiresAtUtc");
+
+                    b.ToTable("RevokedTokens", (string)null);
+                });
+
+            modelBuilder.Entity("CinemaBD.Infrastructure.Persistence.SecurityAuditRecord", b =>
+                {
+                    b.Property<long>("AuditId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("AuditId"));
+
+                    b.Property<string>("AccountId")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("AccountType")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("Details")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("SessionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SourceIp")
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
+
+                    b.HasKey("AuditId");
+
+                    b.HasIndex("OccurredAtUtc");
+
+                    b.HasIndex("EventType", "OccurredAtUtc");
+
+                    b.ToTable("SecurityAudit", (string)null);
+                });
+
+            modelBuilder.Entity("CinemaBD.Infrastructure.Persistence.RefreshTokenRecord", b =>
+                {
+                    b.HasOne("CinemaBD.Infrastructure.Persistence.RefreshTokenRecord", null)
+                        .WithMany()
+                        .HasForeignKey("ReplacedByRefreshTokenId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("CinemaBD.Infrastructure.Persistence.IdentitySession", "Session")
+                        .WithMany()
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Session");
                 });
 #pragma warning restore 612, 618
         }
