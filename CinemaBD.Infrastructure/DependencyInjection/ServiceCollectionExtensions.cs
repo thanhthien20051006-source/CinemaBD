@@ -13,8 +13,17 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<AppDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrWhiteSpace(connectionString))
+            throw new InvalidOperationException("Missing required configuration ConnectionStrings__DefaultConnection.");
+
+        var connectionBuilder = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connectionString);
+        if (string.IsNullOrWhiteSpace(connectionBuilder.InitialCatalog))
+            throw new InvalidOperationException("ConnectionStrings__DefaultConnection must include Database/Initial Catalog.");
+
+        services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
+        if (configuration.GetValue<bool>("ShowtimeExpiry:Enabled", false))
+            services.AddHostedService<ShowtimeExpiryHostedService>();
 
         services.AddScoped<Pbkdf2PasswordHasher>();
         services.AddScoped<IAccountPasswordService, AccountPasswordService>();
@@ -57,9 +66,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IReviewService, ReviewService>();
         services.AddScoped<IAdminReviewService, AdminReviewService>();
-
-        // Background service: tự động expire suất chiếu đã qua giờ
-        services.AddHostedService<ShowtimeExpiryHostedService>();
 
         return services;
     }

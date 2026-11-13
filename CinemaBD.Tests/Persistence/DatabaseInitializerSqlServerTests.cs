@@ -298,6 +298,8 @@ public class DatabaseInitializerSqlServerTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = testConnString,
+                ["Database:AllowAutoMigrate"] = "true",
+                ["Database:AllowedNames:0"] = "CinemaBD_IntegrationTest",
                 ["DatabaseSeed:AllowDemoData"] = "false"
             })
             .Build();

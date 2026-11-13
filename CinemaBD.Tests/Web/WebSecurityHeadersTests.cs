@@ -58,6 +58,7 @@ public class WebSecurityHeadersTests : IClassFixture<WebSecurityHeadersTests.Tes
             builder.UseSetting("Jwt:Issuer", "CinemaBD.Test");
             builder.UseSetting("Jwt:Audience", "CinemaBD.Client.Test");
             builder.UseSetting("Security:QrSigningKey", randomQrKey);
+            builder.UseSetting("ConnectionStrings:DefaultConnection", "Server=unused.invalid;Database=WebSecurityHeadersTest;User Id=test;Password=test");
             builder.UseSetting("DatabaseSeed:AllowDemoData", "false");
 
             builder.ConfigureServices(services =>

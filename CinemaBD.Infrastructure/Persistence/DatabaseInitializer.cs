@@ -22,6 +22,25 @@ public class DatabaseInitializer
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
+        var connectionString = _configuration.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrWhiteSpace(connectionString))
+            throw new InvalidOperationException("Missing required configuration ConnectionStrings__DefaultConnection.");
+
+        var databaseName = new SqlConnectionStringBuilder(connectionString).InitialCatalog;
+        var allowAutoMigrate = _configuration.GetValue<bool>("Database:AllowAutoMigrate", false);
+        var allowedNames = _configuration.GetSection("Database:AllowedNames").Get<string[]>() ?? Array.Empty<string>();
+        var databaseAllowed = !string.IsNullOrWhiteSpace(databaseName)
+            && allowedNames.Any(name => string.Equals(name?.Trim(), databaseName.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (!allowAutoMigrate || !databaseAllowed)
+        {
+            _logger.LogWarning(
+                "Database initialization skipped for {DatabaseName}: Database:AllowAutoMigrate is {AllowAutoMigrate}; database allowlisted={DatabaseAllowed}.",
+                string.IsNullOrWhiteSpace(databaseName) ? "<unspecified>" : databaseName,
+                allowAutoMigrate,
+                databaseAllowed);
+            return;
+        }
+
         var allowDemoData = _configuration.GetValue<bool>("DatabaseSeed:AllowDemoData", false);
         var envName = _configuration["ASPNETCORE_ENVIRONMENT"] ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
         var isDevelopment = string.Equals(envName, "Development", StringComparison.OrdinalIgnoreCase);

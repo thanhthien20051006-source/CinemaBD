@@ -99,6 +99,7 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
             builder.UseSetting("Jwt:Issuer", TestJwtIssuer);
             builder.UseSetting("Jwt:Audience", TestJwtAudience);
             builder.UseSetting("Security:QrSigningKey", TestQrKey);
+            builder.UseSetting("ConnectionStrings:DefaultConnection", "Server=unused.invalid;Database=AdminAuthTest;User Id=test;Password=test");
             builder.UseSetting("DatabaseSeed:AllowDemoData", "false");
 
             builder.ConfigureServices(services =>

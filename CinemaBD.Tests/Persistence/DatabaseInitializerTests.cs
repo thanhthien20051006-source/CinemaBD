@@ -4,12 +4,130 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using CinemaBD.Infrastructure.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Hosting;
 
 namespace CinemaBD.Tests.Persistence;
 
 public class DatabaseInitializerTests
 {
+    [Fact]
+    public async Task InitializeAsync_WhenDatabaseNameIsNotAllowed_DoesNotProbeOrModifyDatabase()
+    {
+        const string connectionString = "Server=unused.invalid;Database=UnexpectedCinema;User Id=test;Password=test";
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        using var db = new AppDbContext(options);
+        var logger = new ListLogger<DatabaseInitializer>();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:DefaultConnection"] = connectionString,
+                ["Database:AllowAutoMigrate"] = "true",
+                ["Database:AllowedNames:0"] = "CinemaBD"
+            })
+            .Build();
+
+        await new DatabaseInitializer(db, configuration, logger).InitializeAsync();
+
+        db.ChangeTracker.Entries().Should().BeEmpty();
+        logger.Entries.Should().Contain(x => x.Level == LogLevel.Warning && x.Message.Contains("UnexpectedCinema"));
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WhenAllowAutoMigrateIsMissing_DoesNotProbeOrModifyDatabase()
+    {
+        const string connectionString = "Server=unused.invalid;Database=CinemaBD;User Id=test;Password=test";
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        using var db = new AppDbContext(options);
+        var logger = new ListLogger<DatabaseInitializer>();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:DefaultConnection"] = connectionString,
+                ["Database:AllowedNames:0"] = "CinemaBD"
+            })
+            .Build();
+
+        await new DatabaseInitializer(db, configuration, logger).InitializeAsync();
+
+        db.ChangeTracker.Entries().Should().BeEmpty();
+        logger.Entries.Should().Contain(x => x.Level == LogLevel.Warning && x.Message.Contains("AllowAutoMigrate is False"));
+    }
+
+    [Fact]
+    public void AddInfrastructure_WhenConnectionStringIsMissing_ThrowsClearConfigurationError()
+    {
+        var services = new ServiceCollection();
+        var configuration = new ConfigurationBuilder().Build();
+
+        var action = () => services.AddInfrastructure(configuration);
+
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("*ConnectionStrings__DefaultConnection*");
+    }
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("false", false)]
+    [InlineData("true", true)]
+    public void AddInfrastructure_RegistersShowtimeExpiryOnlyWhenExplicitlyEnabled(string? enabledValue, bool enabled)
+    {
+        var services = new ServiceCollection();
+        var values = new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:DefaultConnection"] = "Server=localhost;Database=NoConnect;User Id=test;Password=test"
+        };
+        if (enabledValue is not null)
+            values["ShowtimeExpiry:Enabled"] = enabledValue;
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(values).Build();
+
+        services.AddInfrastructure(configuration);
+
+        var hostedServiceDescriptor = services.FirstOrDefault(x => x.ServiceType == typeof(IHostedService)
+            && x.ImplementationType == typeof(CinemaBD.Infrastructure.Services.ShowtimeExpiryHostedService));
+        (hostedServiceDescriptor is not null).Should().Be(enabled);
+    }
+
+    [Fact]
+    public void ApiStartup_WhenConnectionStringIsMissing_FailsWithClearConfigurationError()
+    {
+        using var factory = new WebApplicationFactory<CinemaBD.Api.Program>()
+            .WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, configuration) =>
+                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["ConnectionStrings:DefaultConnection"] = " ",
+                    ["Jwt:Key"] = "0123456789abcdef0123456789abcdef",
+                    ["Security:QrSigningKey"] = "abcdef0123456789abcdef0123456789",
+                    ["Jwt:Issuer"] = "test-issuer",
+                    ["Jwt:Audience"] = "test-audience"
+                })));
+
+        var action = () => factory.CreateClient();
+
+        action.Should().Throw<InvalidOperationException>()
+            .Which.ToString().Should().Contain("ConnectionStrings__DefaultConnection");
+    }
+
+    private sealed class ListLogger<T> : ILogger<T>
+    {
+        public List<(LogLevel Level, string Message)> Entries { get; } = new();
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            Entries.Add((logLevel, formatter(state, exception)));
+        }
+    }
+
     [Fact]
     public async Task EnsureCustomerDemoData_ShouldSavePasswordsWithIdentityPrefix_NotPlaintext()
     {
