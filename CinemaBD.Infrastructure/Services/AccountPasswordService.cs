@@ -11,12 +11,14 @@ public sealed class AccountPasswordService : IAccountPasswordService
     private readonly AppDbContext _db;
     private readonly Pbkdf2PasswordHasher _passwordHasher;
     private readonly IRevokedTokenService _revokedTokenService;
+    private readonly IIdentitySessionService _identitySessionService;
 
-    public AccountPasswordService(AppDbContext db, Pbkdf2PasswordHasher passwordHasher, IRevokedTokenService revokedTokenService)
+    public AccountPasswordService(AppDbContext db, Pbkdf2PasswordHasher passwordHasher, IRevokedTokenService revokedTokenService, IIdentitySessionService identitySessionService)
     {
         _db = db;
         _passwordHasher = passwordHasher;
         _revokedTokenService = revokedTokenService;
+        _identitySessionService = identitySessionService;
     }
 
     public async Task ChangeCustomerPasswordAsync(string customerId, string currentPassword, string newPassword, string? currentJti, DateTime? currentTokenExpiresAtUtc, CancellationToken cancellationToken = default)
@@ -31,6 +33,7 @@ public sealed class AccountPasswordService : IAccountPasswordService
             customer.PasswordExpiresAt = null;
         }, cancellationToken);
         await RevokeCurrentTokenAsync(currentJti!, currentTokenExpiresAtUtc!.Value, cancellationToken);
+        await _identitySessionService.RevokeAllAsync("KHACHHANG", customerId, "password_changed", cancellationToken);
     }
 
     public async Task ChangeAdminPasswordAsync(int adminId, string currentPassword, string newPassword, string? currentJti, DateTime? currentTokenExpiresAtUtc, CancellationToken cancellationToken = default)
@@ -45,6 +48,7 @@ public sealed class AccountPasswordService : IAccountPasswordService
             admin.PasswordExpiresAt = null;
         }, cancellationToken);
         await RevokeCurrentTokenAsync(currentJti!, currentTokenExpiresAtUtc!.Value, cancellationToken);
+        await _identitySessionService.RevokeAllAsync("Admin", adminId.ToString(System.Globalization.CultureInfo.InvariantCulture), "password_changed", cancellationToken);
     }
 
     private async Task ChangeAsync(string currentHash, string currentPassword, string newPassword, Action<string> apply, CancellationToken cancellationToken)

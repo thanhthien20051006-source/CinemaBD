@@ -113,6 +113,7 @@ public sealed class IdentitySessionService : IIdentitySessionService
 
     public async Task RevokeAllAsync(string accountType, string accountId, string reason, CancellationToken cancellationToken = default)
     {
+        await using var transaction = _db.Database.IsRelational() ? await _db.Database.BeginTransactionAsync(cancellationToken) : null;
         var now = DateTime.UtcNow;
         var safeReason = SecurityMetadataSanitizer.SanitizeRevocationReason(reason);
         var sessions = await _db.IdentitySessions.Where(x => x.AccountType == accountType && x.AccountId == accountId && x.RevokedAtUtc == null)
@@ -126,6 +127,7 @@ public sealed class IdentitySessionService : IIdentitySessionService
         var refreshTokens = await _db.RefreshTokens.Where(x => sessionIds.Contains(x.SessionId) && x.RevokedAtUtc == null).ToListAsync(cancellationToken);
         foreach (var token in refreshTokens) token.RevokedAtUtc = now;
         await _db.SaveChangesAsync(cancellationToken);
+        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
     }
 
     public Task<bool> IsActiveAsync(Guid sessionId, CancellationToken cancellationToken = default)

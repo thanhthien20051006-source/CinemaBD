@@ -25,9 +25,12 @@ public sealed class AccountPasswordServiceTests
             MustChangePassword = true,
             PasswordExpiresAt = DateTime.UtcNow.AddDays(-1)
         });
+        db.IdentitySessions.AddRange(
+            new IdentitySession { SessionId = Guid.NewGuid(), AccountType = "KHACHHANG", AccountId = "KH-test", CreatedAtUtc = DateTime.UtcNow, LastSeenAtUtc = DateTime.UtcNow, ExpiresAtUtc = DateTime.UtcNow.AddDays(1) },
+            new IdentitySession { SessionId = Guid.NewGuid(), AccountType = "KHACHHANG", AccountId = "KH-other", CreatedAtUtc = DateTime.UtcNow, LastSeenAtUtc = DateTime.UtcNow, ExpiresAtUtc = DateTime.UtcNow.AddDays(1) });
         await db.SaveChangesAsync();
         var revokedTokens = new Mock<IRevokedTokenService>();
-        var service = new AccountPasswordService(db, hasher, revokedTokens.Object);
+        var service = new AccountPasswordService(db, hasher, revokedTokens.Object, new IdentitySessionService(db));
         var expiry = DateTime.UtcNow.AddMinutes(5);
 
         await service.ChangeCustomerPasswordAsync("KH-test", "OldPassword123!", "NewPassword123!", "customer-jti", expiry);
@@ -36,6 +39,9 @@ public sealed class AccountPasswordServiceTests
         hasher.Verify("NewPassword123!", customer.MatKhau).Should().BeTrue();
         customer.MustChangePassword.Should().BeFalse();
         customer.PasswordExpiresAt.Should().BeNull();
+        var sessions = await db.IdentitySessions.OrderBy(x => x.AccountId).ToListAsync();
+        sessions.Should().ContainSingle(x => x.AccountId == "KH-test" && x.RevokedAtUtc != null);
+        sessions.Should().ContainSingle(x => x.AccountId == "KH-other" && x.RevokedAtUtc == null);
         revokedTokens.Verify(x => x.RevokeAsync("customer-jti", expiry, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -52,12 +58,16 @@ public sealed class AccountPasswordServiceTests
             Password = hasher.Hash("OldPassword123!"),
             FullName = "Test Admin",
             IsActive = true,
+            MaCV = 1,
             MustChangePassword = true,
             PasswordExpiresAt = DateTime.UtcNow.AddDays(-1)
         });
+        db.IdentitySessions.AddRange(
+            new IdentitySession { SessionId = Guid.NewGuid(), AccountType = "Admin", AccountId = "27", CreatedAtUtc = DateTime.UtcNow, LastSeenAtUtc = DateTime.UtcNow, ExpiresAtUtc = DateTime.UtcNow.AddDays(1) },
+            new IdentitySession { SessionId = Guid.NewGuid(), AccountType = "Admin", AccountId = "28", CreatedAtUtc = DateTime.UtcNow, LastSeenAtUtc = DateTime.UtcNow, ExpiresAtUtc = DateTime.UtcNow.AddDays(1) });
         await db.SaveChangesAsync();
         var revokedTokens = new Mock<IRevokedTokenService>();
-        var service = new AccountPasswordService(db, hasher, revokedTokens.Object);
+        var service = new AccountPasswordService(db, hasher, revokedTokens.Object, new IdentitySessionService(db));
         var expiry = DateTime.UtcNow.AddMinutes(5);
 
         await service.ChangeAdminPasswordAsync(27, "OldPassword123!", "NewPassword123!", "admin-jti", expiry);
@@ -66,6 +76,9 @@ public sealed class AccountPasswordServiceTests
         hasher.Verify("NewPassword123!", admin.Password).Should().BeTrue();
         admin.MustChangePassword.Should().BeFalse();
         admin.PasswordExpiresAt.Should().BeNull();
+        var sessions = await db.IdentitySessions.OrderBy(x => x.AccountId).ToListAsync();
+        sessions.Should().ContainSingle(x => x.AccountId == "27" && x.RevokedAtUtc != null);
+        sessions.Should().ContainSingle(x => x.AccountId == "28" && x.RevokedAtUtc == null);
         revokedTokens.Verify(x => x.RevokeAsync("admin-jti", expiry, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -79,7 +92,7 @@ public sealed class AccountPasswordServiceTests
         db.Customers.Add(new LegacyCustomer { MaKH = "KH-test", HoTen = "Test", TKhoan = "test", MatKhau = originalHash });
         await db.SaveChangesAsync();
         var revokedTokens = new Mock<IRevokedTokenService>();
-        var service = new AccountPasswordService(db, hasher, revokedTokens.Object);
+        var service = new AccountPasswordService(db, hasher, revokedTokens.Object, new IdentitySessionService(db));
 
         var act = () => service.ChangeCustomerPasswordAsync("KH-test", "Incorrect123!", "NewPassword123!", "customer-jti", DateTime.UtcNow.AddMinutes(5));
 

@@ -63,7 +63,6 @@ public class AdminAuthController : ControllerBase
             return Unauthorized(new ApiResponse<object>(false, "Phiên hiện tại không hợp lệ.", null));
 
         await _accountPasswordService.ChangeAdminPasswordAsync(adminId, request.CurrentPassword, request.NewPassword, jti, DateTimeOffset.FromUnixTimeSeconds(expirySeconds).UtcDateTime, cancellationToken);
-        await _identitySessionService.RevokeAllAsync("Admin", adminId.ToString(System.Globalization.CultureInfo.InvariantCulture), "password_changed", cancellationToken);
         return Ok(new ApiResponse<object>(true, "Đổi mật khẩu thành công. Vui lòng đăng nhập lại.", null));
     }
 
@@ -90,7 +89,7 @@ public class AdminAuthController : ControllerBase
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> Refresh([FromBody] AdminRefreshRequest request, CancellationToken cancellationToken)
     {
-        var verified = await _identityRequestResolver.ResolveAsync(request.AccessToken, cancellationToken);
+        var verified = await _identityRequestResolver.ResolveAsync($"Bearer {request.AccessToken}", cancellationToken);
         if (verified is null || verified.AccountType != "Admin") return Unauthorized();
         var accountId = verified.AccountId;
         var result = await _refreshTokenService.RotateAsync(request.RefreshToken, "Admin", accountId, cancellationToken);

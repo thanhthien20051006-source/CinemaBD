@@ -18,17 +18,15 @@ public class AuthController : ControllerBase
     private readonly IAccountPasswordService _accountPasswordService;
     private readonly IIdentitySessionService _identitySessionService;
     private readonly IRefreshTokenService _refreshTokenService;
-    private readonly ITokenService _tokenService;
     private readonly IdentityRequestResolver _identityRequestResolver;
 
-    public AuthController(IAuthService authService, IRevokedTokenService revokedTokenService, IAccountPasswordService accountPasswordService, IIdentitySessionService identitySessionService = null!, IRefreshTokenService refreshTokenService = null!, ITokenService tokenService = null!, IdentityRequestResolver identityRequestResolver = null!)
+    public AuthController(IAuthService authService, IRevokedTokenService revokedTokenService, IAccountPasswordService accountPasswordService, IIdentitySessionService identitySessionService = null!, IRefreshTokenService refreshTokenService = null!, IdentityRequestResolver identityRequestResolver = null!)
     {
         _authService = authService;
         _revokedTokenService = revokedTokenService;
         _accountPasswordService = accountPasswordService;
         _identitySessionService = identitySessionService;
         _refreshTokenService = refreshTokenService;
-        _tokenService = tokenService;
         _identityRequestResolver = identityRequestResolver;
     }
 
@@ -80,7 +78,6 @@ public class AuthController : ControllerBase
 
         var (jti, expiresAtUtc) = GetCurrentTokenIdentity();
         await _accountPasswordService.ChangeCustomerPasswordAsync(customerId, request.CurrentPassword, request.NewPassword, jti, expiresAtUtc, cancellationToken);
-        await _identitySessionService.RevokeAllAsync("KHACHHANG", customerId, "password_changed", cancellationToken);
         return Ok(new ApiResponse<object>(true, "Đổi mật khẩu thành công. Vui lòng đăng nhập lại.", null));
     }
 
@@ -107,14 +104,11 @@ public class AuthController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(request.AccessToken) || string.IsNullOrWhiteSpace(request.RefreshToken))
             return Unauthorized(new ApiResponse<object>(false, "Refresh token không hợp lệ.", null));
-        System.IdentityModel.Tokens.Jwt.JwtSecurityToken decoded;
-        try { decoded = new JwtSecurityTokenHandler().ReadJwtToken(request.AccessToken); }
-        catch (ArgumentException) { return Unauthorized(new ApiResponse<object>(false, "Access token không hợp lệ.", null)); }
-        var accountId = decoded.Subject;
-        if (string.IsNullOrWhiteSpace(accountId) || accountId.StartsWith("admin:", StringComparison.OrdinalIgnoreCase)
-            || !Guid.TryParse(decoded.Claims.FirstOrDefault(x => x.Type == "sid")?.Value, out var sessionId)
-            || decoded.Claims.FirstOrDefault(x => x.Type == "account_type")?.Value != "customer")
+        var verified = await _identityRequestResolver.ResolveAsync($"Bearer {request.AccessToken}", cancellationToken);
+        if (verified is null || verified.AccountType != "KHACHHANG")
             return Unauthorized(new ApiResponse<object>(false, "Phiên không hợp lệ.", null));
+        var accountId = verified.AccountId;
+        var sessionId = verified.SessionId;
         var result = await _refreshTokenService.RotateAsync(request.RefreshToken, "KHACHHANG", accountId, cancellationToken);
         if (result.SessionId != sessionId || result.AccountType != "KHACHHANG" || result.AccountId != accountId)
             return Unauthorized(new ApiResponse<object>(false, "Refresh token không thuộc phiên.", null));
