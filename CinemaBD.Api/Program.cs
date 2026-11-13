@@ -18,8 +18,15 @@ builder.Services.AddScoped<CinemaBD.Api.Filters.PasswordChangeRestrictionFilter>
 builder.Services.AddScoped<CinemaBD.Api.Filters.AdminPermissionClaimAuthorizationFilter>();
 builder.Services.AddScoped<CinemaBD.Api.Security.AccessTokenProofValidator>();
 builder.Services.AddScoped<CinemaBD.Api.Security.IdentityRequestResolver>();
+builder.Services.AddSingleton<CinemaBD.Api.Security.AuthAccountRateLimiter>();
+builder.Services.AddScoped<CinemaBD.Api.Security.AuthAccountRateLimitFilter>();
+builder.Services.AddScoped<CinemaBD.Api.Security.AuthRateLimitFilter>();
+builder.Services.AddScoped<CinemaBD.Api.Security.SecurityAuditActionFilter>();
 builder.Services.AddControllers(options =>
 {
+    options.Filters.AddService<CinemaBD.Api.Security.AuthAccountRateLimitFilter>();
+    options.Filters.AddService<CinemaBD.Api.Security.AuthRateLimitFilter>();
+    options.Filters.AddService<CinemaBD.Api.Security.SecurityAuditActionFilter>();
     options.Filters.AddService<CinemaBD.Api.Filters.AdminPermissionAuthorizationFilter>();
     options.Filters.AddService<CinemaBD.Api.Filters.AdminPermissionClaimAuthorizationFilter>();
     options.Filters.AddService<CinemaBD.Api.Filters.PasswordChangeRestrictionFilter>();
@@ -46,9 +53,11 @@ builder.Services.AddCors(options => options.AddPolicy("WebClients", policy =>
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    var authIpPermitLimit = Math.Clamp(builder.Configuration.GetValue("Security:RateLimits:AuthIpPermitLimit", 10), 1, 1000);
+    var authWindowSeconds = Math.Clamp(builder.Configuration.GetValue("Security:RateLimits:AuthWindowSeconds", 60), 1, 3600);
     options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
-        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
+        CinemaBD.Api.Security.AuthRateLimitPartitioner.ByIp(context),
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = authIpPermitLimit, Window = TimeSpan.FromSeconds(authWindowSeconds), QueueLimit = 0, AutoReplenishment = true }));
     options.AddPolicy("transactions", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
