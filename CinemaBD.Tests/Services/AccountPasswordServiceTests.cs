@@ -30,7 +30,8 @@ public sealed class AccountPasswordServiceTests
             new IdentitySession { SessionId = Guid.NewGuid(), AccountType = "KHACHHANG", AccountId = "KH-other", CreatedAtUtc = DateTime.UtcNow, LastSeenAtUtc = DateTime.UtcNow, ExpiresAtUtc = DateTime.UtcNow.AddDays(1) });
         await db.SaveChangesAsync();
         var revokedTokens = new Mock<IRevokedTokenService>();
-        var service = new AccountPasswordService(db, hasher, revokedTokens.Object, new IdentitySessionService(db));
+        var audit = new RecordingAuditWriter();
+        var service = new AccountPasswordService(db, hasher, revokedTokens.Object, new IdentitySessionService(db), audit);
         var expiry = DateTime.UtcNow.AddMinutes(5);
 
         await service.ChangeCustomerPasswordAsync("KH-test", "OldPassword123!", "NewPassword123!", "customer-jti", expiry);
@@ -43,6 +44,7 @@ public sealed class AccountPasswordServiceTests
         sessions.Should().ContainSingle(x => x.AccountId == "KH-test" && x.RevokedAtUtc != null);
         sessions.Should().ContainSingle(x => x.AccountId == "KH-other" && x.RevokedAtUtc == null);
         revokedTokens.Verify(x => x.RevokeAsync("customer-jti", expiry, It.IsAny<CancellationToken>()), Times.Once);
+        audit.Events.Should().ContainSingle(item => item.EventType == "password_change" && item.ActorId == "KH-test");
     }
 
     [Fact]
@@ -67,7 +69,8 @@ public sealed class AccountPasswordServiceTests
             new IdentitySession { SessionId = Guid.NewGuid(), AccountType = "Admin", AccountId = "28", CreatedAtUtc = DateTime.UtcNow, LastSeenAtUtc = DateTime.UtcNow, ExpiresAtUtc = DateTime.UtcNow.AddDays(1) });
         await db.SaveChangesAsync();
         var revokedTokens = new Mock<IRevokedTokenService>();
-        var service = new AccountPasswordService(db, hasher, revokedTokens.Object, new IdentitySessionService(db));
+        var audit = new RecordingAuditWriter();
+        var service = new AccountPasswordService(db, hasher, revokedTokens.Object, new IdentitySessionService(db), audit);
         var expiry = DateTime.UtcNow.AddMinutes(5);
 
         await service.ChangeAdminPasswordAsync(27, "OldPassword123!", "NewPassword123!", "admin-jti", expiry);
@@ -80,6 +83,17 @@ public sealed class AccountPasswordServiceTests
         sessions.Should().ContainSingle(x => x.AccountId == "27" && x.RevokedAtUtc != null);
         sessions.Should().ContainSingle(x => x.AccountId == "28" && x.RevokedAtUtc == null);
         revokedTokens.Verify(x => x.RevokeAsync("admin-jti", expiry, It.IsAny<CancellationToken>()), Times.Once);
+        audit.Events.Should().ContainSingle(item => item.EventType == "password_change" && item.ActorType == "Admin");
+    }
+
+    private sealed class RecordingAuditWriter : ISecurityAuditWriter
+    {
+        public List<SecurityAuditEvent> Events { get; } = [];
+        public Task WriteAsync(SecurityAuditEvent auditEvent, CancellationToken cancellationToken = default)
+        {
+            Events.Add(auditEvent);
+            return Task.CompletedTask;
+        }
     }
 
     [Fact]

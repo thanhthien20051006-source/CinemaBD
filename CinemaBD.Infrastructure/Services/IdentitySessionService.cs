@@ -3,23 +3,40 @@ using CinemaBD.Application.Interfaces;
 using CinemaBD.Infrastructure.Persistence;
 using CinemaBD.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace CinemaBD.Infrastructure.Services;
 
 public sealed class IdentitySessionService : IIdentitySessionService
 {
     private readonly AppDbContext _db;
+    private readonly ISecurityAuditWriter? _securityAuditWriter;
+    private readonly ILogger<IdentitySessionService>? _logger;
 
-    public IdentitySessionService(AppDbContext db) => _db = db;
+    public IdentitySessionService(AppDbContext db, ISecurityAuditWriter? securityAuditWriter = null, ILogger<IdentitySessionService>? logger = null)
+    {
+        _db = db;
+        _securityAuditWriter = securityAuditWriter;
+        _logger = logger;
+    }
 
     public async Task<Guid> CreateSessionAsync(string accountType, string accountId, string? deviceName = null, string? userAgent = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(accountType) || string.IsNullOrWhiteSpace(accountId))
             throw new ArgumentException("Session account identity is required.");
 
-        deviceName = Bound(deviceName, 100);
-        userAgent = Bound(userAgent, 512);
+        deviceName = SecurityMetadataSanitizer.SanitizeDeviceName(deviceName);
+        userAgent = SecurityMetadataSanitizer.SanitizeUserAgent(userAgent);
         var now = DateTime.UtcNow;
+        var previousSessions = await _db.IdentitySessions.AsNoTracking()
+            .Where(session => session.AccountType == accountType && session.AccountId == accountId)
+            .ToListAsync(cancellationToken);
+        var knownUserAgents = previousSessions.Select(session => session.UserAgent ?? string.Empty).ToHashSet(StringComparer.Ordinal);
+        var knownDeviceNames = previousSessions.Select(session => session.DeviceName ?? string.Empty).ToHashSet(StringComparer.Ordinal);
+        var hasDeviceSignal = !string.IsNullOrWhiteSpace(deviceName) || !string.IsNullOrWhiteSpace(userAgent);
+        var isNewDevice = previousSessions.Count > 0 && hasDeviceSignal
+            && !knownUserAgents.Contains(userAgent ?? string.Empty)
+            && !knownDeviceNames.Contains(deviceName ?? string.Empty);
         var sessionId = Guid.NewGuid();
         _db.IdentitySessions.Add(new IdentitySession
         {
@@ -33,6 +50,12 @@ public sealed class IdentitySessionService : IIdentitySessionService
             UserAgent = userAgent
         });
         await _db.SaveChangesAsync(cancellationToken);
+        await WriteAuditSafelyAsync("login_success", accountType, accountId, sessionId, "success", "Login session created.", cancellationToken);
+        if (isNewDevice)
+        {
+            _logger?.LogWarning("Login from an unfamiliar device detected for {AccountType} account {AccountId}, session {SessionId}.", accountType, accountId, sessionId);
+            await WriteAuditSafelyAsync("new_device_login", accountType, accountId, sessionId, "detected", "Device metadata differs from previous sessions.", cancellationToken);
+        }
         return sessionId;
     }
 
@@ -52,13 +75,6 @@ public sealed class IdentitySessionService : IIdentitySessionService
         });
         await _db.SaveChangesAsync(cancellationToken);
         return token;
-    }
-
-    private static string? Bound(string? value, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(value)) return null;
-        value = value.Trim();
-        return value.Length <= maxLength ? value : value[..maxLength];
     }
 
     public async Task<IReadOnlyCollection<IdentitySessionInfo>> ListSessionsAsync(string accountType, string accountId, Guid currentSessionId, CancellationToken cancellationToken = default)
@@ -87,6 +103,8 @@ public sealed class IdentitySessionService : IIdentitySessionService
         foreach (var token in refreshTokens) token.RevokedAtUtc = now;
         await _db.SaveChangesAsync(cancellationToken);
         if (transaction is not null) await transaction.CommitAsync(cancellationToken);
+        await WriteAuditSafelyAsync("session_revocation", accountType, accountId, sessionId, "success", "Session revoked.", cancellationToken);
+        await WriteAuditSafelyAsync("token_revocation", accountType, accountId, sessionId, "success", "Refresh credentials revoked with session.", cancellationToken);
         return true;
     }
 
@@ -108,6 +126,7 @@ public sealed class IdentitySessionService : IIdentitySessionService
         foreach (var token in refreshTokens) token.RevokedAtUtc = now;
         await _db.SaveChangesAsync(cancellationToken);
         if (transaction is not null) await transaction.CommitAsync(cancellationToken);
+        await WriteAuditSafelyAsync("session_revocation", accountType, accountId, session.SessionId, "success", "Session revoked with refresh credential; credential omitted.", cancellationToken);
         return true;
     }
 
@@ -128,6 +147,26 @@ public sealed class IdentitySessionService : IIdentitySessionService
         foreach (var token in refreshTokens) token.RevokedAtUtc = now;
         await _db.SaveChangesAsync(cancellationToken);
         if (transaction is not null) await transaction.CommitAsync(cancellationToken);
+        if (sessions.Count > 0)
+        {
+            await WriteAuditSafelyAsync("session_revocation", accountType, accountId, null, "success", $"Revoked {sessions.Count} sessions.", cancellationToken);
+            await WriteAuditSafelyAsync("token_revocation", accountType, accountId, null, "success", "Refresh credentials revoked with sessions.", cancellationToken);
+        }
+    }
+
+    private async Task WriteAuditSafelyAsync(string eventType, string accountType, string accountId, Guid? sessionId, string result, string details, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (_securityAuditWriter is not null)
+                await _securityAuditWriter.WriteAsync(new SecurityAuditEvent(eventType, accountType, accountId, sessionId, Result: result, Details: details), cancellationToken);
+            else
+                _logger?.LogInformation("Security event {EventType} for {AccountType} {AccountId}: {Details}", eventType, accountType, accountId, details);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            _logger?.LogError(exception, "Failed to persist security audit event {EventType} for {AccountType}.", eventType, accountType);
+        }
     }
 
     public Task<bool> IsActiveAsync(Guid sessionId, CancellationToken cancellationToken = default)

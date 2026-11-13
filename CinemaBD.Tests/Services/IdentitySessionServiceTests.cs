@@ -1,7 +1,9 @@
+using CinemaBD.Application.Interfaces;
 using CinemaBD.Infrastructure.Persistence;
 using CinemaBD.Infrastructure.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace CinemaBD.Tests.Services;
 
@@ -11,11 +13,33 @@ public sealed class IdentitySessionServiceTests
         .UseInMemoryDatabase(Guid.NewGuid().ToString())
         .Options);
 
+    private sealed class RecordingAuditWriter : ISecurityAuditWriter
+    {
+        public List<SecurityAuditEvent> Events { get; } = [];
+        public Task WriteAsync(SecurityAuditEvent auditEvent, CancellationToken cancellationToken = default)
+        {
+            Events.Add(auditEvent);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingLogger<T> : ILogger<T>
+    {
+        public List<string> Messages { get; } = [];
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            Messages.Add(formatter(state, exception));
+        }
+    }
+
     [Fact]
     public async Task CreateSessionAsync_PersistsCanonicalIdentityAndBoundedDeviceMetadata()
     {
         using var db = CreateDb();
-        var service = new IdentitySessionService(db);
+        var audit = new RecordingAuditWriter();
+        var service = new IdentitySessionService(db, audit);
         var longLabel = new string('d', 140);
         var longAgent = new string('u', 600);
 
@@ -30,6 +54,7 @@ public sealed class IdentitySessionServiceTests
         session.RevokedAtUtc.Should().BeNull();
         session.ExpiresAtUtc.Should().BeAfter(DateTime.UtcNow);
         (await service.IsActiveAsync(id)).Should().BeTrue();
+        audit.Events.Should().ContainSingle(item => item.EventType == "login_success" && item.Result == "success");
     }
 
     [Fact]
@@ -69,11 +94,28 @@ public sealed class IdentitySessionServiceTests
     public async Task RevokeSessionAsync_DoesNotAllowCrossAccountRevocation()
     {
         using var db = CreateDb();
-        var service = new IdentitySessionService(db);
+        var audit = new RecordingAuditWriter();
+        var service = new IdentitySessionService(db, audit);
         var id = await service.CreateSessionAsync("KHACHHANG", "KH-1");
 
         (await service.RevokeSessionAsync(id, "KHACHHANG", "KH-2", "logout")).Should().BeFalse();
         (await service.IsActiveAsync(id)).Should().BeTrue();
+        audit.Events.Should().ContainSingle(item => item.EventType == "login_success");
+    }
+
+    [Fact]
+    public async Task CreateSessionAsync_LogsWarningAndAuditForUnknownDevice()
+    {
+        using var db = CreateDb();
+        var audit = new RecordingAuditWriter();
+        var logger = new RecordingLogger<IdentitySessionService>();
+        var service = new IdentitySessionService(db, audit, logger);
+        await service.CreateSessionAsync("Admin", "3", "Known laptop", "Agent A");
+
+        await service.CreateSessionAsync("Admin", "3", "Unrecognized phone", "Agent B");
+
+        audit.Events.Should().ContainSingle(item => item.EventType == "new_device_login");
+        logger.Messages.Should().Contain(message => message.Contains("unfamiliar device", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

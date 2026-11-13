@@ -6,6 +6,7 @@ using Google.Apis.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 
 namespace CinemaBD.Infrastructure.Services;
@@ -17,14 +18,20 @@ public class AuthService : IAuthService
     private readonly ITokenService _tokenService;
     private readonly IIdentitySessionService _identitySessionService;
     private readonly IConfiguration _configuration;
+    private readonly ISecurityAuditWriter? _securityAuditWriter;
+    private readonly ILogger<AuthService>? _logger;
+    private readonly IAccountLockoutService? _lockoutService;
 
-    public AuthService(AppDbContext db, Pbkdf2PasswordHasher passwordHasher, ITokenService tokenService, IIdentitySessionService identitySessionService, IConfiguration configuration)
+    public AuthService(AppDbContext db, Pbkdf2PasswordHasher passwordHasher, ITokenService tokenService, IIdentitySessionService identitySessionService, IConfiguration configuration, ISecurityAuditWriter? securityAuditWriter = null, ILogger<AuthService>? logger = null, IAccountLockoutService? lockoutService = null)
     {
         _db = db;
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
         _identitySessionService = identitySessionService;
         _configuration = configuration;
+        _securityAuditWriter = securityAuditWriter;
+        _logger = logger;
+        _lockoutService = lockoutService;
     }
 
     public async Task<(string Token, string RefreshToken, Guid SessionId, bool MustChangePassword, bool PasswordExpired)> LoginAsync(string username, string password, string? deviceName = null, string? userAgent = null, CancellationToken cancellationToken = default)
@@ -35,16 +42,40 @@ public class AuthService : IAuthService
         username = username.Trim();
         password = password.Trim();
 
+        var lockout = _lockoutService is null ? null : await _lockoutService.GetAsync("KHACHHANG", username, cancellationToken);
+        if (lockout is { IsLocked: false, LockoutEndUtc: not null } expiredLockout && _lockoutService is not null)
+        {
+            await _lockoutService.ResetAsync("KHACHHANG", username, cancellationToken);
+            if (expiredLockout.AccountId is not null)
+                await WriteAuditSafelyAsync("account_unlocked", "KHACHHANG", expiredLockout.AccountId, "success", "Temporary lockout expired automatically.", cancellationToken);
+        }
+
         var user = await _db.Customers.FirstOrDefaultAsync(x => x.TKhoan == username, cancellationToken);
         if (user == null)
         {
             _passwordHasher.DummyVerify(password);
+            if (lockout?.IsLocked == true)
+            {
+                await WriteAuditSafelyAsync("login_failed", "KHACHHANG", lockout.AccountId, "failure", "Invalid credentials; temporary lockout active.", cancellationToken);
+                throw new InvalidOperationException("Tài khoản hoặc mật khẩu không chính xác.");
+            }
+            await RegisterInvalidAttemptAsync(username, null, cancellationToken);
+            throw new InvalidOperationException("Tài khoản hoặc mật khẩu không chính xác.");
+        }
+
+        if (lockout?.IsLocked == true)
+        {
+            _passwordHasher.DummyVerify(password);
+            await WriteAuditSafelyAsync("login_failed", "KHACHHANG", user.MaKH, "failure", "Invalid credentials; temporary lockout active.", cancellationToken);
             throw new InvalidOperationException("Tài khoản hoặc mật khẩu không chính xác.");
         }
 
         var verification = _passwordHasher.VerifyDetailed(password, user.MatKhau);
         if (verification == PasswordVerificationResult.Failed)
+        {
+            await RegisterInvalidAttemptAsync(username, user.MaKH, cancellationToken);
             throw new InvalidOperationException("Tài khoản hoặc mật khẩu không chính xác.");
+        }
 
         if (verification == PasswordVerificationResult.SuccessRehashNeeded || _passwordHasher.NeedsRehash(user.MatKhau))
         {
@@ -76,6 +107,13 @@ public class AuthService : IAuthService
         {
             var accessToken = _tokenService.CreateToken(account, sessionId, mustChangePassword);
             var refreshToken = await _identitySessionService.IssueRefreshTokenAsync(sessionId, cancellationToken);
+            await WriteAuditSafelyAsync("login_success", "KHACHHANG", user.MaKH, "success", "Login succeeded.", cancellationToken, sessionId);
+            if (_lockoutService is not null)
+            {
+                await _lockoutService.ResetAsync("KHACHHANG", username, cancellationToken);
+                if (lockout?.FailedAttempts > 0)
+                    await WriteAuditSafelyAsync("account_unlocked", "KHACHHANG", user.MaKH, "success", "Successful authentication cleared prior failed-attempt state.", cancellationToken);
+            }
             return (accessToken, refreshToken, sessionId, mustChangePassword, passwordExpired);
         }
         catch
@@ -83,6 +121,31 @@ public class AuthService : IAuthService
             await _identitySessionService.RevokeSessionAsync(sessionId, "KHACHHANG", user.MaKH, "token_issuance_failed", cancellationToken);
             throw;
         }
+    }
+
+    private async Task RegisterInvalidAttemptAsync(string username, string? accountId, CancellationToken cancellationToken)
+    {
+        var state = _lockoutService is null ? null : await _lockoutService.RecordFailureAsync("KHACHHANG", username, accountId, cancellationToken);
+        var description = state?.IsLocked == true ? "Invalid credentials; account temporarily locked." : "Invalid credentials.";
+        await WriteAuditSafelyAsync("login_failed", "KHACHHANG", accountId, "failure", description, cancellationToken);
+        if (state?.IsLocked == true)
+        {
+            _logger?.LogWarning("Security lockout activated for {AccountType} account {AccountId} after configured failed-login threshold.", "KHACHHANG", accountId ?? "unknown");
+            await WriteAuditSafelyAsync("account_locked", "KHACHHANG", accountId, "locked", "Temporary lockout activated.", cancellationToken);
+        }
+        else if (state is not null && state.FailedAttempts >= _configuration.GetValue<int>("Security:AccountLockout:WarningThreshold", 3))
+        {
+            _logger?.LogWarning("Multiple failed login attempts detected for {AccountType} account {AccountId}.", "KHACHHANG", accountId ?? "unknown");
+            await WriteAuditSafelyAsync("multiple_login_failures", "KHACHHANG", accountId, "warning", "Multiple consecutive invalid credentials.", cancellationToken);
+        }
+    }
+
+    private Task WriteAuditSafelyAsync(string eventType, string actorType, string? actorId, string result, string? details, CancellationToken cancellationToken, Guid? sessionId = null)
+    {
+        if (_securityAuditWriter is not null)
+            return _securityAuditWriter.WriteAsync(new SecurityAuditEvent(eventType, actorType, actorId, sessionId, Result: result, Details: details), cancellationToken);
+        _logger?.LogInformation("Security event {EventType} for {ActorType} {ActorId} result {Result}: {Details}", eventType, actorType, actorId ?? "unknown", result, details);
+        return Task.CompletedTask;
     }
 
     public async Task<(string Token, string RefreshToken, Guid SessionId)> RegisterAsync(string fullName, string username, string password, string? email, string? phoneNumber, string? deviceName = null, string? userAgent = null, CancellationToken cancellationToken = default)
