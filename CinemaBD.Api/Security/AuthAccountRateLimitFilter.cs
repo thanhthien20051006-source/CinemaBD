@@ -37,7 +37,8 @@ public sealed class AuthAccountRateLimitFilter(AuthAccountRateLimiter limiter) :
         => path.Equals("/api/auth/login")
             || path.Equals("/api/auth/refresh")
             || path.Equals("/api/admin/auth/login")
-            || path.Equals("/api/admin/auth/refresh");
+            || path.Equals("/api/admin/auth/refresh")
+            || path.Equals("/api/admin/auth/mfa/verify");
 
     private static string ResolveAccount(ActionExecutingContext context)
     {
@@ -47,6 +48,25 @@ public sealed class AuthAccountRateLimitFilter(AuthAccountRateLimiter limiter) :
             var type = argument.GetType();
             var username = type.GetProperty("Username")?.GetValue(argument) as string;
             if (!string.IsNullOrWhiteSpace(username)) return username;
+            var mfaChallenge = type.GetProperty("MfaChallenge")?.GetValue(argument) as string;
+            if (!string.IsNullOrWhiteSpace(mfaChallenge) && mfaChallenge.Length <= 8192)
+            {
+                try
+                {
+                    var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+                    if (handler.CanReadToken(mfaChallenge))
+                    {
+                        var jwt = handler.ReadJwtToken(mfaChallenge);
+                        var uniqueName = jwt.Claims.FirstOrDefault(c => c.Type == System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.UniqueName)?.Value;
+                        if (!string.IsNullOrWhiteSpace(uniqueName)) return uniqueName;
+                        if (!string.IsNullOrWhiteSpace(jwt.Subject)) return jwt.Subject;
+                    }
+                }
+                catch
+                {
+                    return "invalid-mfa-challenge";
+                }
+            }
             var accessToken = type.GetProperty("AccessToken")?.GetValue(argument) as string;
             if (string.IsNullOrWhiteSpace(accessToken) || accessToken.Length > 8192) continue;
             try
