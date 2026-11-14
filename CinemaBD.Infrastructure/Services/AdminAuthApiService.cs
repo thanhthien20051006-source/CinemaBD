@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace CinemaBD.Infrastructure.Services;
 
@@ -233,7 +234,9 @@ public class AdminAuthApiService : IAdminAuthApiService
     {
         var principal = _tokenService.ValidateMfaChallengeToken(mfaChallenge);
         var jti = principal?.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
-        var username = principal?.FindFirst(JwtRegisteredClaimNames.UniqueName)?.Value ?? string.Empty;
+        var username = principal?.FindFirst(ClaimTypes.Name)?.Value
+            ?? principal?.FindFirst(JwtRegisteredClaimNames.UniqueName)?.Value
+            ?? string.Empty;
         var adminIdStr = principal?.FindFirst("admin_id")?.Value;
 
         if (principal == null || string.IsNullOrWhiteSpace(jti) || string.IsNullOrWhiteSpace(adminIdStr) || !int.TryParse(adminIdStr, out var adminId) || adminId <= 0)
@@ -262,6 +265,9 @@ public class AdminAuthApiService : IAdminAuthApiService
         }
 
         var admin = await _db.Admins.FirstOrDefaultAsync(x => x.AdminID == adminId && x.IsActive, cancellationToken);
+        if (admin != null && string.IsNullOrWhiteSpace(username))
+            username = admin.Username;
+
         var mfa = await _db.AdminMfas.FirstOrDefaultAsync(x => x.AdminID == adminId, cancellationToken);
 
         if (admin == null || mfa == null || !mfa.Enabled || mfa.SecretProtected == null)
