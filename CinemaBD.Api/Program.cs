@@ -15,8 +15,10 @@ CinemaBD.Infrastructure.Configuration.DotEnvLoader.Load(builder.Configuration, b
 
 builder.Services.AddProblemDetails();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddDataProtection();
 builder.Services.AddScoped<CinemaBD.Api.Filters.AdminPermissionAuthorizationFilter>();
 builder.Services.AddScoped<CinemaBD.Api.Filters.PasswordChangeRestrictionFilter>();
+builder.Services.AddScoped<CinemaBD.Api.Filters.MfaEnrollmentRestrictionFilter>();
 builder.Services.AddScoped<CinemaBD.Api.Filters.AdminPermissionClaimAuthorizationFilter>();
 builder.Services.AddScoped<CinemaBD.Api.Security.AccessTokenProofValidator>();
 builder.Services.AddScoped<CinemaBD.Api.Security.IdentityRequestResolver>();
@@ -32,6 +34,7 @@ builder.Services.AddControllers(options =>
     options.Filters.AddService<CinemaBD.Api.Filters.AdminPermissionAuthorizationFilter>();
     options.Filters.AddService<CinemaBD.Api.Filters.AdminPermissionClaimAuthorizationFilter>();
     options.Filters.AddService<CinemaBD.Api.Filters.PasswordChangeRestrictionFilter>();
+    options.Filters.AddService<CinemaBD.Api.Filters.MfaEnrollmentRestrictionFilter>();
 });
 builder.Services.AddCors(options => options.AddPolicy("WebClients", policy =>
 {

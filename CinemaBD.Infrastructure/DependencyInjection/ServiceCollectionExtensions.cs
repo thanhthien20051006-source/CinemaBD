@@ -33,6 +33,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<VnPaySignatureValidator>();
         services.AddScoped<DatabaseInitializer>();
         services.AddScoped<ITokenService, JwtTokenService>();
+        services.AddScoped<ITotpMfaService, TotpMfaService>();
+        services.AddScoped<IAdminEmergencyRecoveryService, AdminEmergencyRecoveryService>();
         services.AddScoped<IRevokedTokenService, RevokedTokenService>();
         services.AddScoped<IIdentitySessionService, IdentitySessionService>();
         services.AddScoped<IRefreshTokenStore, EfRefreshTokenStore>();
