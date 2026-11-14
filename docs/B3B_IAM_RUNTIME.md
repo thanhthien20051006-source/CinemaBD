@@ -60,8 +60,23 @@ Auth response envelopes preserve existing access-token fields and add `refreshTo
 - Cấu hình: `Mfa:RequireForMaster` (mặc định `true`).
 - **Ràng buộc:** Bất kỳ tài khoản Admin nào mang chức vụ Master (`ChucVu.IsMaster == true`) mà chưa kích hoạt MFA:
   - Khi đăng nhập thành công bằng mật khẩu (hoặc sau khi đã đổi mật khẩu bootstrap), Access Token được cấp phát sẽ bị gắn claim giới hạn phạm vi: `mfa_enrollment_only = "true"`.
-  - Bộ lọc bảo vệ `MfaEnrollmentRestrictionFilter` sẽ chặn toàn bộ các endpoint nghiệp vụ và quản trị (trả về HTTP 403 Forbidden). Master chỉ được phép gọi các endpoint thiết lập MFA (`/api/admin/auth/mfa/enroll/*`), đăng xuất, và tra cứu phiên.
+  - Bộ lọc bảo vệ `MfaEnrollmentRestrictionFilter` sẽ chặn toàn bộ các endpoint nghiệp vụ và quản trị (trả về HTTP 403 Forbidden). Master chỉ được phép gọi các endpoint thiết lập MFA (`/api/admin/auth/mfa/enroll/*`), đăng xuất, tra cứu phiên và đổi mật khẩu.
   - Master **không được phép tự tắt MFA** thông qua endpoint `POST /api/admin/auth/mfa/disable` khi chính sách `Mfa:RequireForMaster` đang bật.
+
+### 3.1. Phân tích Rủi ro Tự Khóa (Self-Lockout Risks) & Biện pháp Phòng vệ
+Khi áp dụng chính sách bắt buộc MFA nghiêm ngặt (`Mfa:RequireForMaster = true`), hệ thống nhận diện và áp dụng các biện pháp kiểm soát chống tự khóa sau:
+1. **Rủi ro Deadlock giữa Đổi mật khẩu lần đầu và Thiết lập MFA**:
+   - *Nguy cơ:* Tài khoản Master mới khởi tạo (hoặc vừa qua emergency recovery) đồng thời có cờ `MustChangePassword = true` và `mfa_enrollment_only = true`. Nếu hai bộ lọc chặn chéo nhau, Master không thể thao tác bất kỳ endpoint nào.
+   - *Kiểm soát phòng vệ:* `MfaEnrollmentRestrictionFilter` cho phép tường minh route `POST /api/admin/auth/password/change`. Master đổi mật khẩu trước thành công -> phiên đổi mật khẩu bị thu hồi -> Master đăng nhập lại bằng mật khẩu mới -> token lúc này chỉ còn claim `mfa_enrollment_only` -> gọi `mfa/enroll/start` và `confirm` để hoàn tất kích hoạt MFA. Quy trình diễn ra tuần tự, triệt tiêu nguy cơ deadlock.
+2. **Rủi ro Mất thiết bị và thất lạc toàn bộ 10 mã khôi phục**:
+   - *Nguy cơ:* Vì chính sách cấm Master tự tắt MFA qua endpoint thông thường, Master sẽ bị kẹt vĩnh viễn ở Bước 2 (`/api/admin/auth/mfa/verify`).
+   - *Kiểm soát phòng vệ:* Thiết lập cơ chế cứu hộ khẩn cấp (Break-Glass) độc lập thông qua `IAdminEmergencyRecoveryService` sử dụng khóa bí mật vận hành `ADMIN_RECOVERY_KEY`. Cơ chế này chỉ chạy ở tầng kỹ thuật/vận hành nội bộ (không mở API public), xóa toàn bộ MFA cũ, đặt lại mật khẩu tạm thời và ghi audit log mức nghiêm trọng.
+3. **Rủi ro Mất khóa giải mã Data Protection (Key Ring Disruption)**:
+   - *Nguy cơ:* Nếu Data Protection key ring dùng bộ nhớ tạm (in-memory) và server bị restart, toàn bộ TOTP secret (`SecretProtected`) trong CSDL không thể giải mã (`CryptographicException`), gây khóa toàn bộ tài khoản Admin.
+   - *Kiểm soát phòng vệ:* Đã cấu hình `PersistKeysToFileSystem` với thư mục lưu trữ bền vững (hoặc persistent volume trong Docker) và gán `SetApplicationName("CinemaBD")`.
+4. **Rủi ro Tấn công Brute-Force gây DoS Lockout**:
+   - *Nguy cơ:* Kẻ tấn công cố tình nhập sai OTP để kích hoạt `AccountLockoutService` khóa tài khoản Master 15 phút.
+   - *Kiểm soát phòng vệ:* Kết hợp bộ lọc giới hạn tần suất theo IP (`AuthAccountRateLimitFilter`, `AuthRateLimitFilter`) để chặn nguồn tấn công trước khi đạt ngưỡng khóa tài khoản; trạng thái lockout tự động giải phóng khi hết hạn hoặc khi kích hoạt quy trình cứu hộ khẩn cấp.
 
 ### 4. Quy trình Khôi phục Sự cố Khẩn cấp Master (Emergency Master Recovery Runbook)
 Trong tình huống Master admin bị mất thiết bị xác thực và làm mất toàn bộ 10 mã khôi phục:
