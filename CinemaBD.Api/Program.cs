@@ -12,7 +12,6 @@ using System.Text;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
-CinemaBD.Infrastructure.Configuration.DotEnvLoader.Load(builder.Configuration, builder.Environment.ContentRootPath);
 
 builder.Services.AddProblemDetails();
 builder.Services.AddHttpContextAccessor();

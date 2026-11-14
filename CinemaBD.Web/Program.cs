@@ -15,7 +15,6 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
-CinemaBD.Infrastructure.Configuration.DotEnvLoader.Load(builder.Configuration, builder.Environment.ContentRootPath);
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
