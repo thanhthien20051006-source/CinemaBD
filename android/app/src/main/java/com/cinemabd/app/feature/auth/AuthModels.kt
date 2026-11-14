@@ -51,5 +51,15 @@ data class AdminAuthResponse(
     val mustChangePassword: Boolean = false,
     val passwordExpired: Boolean = false,
     val refreshToken: String? = null,
-    val sessionId: String? = null
+    val sessionId: String? = null,
+    val mfaRequired: Boolean = false,
+    val mfaChallenge: String? = null
+)
+
+@Serializable
+data class AdminMfaVerifyRequest(
+    val mfaChallenge: String,
+    val code: String,
+    val isRecoveryCode: Boolean = false,
+    val deviceName: String? = "Android app"
 )

@@ -17,5 +17,9 @@ data class AuthUiState(
     val currentPassword: String = "",
     val newPassword: String = "",
     val confirmPassword: String = "",
+    val isMfaRequired: Boolean = false,
+    val mfaChallenge: String? = null,
+    val mfaCode: String = "",
+    val isRecoveryCodeMode: Boolean = false,
     val errorMessage: String? = null
 )

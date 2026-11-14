@@ -150,6 +150,29 @@ public class CinemaApiClient
         }
     }
 
+    public async Task<AdminAuthResult?> AdminVerifyMfaAsync(string mfaChallenge, string code, bool isRecoveryCode = false, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var response = await _httpClient.PostAsJsonAsync("api/admin/auth/mfa/verify", new
+            {
+                mfaChallenge,
+                code,
+                isRecoveryCode,
+                deviceName = "CinemaBD Web Admin"
+            }, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            var payload = await response.Content.ReadFromJsonAsync<ApiResponse<AdminAuthResult>>(cancellationToken: cancellationToken);
+            return payload?.Data;
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
+
     public async Task<(string Token, string RefreshToken, Guid SessionId)?> RefreshCustomerSessionAsync(string accessToken, string refreshToken, CancellationToken cancellationToken = default)
     {
         using var response = await _httpClient.PostAsJsonAsync("api/auth/refresh", new { accessToken, refreshToken }, cancellationToken);
@@ -547,6 +570,8 @@ public class CinemaApiClient
         public Guid? SessionId { get; set; }
         public bool MustChangePassword { get; set; }
         public bool PasswordExpired { get; set; }
+        public bool MfaRequired { get; set; }
+        public string? MfaChallenge { get; set; }
     }
 
     public sealed class InvoiceHistoryItem

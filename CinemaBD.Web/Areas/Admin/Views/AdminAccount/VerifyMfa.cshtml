@@ -1,0 +1,68 @@
+@{
+    ViewData["Title"] = "Xác thực hai bước (MFA)";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card p-4 shadow-sm border-0">
+                <div class="text-center mb-3">
+                    <span class="badge bg-danger p-2 mb-2" style="font-size: 1rem;"><i class="bi bi-shield-lock"></i> Xác thực 2 bước</span>
+                    <h4 class="text-center text-danger mb-1">Mã xác minh Admin</h4>
+                    <p class="text-center text-muted small">Tài khoản: <strong>@ViewBag.Username</strong></p>
+                </div>
+
+                @if (ViewBag.Error != null)
+                {
+                    <div class="alert alert-danger" role="alert">@ViewBag.Error</div>
+                }
+
+                <form method="post" asp-area="Admin" asp-controller="AdminAccount" asp-action="VerifyMfa">
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3" id="totpSection">
+                        <label for="code" class="form-label">Mã xác minh 6 chữ số (Google Authenticator)</label>
+                        <input id="code" name="code" class="form-control text-center fs-4 letter-spacing-2" maxlength="19" autocomplete="one-time-code" required autofocus placeholder="000000" style="min-height: 48px; letter-spacing: 0.3em; font-weight: bold;" />
+                        <div class="form-text">Nhập mã gồm 6 số từ ứng dụng Authenticator của bạn.</div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="isRecoveryCode" name="isRecoveryCode" value="true" onchange="toggleRecoveryMode(this.checked)" />
+                        <label class="form-check-label small" for="isRecoveryCode">Sử dụng mã khôi phục (Recovery Code) thay thế</label>
+                    </div>
+
+                    <button type="submit" class="btn btn-danger w-100 py-2 mb-3" style="min-height: 44px; font-weight: 600;">
+                        Xác nhận và Đăng nhập
+                    </button>
+
+                    <div class="text-center">
+                        <a asp-area="" asp-controller="Account" asp-action="Login" class="text-muted small text-decoration-none">
+                            Quay lại đăng nhập
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleRecoveryMode(isRecovery) {
+        var input = document.getElementById('code');
+        var label = document.querySelector('label[for="code"]');
+        var help = document.querySelector('.form-text');
+        if (isRecovery) {
+            label.textContent = 'Mã khôi phục (Recovery Code)';
+            input.placeholder = 'XXXX-XXXX';
+            input.maxLength = 19;
+            input.style.letterSpacing = '0.1em';
+            help.textContent = 'Nhập 1 trong 10 mã khôi phục bạn đã lưu khi kích hoạt MFA.';
+        } else {
+            label.textContent = 'Mã xác minh 6 chữ số (Google Authenticator)';
+            input.placeholder = '000000';
+            input.maxLength = 6;
+            input.style.letterSpacing = '0.3em';
+            help.textContent = 'Nhập mã gồm 6 số từ ứng dụng Authenticator của bạn.';
+        }
+    }
+</script>

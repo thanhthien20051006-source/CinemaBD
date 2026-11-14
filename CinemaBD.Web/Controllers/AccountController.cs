@@ -91,6 +91,13 @@ public class AccountController : Controller
         var admin = await _apiClient.AdminLoginAsync(model.Username, model.Password, cancellationToken);
         if (admin != null)
         {
+            if (admin.MfaRequired && !string.IsNullOrWhiteSpace(admin.MfaChallenge))
+            {
+                TempData["MfaChallenge"] = admin.MfaChallenge;
+                TempData["MfaUsername"] = admin.Username;
+                return RedirectToAction("VerifyMfa", "AdminAccount", new { area = "Admin" });
+            }
+
             HttpContext.Session.Clear();
             HttpContext.Session.SetString("AdminToken", admin.Token);
             HttpContext.Session.SetString("AdminUser", admin.Username);

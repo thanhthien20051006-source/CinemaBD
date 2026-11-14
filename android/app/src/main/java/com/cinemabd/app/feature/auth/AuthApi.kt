@@ -12,6 +12,9 @@ interface AuthApi {
     @POST("api/admin/auth/login")
     suspend fun adminLogin(@Body request: LoginRequest): ApiResponse<AdminAuthResponse>
 
+    @POST("api/admin/auth/mfa/verify")
+    suspend fun adminMfaVerify(@Body request: AdminMfaVerifyRequest): ApiResponse<AdminAuthResponse>
+
     @POST("api/auth/register")
     suspend fun register(@Body request: RegisterRequest): ApiResponse<AuthResponse>
 

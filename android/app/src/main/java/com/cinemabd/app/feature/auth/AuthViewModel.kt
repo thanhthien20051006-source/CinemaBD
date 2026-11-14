@@ -41,6 +41,63 @@ class AuthViewModel @Inject constructor(
         _uiState.update { it.copy(confirmPassword = password, errorMessage = null) }
     }
 
+    fun onMfaCodeChange(code: String) {
+        _uiState.update { it.copy(mfaCode = code, errorMessage = null) }
+    }
+
+    fun onToggleRecoveryMode(isRecovery: Boolean) {
+        _uiState.update { it.copy(isRecoveryCodeMode = isRecovery, mfaCode = "", errorMessage = null) }
+    }
+
+    fun submitMfaVerify() {
+        val state = _uiState.value
+        val challenge = state.mfaChallenge
+        if (challenge.isNullOrBlank()) {
+            _uiState.update { it.copy(errorMessage = "Phiên xác thực đã hết hạn. Vui lòng đăng nhập lại.") }
+            return
+        }
+        if (state.mfaCode.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Vui lòng nhập mã xác minh.") }
+            return
+        }
+
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        viewModelScope.launch {
+            val result = authRepository.adminMfaVerify(
+                AdminMfaVerifyRequest(
+                    mfaChallenge = challenge,
+                    code = state.mfaCode.trim(),
+                    isRecoveryCode = state.isRecoveryCodeMode
+                )
+            )
+            if (result.isSuccess) {
+                val adminData = result.getOrNull()
+                val adminRole = adminData?.role?.takeIf { it.isNotBlank() } ?: "Admin"
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        isSuccess = !(adminData?.mustChangePassword == true || adminData?.passwordExpired == true),
+                        requiresPasswordChange = adminData?.mustChangePassword == true || adminData?.passwordExpired == true,
+                        passwordChangeToken = adminData?.token.takeIf { adminData?.mustChangePassword == true || adminData?.passwordExpired == true },
+                        passwordChangeForAdmin = adminData?.mustChangePassword == true || adminData?.passwordExpired == true,
+                        role = adminRole,
+                        isMfaRequired = false,
+                        mfaChallenge = null,
+                        mfaCode = ""
+                    )
+                }
+            } else {
+                val exception = result.exceptionOrNull()
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = exception.toUserFriendlyMessage("Mã xác minh không chính xác hoặc phiên đã hết hạn.")
+                    )
+                }
+            }
+        }
+    }
+
     fun submitPasswordChange() {
         val state = _uiState.value
         if (state.currentPassword.isBlank() || state.newPassword.isBlank() || state.confirmPassword.isBlank()) {
@@ -194,6 +251,19 @@ class AuthViewModel @Inject constructor(
                 val adminResult = authRepository.adminLogin(LoginRequest(state.username, state.password))
                 if (adminResult.isSuccess) {
                     val adminData = adminResult.getOrNull()
+                    if (adminData?.mfaRequired == true) {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                isSuccess = false,
+                                isMfaRequired = true,
+                                mfaChallenge = adminData.mfaChallenge,
+                                mfaCode = "",
+                                role = "Admin"
+                            )
+                        }
+                        return@launch
+                    }
                     val adminRole = adminData?.role?.takeIf { it.isNotBlank() } ?: "Admin"
                     _uiState.update {
                         it.copy(

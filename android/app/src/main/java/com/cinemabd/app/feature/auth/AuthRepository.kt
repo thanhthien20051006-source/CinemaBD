@@ -43,6 +43,40 @@ class AuthRepository @Inject constructor(
         try {
             val response = authApi.adminLogin(request)
             if (response.success && response.data != null) {
+                if (response.data.mfaRequired) {
+                    return@withContext Result.success(response.data)
+                }
+                val token = response.data.token
+                cinemaDatabase.clearAllTables()
+                val roleFromToken = JwtUtils.parseRole(token)
+                val roleString = response.data.role?.takeIf { it.isNotBlank() } ?: roleFromToken ?: UserRole.Admin.value
+                if (response.data.mustChangePassword || response.data.passwordExpired) {
+                    sessionManager.clearSession()
+                } else {
+                    tokenDataStore.saveSession(
+                        UserSession(
+                            accessToken = token,
+                            userId = response.data.adminId.takeIf { it > 0 }?.toString() ?: JwtUtils.parseSubject(token),
+                            userName = response.data.fullName.ifBlank { response.data.username },
+                            role = UserRole.Admin,
+                            expiresAtUtcMillis = JwtUtils.parseExpirationUtcMillis(token) ?: 0L
+                        )
+                    )
+                    sessionManager.resetSession()
+                }
+                Result.success(response.data.copy(role = roleString))
+            } else {
+                Result.failure(Exception(response.message))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun adminMfaVerify(request: AdminMfaVerifyRequest): Result<AdminAuthResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = authApi.adminMfaVerify(request)
+            if (response.success && response.data != null) {
                 val token = response.data.token
                 cinemaDatabase.clearAllTables()
                 val roleFromToken = JwtUtils.parseRole(token)
