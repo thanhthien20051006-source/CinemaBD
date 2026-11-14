@@ -276,19 +276,36 @@ public class AdminAuthApiService : IAdminAuthApiService
         if (isRecoveryCode)
         {
             byte[] inputHash = _totpService.HashRecoveryCode(code);
-            var recoveryRecord = await _db.AdminRecoveryCodes.FirstOrDefaultAsync(
-                x => x.AdminID == adminId && x.CodeHash == inputHash && x.UsedAtUtc == null,
-                cancellationToken);
-
-            if (recoveryRecord == null)
+            if (_db.Database.IsRelational())
             {
-                await RegisterInvalidAttemptAsync(username, accountId, deviceName, userAgent, cancellationToken);
-                await WriteAuditSafelyAsync("mfa_login_failed", "Admin", accountId, deviceName, userAgent, "failure", "Invalid or already-consumed recovery code.", cancellationToken);
-                throw new InvalidOperationException("Mã xác minh không chính xác hoặc phiên đã hết hạn.");
+                var affected = await _db.AdminRecoveryCodes
+                    .Where(x => x.AdminID == adminId && x.CodeHash == inputHash && x.UsedAtUtc == null)
+                    .ExecuteUpdateAsync(u => u.SetProperty(x => x.UsedAtUtc, DateTime.UtcNow), cancellationToken);
+
+                if (affected == 0)
+                {
+                    await RegisterInvalidAttemptAsync(username, accountId, deviceName, userAgent, cancellationToken);
+                    await WriteAuditSafelyAsync("mfa_login_failed", "Admin", accountId, deviceName, userAgent, "failure", "Invalid or already-consumed recovery code.", cancellationToken);
+                    throw new InvalidOperationException("Mã xác minh không chính xác hoặc phiên đã hết hạn.");
+                }
+            }
+            else
+            {
+                var recoveryRecord = await _db.AdminRecoveryCodes.FirstOrDefaultAsync(
+                    x => x.AdminID == adminId && x.CodeHash == inputHash && x.UsedAtUtc == null,
+                    cancellationToken);
+
+                if (recoveryRecord == null)
+                {
+                    await RegisterInvalidAttemptAsync(username, accountId, deviceName, userAgent, cancellationToken);
+                    await WriteAuditSafelyAsync("mfa_login_failed", "Admin", accountId, deviceName, userAgent, "failure", "Invalid or already-consumed recovery code.", cancellationToken);
+                    throw new InvalidOperationException("Mã xác minh không chính xác hoặc phiên đã hết hạn.");
+                }
+
+                recoveryRecord.UsedAtUtc = DateTime.UtcNow;
+                await _db.SaveChangesAsync(cancellationToken);
             }
 
-            recoveryRecord.UsedAtUtc = DateTime.UtcNow;
-            await _db.SaveChangesAsync(cancellationToken);
             await WriteAuditSafelyAsync("recovery_code_used", "Admin", accountId, deviceName, userAgent, "success", "Single-use recovery code consumed.", cancellationToken);
         }
         else
@@ -304,8 +321,31 @@ public class AdminAuthApiService : IAdminAuthApiService
                 throw new InvalidOperationException("Mã xác minh không chính xác hoặc phiên đã hết hạn.");
             }
 
-            mfa.LastUsedStep = matchedStep;
-            await _db.SaveChangesAsync(cancellationToken);
+            if (_db.Database.IsRelational())
+            {
+                var affected = await _db.AdminMfas
+                    .Where(x => x.AdminID == adminId && (x.LastUsedStep == null || x.LastUsedStep < matchedStep))
+                    .ExecuteUpdateAsync(u => u.SetProperty(x => x.LastUsedStep, matchedStep), cancellationToken);
+
+                if (affected == 0)
+                {
+                    await RegisterInvalidAttemptAsync(username, accountId, deviceName, userAgent, cancellationToken);
+                    await WriteAuditSafelyAsync("mfa_login_failed", "Admin", accountId, deviceName, userAgent, "failure", "Replayed TOTP code rejected.", cancellationToken);
+                    throw new InvalidOperationException("Mã xác minh không chính xác hoặc phiên đã hết hạn.");
+                }
+            }
+            else
+            {
+                if (mfa.LastUsedStep.HasValue && mfa.LastUsedStep.Value >= matchedStep)
+                {
+                    await RegisterInvalidAttemptAsync(username, accountId, deviceName, userAgent, cancellationToken);
+                    await WriteAuditSafelyAsync("mfa_login_failed", "Admin", accountId, deviceName, userAgent, "failure", "Replayed TOTP code rejected.", cancellationToken);
+                    throw new InvalidOperationException("Mã xác minh không chính xác hoặc phiên đã hết hạn.");
+                }
+
+                mfa.LastUsedStep = matchedStep;
+                await _db.SaveChangesAsync(cancellationToken);
+            }
         }
 
         var passwordExpired = admin.PasswordExpiresAt is not null && admin.PasswordExpiresAt <= DateTime.UtcNow;
