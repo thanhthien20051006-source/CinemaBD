@@ -41,15 +41,7 @@ public sealed class EfRefreshTokenStore : IRefreshTokenStore
 
         if (candidate.ConsumedAtUtc is not null)
         {
-            var session = await _db.IdentitySessions.SingleOrDefaultAsync(x => x.SessionId == candidate.SessionId && x.AccountType == candidate.AccountType && x.AccountId == candidate.AccountId, cancellationToken);
-            if (session is not null && session.RevokedAtUtc is null)
-            {
-                session.RevokedAtUtc = nowUtc;
-                session.RevocationReason = Security.SecurityMetadataSanitizer.SanitizeRevocationReason("refresh_token_reuse");
-                _logger?.LogWarning("Refresh credential reuse detected for {AccountType} account {AccountId}, session {SessionId}; session revoked.", session.AccountType, session.AccountId, session.SessionId);
-                await _db.SaveChangesAsync(cancellationToken);
-                await WriteReuseAuditAsync(session.AccountType, session.AccountId, session.SessionId, cancellationToken);
-            }
+            await RevokeSessionOnReuseAsync(candidate.SessionId, candidate.AccountType, candidate.AccountId, nowUtc, cancellationToken);
             return new RefreshTokenStoreResult(RefreshTokenStoreOutcome.Reused, candidate.SessionId, candidate.AccountType, candidate.AccountId);
         }
 
@@ -61,7 +53,10 @@ public sealed class EfRefreshTokenStore : IRefreshTokenStore
         {
             var inMemoryToken = await _db.RefreshTokens.SingleAsync(x => x.RefreshTokenId == candidate.RefreshTokenId, cancellationToken);
             if (inMemoryToken.ConsumedAtUtc is not null)
+            {
+                await RevokeSessionOnReuseAsync(candidate.SessionId, candidate.AccountType, candidate.AccountId, nowUtc, cancellationToken);
                 return new RefreshTokenStoreResult(RefreshTokenStoreOutcome.Reused, candidate.SessionId, candidate.AccountType, candidate.AccountId);
+            }
             inMemoryToken.ConsumedAtUtc = nowUtc;
             inMemoryToken.ReplacedByRefreshTokenId = replacementTokenId;
             _db.RefreshTokens.Add(new RefreshTokenRecord { RefreshTokenId = replacementTokenId, SessionId = candidate.SessionId, TokenHash = replacementTokenHash, CreatedAtUtc = nowUtc, ExpiresAtUtc = replacementExpiresAtUtc });
@@ -70,52 +65,78 @@ public sealed class EfRefreshTokenStore : IRefreshTokenStore
         }
 
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
-        var affected = await _db.RefreshTokens
-            .Where(token => token.RefreshTokenId == candidate.RefreshTokenId
-                && token.TokenHash == presentedTokenHash
-                && token.ConsumedAtUtc == null
-                && token.RevokedAtUtc == null
-                && token.ExpiresAtUtc > nowUtc
-                && token.Session.RevokedAtUtc == null
-                && token.Session.ExpiresAtUtc > nowUtc)
-            .ExecuteUpdateAsync(update => update
-                .SetProperty(token => token.ConsumedAtUtc, nowUtc)
-                .SetProperty(token => token.ReplacedByRefreshTokenId, replacementTokenId), cancellationToken);
 
-        if (affected != 1)
+        var sessionActive = await _db.IdentitySessions.AsNoTracking()
+            .AnyAsync(session => session.SessionId == candidate.SessionId
+                && session.AccountType == candidate.AccountType
+                && session.AccountId == candidate.AccountId
+                && session.RevokedAtUtc == null
+                && session.ExpiresAtUtc > nowUtc, cancellationToken);
+
+        if (!sessionActive)
         {
-            if (transaction is not null) await transaction.RollbackAsync(cancellationToken);
-            var recheck = await _db.RefreshTokens.AsNoTracking()
-                .Where(token => token.RefreshTokenId == candidate.RefreshTokenId)
-                .Select(token => new { token.ConsumedAtUtc, token.SessionId })
-                .SingleOrDefaultAsync(cancellationToken);
-            if (recheck?.ConsumedAtUtc is not null)
-            {
-                var session = await _db.IdentitySessions.SingleOrDefaultAsync(x => x.SessionId == candidate.SessionId && x.AccountType == candidate.AccountType && x.AccountId == candidate.AccountId, cancellationToken);
-                if (session is not null && session.RevokedAtUtc is null)
-                {
-                    session.RevokedAtUtc = nowUtc;
-                    session.RevocationReason = Security.SecurityMetadataSanitizer.SanitizeRevocationReason("refresh_token_reuse");
-                    _logger?.LogWarning("Refresh credential reuse detected for {AccountType} account {AccountId}, session {SessionId}; session revoked.", session.AccountType, session.AccountId, session.SessionId);
-                    await _db.SaveChangesAsync(cancellationToken);
-                    await WriteReuseAuditAsync(session.AccountType, session.AccountId, session.SessionId, cancellationToken);
-                }
-                return new RefreshTokenStoreResult(RefreshTokenStoreOutcome.Reused, candidate.SessionId, candidate.AccountType, candidate.AccountId);
-            }
+            await transaction.RollbackAsync(cancellationToken);
+            await transaction.DisposeAsync();
             return new RefreshTokenStoreResult(RefreshTokenStoreOutcome.Invalid, null);
         }
 
-        _db.RefreshTokens.Add(new RefreshTokenRecord
+        var replacementRecord = new RefreshTokenRecord
         {
             RefreshTokenId = replacementTokenId,
             SessionId = candidate.SessionId,
             TokenHash = replacementTokenHash,
             CreatedAtUtc = nowUtc,
             ExpiresAtUtc = replacementExpiresAtUtc
-        });
+        };
+
+        _db.RefreshTokens.Add(replacementRecord);
         await _db.SaveChangesAsync(cancellationToken);
-        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
+
+        var affected = await _db.RefreshTokens
+            .Where(token => token.RefreshTokenId == candidate.RefreshTokenId
+                && token.TokenHash == presentedTokenHash
+                && token.ConsumedAtUtc == null
+                && token.RevokedAtUtc == null
+                && token.ExpiresAtUtc > nowUtc)
+            .ExecuteUpdateAsync(update => update
+                .SetProperty(token => token.ConsumedAtUtc, nowUtc)
+                .SetProperty(token => token.ReplacedByRefreshTokenId, replacementTokenId), cancellationToken);
+
+        if (affected != 1)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            await transaction.DisposeAsync();
+            _db.Entry(replacementRecord).State = EntityState.Detached;
+
+            var recheck = await _db.RefreshTokens.AsNoTracking()
+                .Where(token => token.RefreshTokenId == candidate.RefreshTokenId)
+                .Select(token => new { token.ConsumedAtUtc, token.SessionId })
+                .SingleOrDefaultAsync(cancellationToken);
+
+            if (recheck?.ConsumedAtUtc is not null)
+            {
+                await RevokeSessionOnReuseAsync(candidate.SessionId, candidate.AccountType, candidate.AccountId, nowUtc, cancellationToken);
+                return new RefreshTokenStoreResult(RefreshTokenStoreOutcome.Reused, candidate.SessionId, candidate.AccountType, candidate.AccountId);
+            }
+
+            return new RefreshTokenStoreResult(RefreshTokenStoreOutcome.Invalid, null);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
         return new RefreshTokenStoreResult(RefreshTokenStoreOutcome.Rotated, candidate.SessionId, candidate.AccountType, candidate.AccountId);
+    }
+
+    private async Task RevokeSessionOnReuseAsync(Guid sessionId, string accountType, string accountId, DateTime nowUtc, CancellationToken cancellationToken)
+    {
+        var session = await _db.IdentitySessions.SingleOrDefaultAsync(x => x.SessionId == sessionId && x.AccountType == accountType && x.AccountId == accountId, cancellationToken);
+        if (session is not null && session.RevokedAtUtc is null)
+        {
+            session.RevokedAtUtc = nowUtc;
+            session.RevocationReason = Security.SecurityMetadataSanitizer.SanitizeRevocationReason("refresh_token_reuse");
+            _logger?.LogWarning("Refresh credential reuse detected for {AccountType} account {AccountId}, session {SessionId}; session revoked.", session.AccountType, session.AccountId, session.SessionId);
+            await _db.SaveChangesAsync(cancellationToken);
+            await WriteReuseAuditAsync(session.AccountType, session.AccountId, session.SessionId, cancellationToken);
+        }
     }
 
     private async Task WriteReuseAuditAsync(string accountType, string accountId, Guid sessionId, CancellationToken cancellationToken)
