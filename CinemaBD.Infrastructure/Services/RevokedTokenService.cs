@@ -39,11 +39,28 @@ public sealed class RevokedTokenService : IRevokedTokenService
     public async Task<bool> IsRevokedAsync(string jti, CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
-        var isRevoked = await _db.RevokedTokens.AnyAsync(x => x.Jti == jti && x.ExpiresAtUtc > now, cancellationToken);
+        return await _db.RevokedTokens.AnyAsync(x => x.Jti == jti && x.ExpiresAtUtc > now, cancellationToken);
+    }
 
-        if (!isRevoked)
-            await _db.RevokedTokens.Where(x => x.Jti == jti && x.ExpiresAtUtc <= now).ExecuteDeleteAsync(cancellationToken);
+    public async Task<int> CleanupExpiredTokensAsync(CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        if (_db.Database.IsRelational())
+        {
+            return await _db.RevokedTokens
+                .Where(x => x.ExpiresAtUtc <= now)
+                .ExecuteDeleteAsync(cancellationToken);
+        }
 
-        return isRevoked;
+        var expired = await _db.RevokedTokens
+            .Where(x => x.ExpiresAtUtc <= now)
+            .ToListAsync(cancellationToken);
+
+        if (expired.Count == 0)
+            return 0;
+
+        _db.RevokedTokens.RemoveRange(expired);
+        await _db.SaveChangesAsync(cancellationToken);
+        return expired.Count;
     }
 }

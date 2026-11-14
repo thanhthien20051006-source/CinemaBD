@@ -260,5 +260,18 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
 
         public Task<bool> IsRevokedAsync(string jti, CancellationToken cancellationToken = default)
             => Task.FromResult(_revokedTokens.TryGetValue(jti, out var exp) && exp > DateTime.UtcNow);
+
+        public Task<int> CleanupExpiredTokensAsync(CancellationToken cancellationToken = default)
+        {
+            var now = DateTime.UtcNow;
+            var expiredKeys = _revokedTokens.Where(kvp => kvp.Value <= now).Select(kvp => kvp.Key).ToList();
+            int count = 0;
+            foreach (var key in expiredKeys)
+            {
+                if (_revokedTokens.TryRemove(key, out _))
+                    count++;
+            }
+            return Task.FromResult(count);
+        }
     }
 }
