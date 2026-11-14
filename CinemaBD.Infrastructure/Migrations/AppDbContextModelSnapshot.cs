@@ -53,6 +53,10 @@ namespace CinemaBD.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("LastSeenIp")
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
+
                     b.Property<string>("RevocationReason")
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");

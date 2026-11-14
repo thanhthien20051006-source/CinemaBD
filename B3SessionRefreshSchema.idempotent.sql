@@ -163,3 +163,47 @@ GO
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113110000_B3bSessionDeviceMetadata'
+)
+BEGIN
+    IF COL_LENGTH(N'[IdentitySessions]', N'DeviceName') IS NULL
+    BEGIN
+        ALTER TABLE [IdentitySessions] ADD [DeviceName] nvarchar(100) NULL;
+    END;
+    IF COL_LENGTH(N'[IdentitySessions]', N'UserAgent') IS NULL
+    BEGIN
+        ALTER TABLE [IdentitySessions] ADD [UserAgent] nvarchar(512) NULL;
+    END;
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261113110000_B3bSessionDeviceMetadata', N'8.0.12');
+END;
+GO
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261114000000_B3cSessionLastSeenIp'
+)
+BEGIN
+    IF COL_LENGTH(N'[IdentitySessions]', N'LastSeenIp') IS NULL
+    BEGIN
+        ALTER TABLE [IdentitySessions] ADD [LastSeenIp] nvarchar(45) NULL;
+    END;
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261114000000_B3cSessionLastSeenIp', N'8.0.12');
+END;
+GO
+
+COMMIT;
+GO
+

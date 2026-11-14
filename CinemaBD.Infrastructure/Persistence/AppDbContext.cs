@@ -38,6 +38,7 @@ public class AppDbContext : DbContext
             entity.Property(x => x.RevocationReason).HasMaxLength(128);
             entity.Property(x => x.DeviceName).HasMaxLength(100);
             entity.Property(x => x.UserAgent).HasMaxLength(512);
+            entity.Property(x => x.LastSeenIp).HasMaxLength(45);
             entity.HasIndex(x => new { x.AccountType, x.AccountId, x.RevokedAtUtc });
             entity.HasIndex(x => x.ExpiresAtUtc);
         });

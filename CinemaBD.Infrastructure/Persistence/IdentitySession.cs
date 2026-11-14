@@ -16,4 +16,5 @@ public sealed class IdentitySession
     public string? RevocationReason { get; set; }
     public string? DeviceName { get; set; }
     public string? UserAgent { get; set; }
+    public string? LastSeenIp { get; set; }
 }
