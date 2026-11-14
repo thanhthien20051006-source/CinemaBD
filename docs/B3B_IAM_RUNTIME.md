@@ -2,7 +2,7 @@
 
 ## Scope and safety
 
-B3b implements the runtime session/token features on top of the B3 schema. The device metadata migration is present as code only and has **not** been applied. No database access, `dotnet ef database update`, or `dotnet run` was used in this change set. B4 is out of scope.
+B3b implements runtime session/token features on top of the B3 schema. The device metadata migration is present as code only and has **not** been applied. No database access, `dotnet ef database update`, or `dotnet run` was used in this change set. The full unfiltered solution test command was not run because a test can start Web/API hosts with database initialization; only explicit selected InMemory/unit test filters were executed. B4 is out of scope.
 
 ## Access JWT and sessions
 
@@ -27,3 +27,10 @@ Admin login claims are sourced from current database relations: `Admin.MaCV` →
 ## Client compatibility
 
 Auth response envelopes preserve existing access-token fields and add `refreshToken` and `sessionId`. Android and MVC Web clients now pass/display bounded device labels, store refresh credentials, retry a 401 once via refresh where wired, and call server logout. Legacy JWTs still require login again.
+
+## Account Lockout (In-Memory — Trạng thái: "Một phần")
+
+- Chính sách khóa tài khoản tạm thời được triển khai qua `AccountLockoutService` (mặc định sau 5 lần xác thực thất bại liên tiếp, thời gian khóa 15 phút, hỗ trợ thời gian khóa lũy tiến và tự động mở khóa sau khi hết hạn hoặc khi đăng nhập thành công).
+- Trạng thái kiểm soát an toàn thông tin theo khung **NIST CSF 1.1 (mục PR.AC-7)** hiện được ghi nhận là **"Một phần" (Partial)**:
+  - **Lý do / Giới hạn:** Dữ liệu theo dõi số lần thử sai và thời hạn khóa hiện được lưu trữ cục bộ trong bộ nhớ tiến trình (in-memory qua `ConcurrentDictionary`). Toàn bộ trạng thái khóa sẽ bị mất khi ứng dụng khởi động lại (restart) và không thể chia sẻ/đồng bộ giữa các instance API khi chạy trong môi trường phân tán hoặc cụm cân bằng tải (load balancing).
+  - **Lộ trình nâng cấp đầy đủ:** Cần chuyển đổi cơ chế lưu trữ sang dạng bền vững (durable storage), hoặc lưu trữ trực tiếp vào các cột `AccessFailedCount` và `LockoutEndUtc` trong bảng CSDL theo đề xuất `CinemaBD.Infrastructure/Persistence/AccountLockoutSchemaProposal.md`, hoặc sử dụng kho dữ liệu phân tán Redis có cấu hình TTL tương ứng.
