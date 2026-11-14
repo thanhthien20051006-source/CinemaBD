@@ -264,21 +264,23 @@ public sealed class AdminMfaLoginTests
         var (uri, manualKey) = await service.StartMfaEnrollmentAsync(14);
         var rawSecret = totpService.FromBase32(manualKey);
         long currentStep = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 30L;
-        string code = totpService.ComputeTotp(rawSecret, currentStep);
+        string enrollCode = totpService.ComputeTotp(rawSecret, currentStep);
 
         // Confirm enrollment
-        await service.ConfirmMfaEnrollmentAsync(14, code);
+        await service.ConfirmMfaEnrollmentAsync(14, enrollCode);
 
-        // Login & Verify
+        // Login & Verify (using valid TOTP code for the next time window within allowedWindow = 1)
+        string loginCode = totpService.ComputeTotp(rawSecret, currentStep + 1);
         var loginResult = await service.LoginAsync("mfa_audit_test", "AdminPass123!");
-        await service.VerifyMfaAsync(loginResult.MfaChallenge!, code, false, null, null);
+        await service.VerifyMfaAsync(loginResult.MfaChallenge!, loginCode, false, null, null);
 
         // Check all audit records
         foreach (var ev in audit.Events)
         {
             ev.Details.Should().NotContain(manualKey, "Base32 secret must not leak in audit");
             ev.Details.Should().NotContain(uri, "Otpauth URI must not leak in audit");
-            ev.Details.Should().NotContain(code, "TOTP code must not leak in audit");
+            ev.Details.Should().NotContain(enrollCode, "Enrollment TOTP code must not leak in audit");
+            ev.Details.Should().NotContain(loginCode, "Login TOTP code must not leak in audit");
             if (!string.IsNullOrEmpty(loginResult.MfaChallenge))
                 ev.Details.Should().NotContain(loginResult.MfaChallenge, "Challenge token must not leak in audit");
         }
