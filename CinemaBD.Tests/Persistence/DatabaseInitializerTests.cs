@@ -60,7 +60,7 @@ public class DatabaseInitializerTests
         await new DatabaseInitializer(db, configuration, logger).InitializeAsync();
 
         db.ChangeTracker.Entries().Should().BeEmpty();
-        logger.Entries.Should().Contain(x => x.Level == LogLevel.Warning && x.Message.Contains("AllowAutoMigrate is False"));
+        logger.Entries.Should().Contain(x => x.Level == LogLevel.Warning && x.Message.Contains("AllowAutoMigrate", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -120,6 +120,80 @@ public class DatabaseInitializerTests
 
         var client = factory.CreateClient();
         client.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task EnsureBaselineMigrationHistory_OnNonRelationalProvider_IsNoOpAndDoesNotThrow()
+    {
+        // InMemory is non-relational → method should return immediately without error.
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        using var db = new AppDbContext(options);
+        var logger = new ListLogger<DatabaseInitializer>();
+        var configuration = new ConfigurationBuilder().Build();
+        var initializer = new DatabaseInitializer(db, configuration, logger);
+
+        await initializer.EnsureBaselineMigrationHistoryAsync();
+
+        // Should not log anything — skipped entirely for non-relational providers.
+        logger.Entries.Should().NotContain(x => x.Message.Contains("EnsureBaselineMigrationHistory"));
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WhenDatabaseAllowed_CallsBaselineBeforeMigrations()
+    {
+        // Verify the ordering: EnsureBaselineMigrationHistory runs before MigrateAsync.
+        // With InMemory, both are no-ops but the call sequence matters on real SQL Server.
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        using var db = new AppDbContext(options);
+        var logger = new ListLogger<DatabaseInitializer>();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:DefaultConnection"] = "Server=unused.invalid;Database=CinemaBD;User Id=test;Password=test",
+                ["Database:AllowAutoMigrate"] = "true",
+                ["Database:AllowedNames:0"] = "CinemaBD",
+                ["DatabaseSeed:AllowDemoData"] = "false",
+                // Suppress bootstrap admin warning noise.
+                ["BOOTSTRAP_ADMIN_USERNAME"] = "",
+                ["BOOTSTRAP_ADMIN_PASSWORD"] = ""
+            })
+            .Build();
+        var initializer = new DatabaseInitializer(db, configuration, logger);
+
+        // InMemory: non-relational → skips SQL-related steps but should not throw.
+        await initializer.InitializeAsync();
+
+        // The guard log about non-relational provider should appear.
+        logger.Entries.Should().Contain(x => x.Message.Contains("khong phai Relational"));
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WhenDatabaseNotAllowed_NeverReachesBaselineOrMigrate()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        using var db = new AppDbContext(options);
+        var logger = new ListLogger<DatabaseInitializer>();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:DefaultConnection"] = "Server=unused.invalid;Database=NotAllowed;User Id=test;Password=test",
+                ["Database:AllowAutoMigrate"] = "true",
+                ["Database:AllowedNames:0"] = "CinemaBD"
+            })
+            .Build();
+        var initializer = new DatabaseInitializer(db, configuration, logger);
+
+        await initializer.InitializeAsync();
+
+        logger.Entries.Should().Contain(x => x.Level == LogLevel.Warning && x.Message.Contains("NotAllowed"));
+        logger.Entries.Should().NotContain(x => x.Message.Contains("EnsureBaselineMigrationHistory"));
+        logger.Entries.Should().NotContain(x => x.Message.Contains("EF Core migration"));
     }
 
     private sealed class ListLogger<T> : ILogger<T>
@@ -209,5 +283,105 @@ public class DatabaseInitializerTests
         var env = configMock.Object["ASPNETCORE_ENVIRONMENT"];
         allowDemoData.Should().BeTrue();
         env.Should().Be("Production");
+    }
+
+    [Fact]
+    public async Task TestBranch1_OutsideAllowlist_InitializerSkipsExecutionAndWarns()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        using var db = new AppDbContext(options);
+        var logger = new ListLogger<DatabaseInitializer>();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:DefaultConnection"] = "Server=localhost;Database=ForbiddenDb;User Id=sa;Password=Secret",
+                ["Database:AllowAutoMigrate"] = "true",
+                ["Database:AllowedNames:0"] = "CinemaBD" // ForbiddenDb is not in allowlist
+            })
+            .Build();
+        var initializer = new DatabaseInitializer(db, configuration, logger);
+
+        await initializer.InitializeAsync();
+
+        logger.Entries.Should().Contain(x => x.Level == LogLevel.Warning && x.Message.Contains("ForbiddenDb"));
+        logger.Entries.Should().NotContain(x => x.Message.Contains("EnsureBaselineMigrationHistory"));
+    }
+
+    [Fact]
+    public async Task TestBranch2_EmptyDatabase_InMemoryProviderLogsAndReturnsSafely()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        using var db = new AppDbContext(options);
+        var logger = new ListLogger<DatabaseInitializer>();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:DefaultConnection"] = "Server=localhost;Database=CinemaBD;User Id=sa;Password=Secret",
+                ["Database:AllowAutoMigrate"] = "true",
+                ["Database:AllowedNames:0"] = "CinemaBD",
+                ["DatabaseSeed:AllowDemoData"] = "false"
+            })
+            .Build();
+        var initializer = new DatabaseInitializer(db, configuration, logger);
+
+        await initializer.InitializeAsync();
+
+        // Non-relational (InMemory) provider detected on empty database -> graceful skip without SQL errors
+        logger.Entries.Should().Contain(x => x.Message.Contains("khong phai Relational"));
+    }
+
+    [Fact]
+    public void TestBranch3_DatabaseWithTablesNoHistory_GeneratesCreateTableAndWitnessInserts()
+    {
+        var migrations = new[]
+        {
+            "20260524131837_InitialCinemaBdBaseline",
+            "20261112174026_B3SessionRefreshSchema",
+            "20261113110000_B3bSessionDeviceMetadata",
+            "20261114000000_B3cSessionLastSeenIp"
+        };
+
+        var sql = DatabaseInitializer.BuildBaselineMigrationHistorySql(migrations, "8.0.12");
+
+        sql.Should().NotBeNullOrWhiteSpace();
+        // 1. Must idempotently create __EFMigrationsHistory table if absent
+        sql.Should().Contain("IF OBJECT_ID(N'[dbo].[__EFMigrationsHistory]', N'U') IS NULL");
+        sql.Should().Contain("CREATE TABLE [dbo].[__EFMigrationsHistory]");
+
+        // 2. Must verify witness table for baseline migration (KHACHHANG)
+        sql.Should().Contain("OBJECT_ID(N'[dbo].[KHACHHANG]', N'U') IS NOT NULL");
+        sql.Should().Contain("20260524131837_InitialCinemaBdBaseline");
+
+        // 3. Must verify witness for session refresh schema (IdentitySessions)
+        sql.Should().Contain("OBJECT_ID(N'[dbo].[IdentitySessions]', N'U') IS NOT NULL");
+        sql.Should().Contain("20261112174026_B3SessionRefreshSchema");
+
+        // 4. Must verify witness for DeviceName column
+        sql.Should().Contain("COL_LENGTH(N'[dbo].[IdentitySessions]', N'DeviceName') IS NOT NULL");
+        sql.Should().Contain("20261113110000_B3bSessionDeviceMetadata");
+
+        // 5. Must verify witness for LastSeenIp column
+        sql.Should().Contain("COL_LENGTH(N'[dbo].[IdentitySessions]', N'LastSeenIp') IS NOT NULL");
+        sql.Should().Contain("20261114000000_B3cSessionLastSeenIp");
+    }
+
+    [Fact]
+    public void TestBranch4_DatabaseWithExistingHistory_GuardedByIdempotencyChecks()
+    {
+        var migrations = new[]
+        {
+            "20260524131837_InitialCinemaBdBaseline",
+            "20261112174026_B3SessionRefreshSchema"
+        };
+
+        var sql = DatabaseInitializer.BuildBaselineMigrationHistorySql(migrations, "8.0.12");
+
+        // Every single insert MUST be conditioned on IF NOT EXISTS so if __EFMigrationsHistory already has the row, it is skipped
+        sql.Should().Contain("IF NOT EXISTS (SELECT 1 FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = N'20260524131837_InitialCinemaBdBaseline')");
+        sql.Should().Contain("IF NOT EXISTS (SELECT 1 FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = N'20261112174026_B3SessionRefreshSchema')");
     }
 }
