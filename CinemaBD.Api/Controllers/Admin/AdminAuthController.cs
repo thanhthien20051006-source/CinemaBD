@@ -35,8 +35,110 @@ public class AdminAuthController : ControllerBase
     public async Task<IActionResult> Login([FromBody] AdminLoginRequest request, CancellationToken cancellationToken)
     {
         var result = await _adminAuthService.LoginAsync(request.Username, request.Password, request.DeviceName, Request.Headers.UserAgent.ToString(), cancellationToken);
-        var response = new AdminAuthResponse(result.AdminId, result.Username, result.FullName, result.Role, result.Token, result.MustChangePassword, result.PasswordExpired, result.RefreshToken, result.SessionId);
+        if (result.MfaRequired)
+        {
+            var mfaResponse = new AdminAuthResponse(
+                result.AdminId,
+                result.Username,
+                result.FullName,
+                result.Role,
+                Token: string.Empty,
+                MustChangePassword: result.MustChangePassword,
+                PasswordExpired: result.PasswordExpired,
+                RefreshToken: null,
+                SessionId: null,
+                MfaRequired: true,
+                MfaChallenge: result.MfaChallenge);
+            return Ok(new ApiResponse<object>(true, "Yêu cầu xác thực hai bước.", mfaResponse));
+        }
+
+        var response = new AdminAuthResponse(
+            result.AdminId,
+            result.Username,
+            result.FullName,
+            result.Role,
+            result.Token,
+            result.MustChangePassword,
+            result.PasswordExpired,
+            result.RefreshToken,
+            result.SessionId);
         return Ok(new ApiResponse<object>(true, "Đăng nhập admin thành công", response));
+    }
+
+    [AllowAnonymous]
+    [HttpPost("mfa/verify")]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> VerifyMfa([FromBody] AdminMfaVerifyRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.MfaChallenge) || string.IsNullOrWhiteSpace(request.Code))
+            return BadRequest(new ApiResponse<object>(false, "Mã xác minh và challenge không được để trống.", null));
+
+        var result = await _adminAuthService.VerifyMfaAsync(
+            request.MfaChallenge,
+            request.Code,
+            request.IsRecoveryCode,
+            request.DeviceName,
+            Request.Headers.UserAgent.ToString(),
+            cancellationToken);
+
+        var response = new AdminAuthResponse(
+            result.AdminId,
+            result.Username,
+            result.FullName,
+            result.Role,
+            result.Token,
+            result.MustChangePassword,
+            result.PasswordExpired,
+            result.RefreshToken,
+            result.SessionId);
+        return Ok(new ApiResponse<object>(true, "Xác minh MFA thành công.", response));
+    }
+
+    [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = "NotPasswordChangeOnly")]
+    [HttpPost("mfa/enroll/start")]
+    public async Task<IActionResult> StartMfaEnrollment(CancellationToken cancellationToken)
+    {
+        var adminId = GetAdminId();
+        if (adminId is null)
+            return Unauthorized(new ApiResponse<object>(false, "Không xác định được tài khoản quản trị.", null));
+
+        var (otpauthUri, manualEntryKey) = await _adminAuthService.StartMfaEnrollmentAsync(adminId.Value, cancellationToken);
+        var response = new AdminMfaEnrollStartResponse(otpauthUri, manualEntryKey);
+        return Ok(new ApiResponse<object>(true, "Khởi tạo thiết lập MFA thành công.", response));
+    }
+
+    [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = "NotPasswordChangeOnly")]
+    [HttpPost("mfa/enroll/confirm")]
+    public async Task<IActionResult> ConfirmMfaEnrollment([FromBody] AdminMfaEnrollConfirmRequest request, CancellationToken cancellationToken)
+    {
+        var adminId = GetAdminId();
+        if (adminId is null)
+            return Unauthorized(new ApiResponse<object>(false, "Không xác định được tài khoản quản trị.", null));
+
+        if (string.IsNullOrWhiteSpace(request.Code))
+            return BadRequest(new ApiResponse<object>(false, "Mã xác nhận không được để trống.", null));
+
+        var recoveryCodes = await _adminAuthService.ConfirmMfaEnrollmentAsync(adminId.Value, request.Code, cancellationToken);
+        var response = new AdminMfaEnrollConfirmResponse(recoveryCodes);
+        return Ok(new ApiResponse<object>(true, "Kích hoạt MFA thành công. Vui lòng lưu lại các mã khôi phục ở nơi an toàn.", response));
+    }
+
+    [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = "NotPasswordChangeOnly")]
+    [HttpPost("mfa/disable")]
+    public async Task<IActionResult> DisableMfa([FromBody] AdminMfaDisableRequest request, CancellationToken cancellationToken)
+    {
+        var adminId = GetAdminId();
+        if (adminId is null)
+            return Unauthorized(new ApiResponse<object>(false, "Không xác định được tài khoản quản trị.", null));
+
+        if (string.IsNullOrWhiteSpace(request.Password) || string.IsNullOrWhiteSpace(request.Code))
+            return BadRequest(new ApiResponse<object>(false, "Mật khẩu và mã xác minh không được để trống.", null));
+
+        await _adminAuthService.DisableMfaAsync(adminId.Value, request.Password, request.Code, request.IsRecoveryCode, cancellationToken);
+        return Ok(new ApiResponse<object>(true, "Đã tắt xác thực hai bước thành công.", null));
     }
 
     [Authorize(Policy = "AdminOnly")]
