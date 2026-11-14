@@ -47,6 +47,13 @@ public static class SecurityMetadataSanitizer
 
     public static string? SanitizeAuditContext(string? value) => Sanitize(value, AuditMetadataMaxLength);
 
+    public static string? SanitizeIp(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        value = value.Trim();
+        return value.Length <= 45 && System.Net.IPAddress.TryParse(value, out _) ? value : null;
+    }
+
     private static readonly Regex JsonCredentialField = new(
         "\\\"(?:password|token|secret|hash)\\\"\\s*:\\s*\\\"[^\\\"]{12,}\\\"",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);

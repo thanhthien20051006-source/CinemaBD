@@ -20,13 +20,17 @@ public sealed class IdentitySessionService : IIdentitySessionService
         _logger = logger;
     }
 
-    public async Task<Guid> CreateSessionAsync(string accountType, string accountId, string? deviceName = null, string? userAgent = null, CancellationToken cancellationToken = default)
+    public Task<Guid> CreateSessionAsync(string accountType, string accountId, string? deviceName = null, string? userAgent = null, CancellationToken cancellationToken = default)
+        => CreateSessionAsync(accountType, accountId, deviceName, userAgent, null, cancellationToken);
+
+    public async Task<Guid> CreateSessionAsync(string accountType, string accountId, string? deviceName, string? userAgent, string? lastSeenIp, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(accountType) || string.IsNullOrWhiteSpace(accountId))
             throw new ArgumentException("Session account identity is required.");
 
         deviceName = SecurityMetadataSanitizer.SanitizeDeviceName(deviceName);
         userAgent = SecurityMetadataSanitizer.SanitizeUserAgent(userAgent);
+        lastSeenIp = SecurityMetadataSanitizer.SanitizeIp(lastSeenIp);
         var now = DateTime.UtcNow;
         var previousSessions = await _db.IdentitySessions.AsNoTracking()
             .Where(session => session.AccountType == accountType && session.AccountId == accountId)
@@ -47,7 +51,8 @@ public sealed class IdentitySessionService : IIdentitySessionService
             LastSeenAtUtc = now,
             ExpiresAtUtc = now.AddDays(30),
             DeviceName = deviceName,
-            UserAgent = userAgent
+            UserAgent = userAgent,
+            LastSeenIp = lastSeenIp
         });
         await _db.SaveChangesAsync(cancellationToken);
         await WriteAuditSafelyAsync("login_success", accountType, accountId, sessionId, "success", "Login session created.", cancellationToken);
@@ -84,7 +89,7 @@ public sealed class IdentitySessionService : IIdentitySessionService
             .OrderByDescending(session => session.CreatedAtUtc)
             .Select(session => new IdentitySessionInfo(session.SessionId, session.CreatedAtUtc, session.LastSeenAtUtc,
                 session.ExpiresAtUtc, session.DeviceName, session.UserAgent, session.SessionId == currentSessionId,
-                session.RevokedAtUtc != null || session.ExpiresAtUtc <= DateTime.UtcNow))
+                session.RevokedAtUtc != null || session.ExpiresAtUtc <= DateTime.UtcNow, session.LastSeenIp))
             .ToListAsync(cancellationToken);
     }
 

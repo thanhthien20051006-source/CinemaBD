@@ -25,7 +25,7 @@ public sealed class SecurityAuditWriter(AppDbContext db, IHttpContextAccessor? h
 
         var request = httpContextAccessor?.HttpContext?.Request;
         var sourceIp = auditEvent.SourceIp ?? request?.HttpContext.Connection.RemoteIpAddress?.ToString();
-        var safeSourceIp = SanitizeIp(sourceIp);
+        var safeSourceIp = SecurityMetadataSanitizer.SanitizeIp(sourceIp);
         var deviceName = auditEvent.DeviceName ?? request?.Headers["X-Device-Name"].ToString();
         var userAgent = auditEvent.UserAgent ?? request?.Headers["User-Agent"].ToString();
         var safeDevice = SecurityMetadataSanitizer.SanitizeDeviceName(deviceName);
