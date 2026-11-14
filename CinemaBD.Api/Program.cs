@@ -2,6 +2,7 @@
 using CinemaBD.Infrastructure.DependencyInjection;
 using CinemaBD.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
@@ -15,7 +16,11 @@ CinemaBD.Infrastructure.Configuration.DotEnvLoader.Load(builder.Configuration, b
 
 builder.Services.AddProblemDetails();
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddDataProtection();
+var dataProtectionKeysDir = builder.Configuration["DataProtection:KeyDirectory"]
+    ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtection-Keys");
+builder.Services.AddDataProtection()
+    .SetApplicationName("CinemaBD")
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysDir));
 builder.Services.AddScoped<CinemaBD.Api.Filters.AdminPermissionAuthorizationFilter>();
 builder.Services.AddScoped<CinemaBD.Api.Filters.PasswordChangeRestrictionFilter>();
 builder.Services.AddScoped<CinemaBD.Api.Filters.MfaEnrollmentRestrictionFilter>();

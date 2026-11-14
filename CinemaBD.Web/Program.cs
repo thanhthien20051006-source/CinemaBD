@@ -15,10 +15,16 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+CinemaBD.Infrastructure.Configuration.DotEnvLoader.Load(builder.Configuration, builder.Environment.ContentRootPath);
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
 builder.Services.AddProblemDetails();
+var dataProtectionKeysDir = builder.Configuration["DataProtection:KeyDirectory"]
+    ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtection-Keys");
+builder.Services.AddDataProtection()
+    .SetApplicationName("CinemaBD")
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysDir));
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<DatabaseInitializer>();
 var jwtKey = builder.Configuration["Jwt:Key"];
