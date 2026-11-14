@@ -33,14 +33,14 @@ public sealed class AdminEmergencyRecoveryService : IAdminEmergencyRecoveryServi
         _logger = logger;
     }
 
-    public async Task<bool> EmergencyResetMasterMfaAsync(int adminId, string bootstrapPassword, string reason, CancellationToken cancellationToken = default)
+    public async Task<bool> EmergencyResetMasterMfaAsync(int adminId, string recoveryKey, string reason, CancellationToken cancellationToken = default)
     {
-        var configuredBootstrap = _configuration["BOOTSTRAP_ADMIN_PASSWORD"] ?? _configuration["DatabaseSeed:BootstrapAdminPassword"];
-        if (string.IsNullOrWhiteSpace(configuredBootstrap))
-            throw new InvalidOperationException("Bootstrap admin password is not configured for emergency recovery.");
+        var configuredKey = _configuration["ADMIN_RECOVERY_KEY"] ?? _configuration["Security:AdminRecoveryKey"];
+        if (string.IsNullOrWhiteSpace(configuredKey))
+            throw new InvalidOperationException("Admin recovery key is not configured for emergency recovery.");
 
-        byte[] expectedBytes = Encoding.UTF8.GetBytes(configuredBootstrap);
-        byte[] inputBytes = Encoding.UTF8.GetBytes(bootstrapPassword ?? string.Empty);
+        byte[] expectedBytes = Encoding.UTF8.GetBytes(configuredKey);
+        byte[] inputBytes = Encoding.UTF8.GetBytes(recoveryKey ?? string.Empty);
         if (!CryptographicOperations.FixedTimeEquals(expectedBytes, inputBytes))
         {
             if (_securityAuditWriter is not null)
@@ -81,7 +81,7 @@ public sealed class AdminEmergencyRecoveryService : IAdminEmergencyRecoveryServi
 
         if (_securityAuditWriter is not null)
         {
-            var sanitizedReason = SecurityMetadataSanitizer.SanitizeDetails(reason) ?? "Master MFA reset via emergency bootstrap authority.";
+            var sanitizedReason = SecurityMetadataSanitizer.SanitizeDetails(reason) ?? "Master MFA reset via emergency recovery authority.";
             await _securityAuditWriter.WriteAsync(new SecurityAuditEvent(
                 "emergency_mfa_reset", "Admin", adminId.ToString(), null,
                 Result: "success", Details: sanitizedReason), cancellationToken);

@@ -67,8 +67,8 @@ Auth response envelopes preserve existing access-token fields and add `refreshTo
 Trong tình huống Master admin bị mất thiết bị xác thực và làm mất toàn bộ 10 mã khôi phục:
 - **Nguyên tắc vận hành:** Không cung cấp endpoint HTTP công khai tự động để tránh nguy cơ bypass xác thực. Quy trình khôi phục được kiểm soát kép (Dual-Control) thông qua dịch vụ kỹ thuật `IAdminEmergencyRecoveryService` (`EmergencyResetMasterMfaAsync`).
 - **Điều kiện thực thi:**
-  1. Yêu cầu mật khẩu bí mật `BOOTSTRAP_ADMIN_PASSWORD` (được cấu hình an toàn qua biến môi trường hoặc Secret Manager, không lưu trong mã nguồn).
-  2. Xác thực kiểm tra hằng thời gian chuỗi bí mật bootstrap.
+  1. Yêu cầu khóa cứu hộ khẩn cấp `ADMIN_RECOVERY_KEY` (hoặc cấu hình `Security:AdminRecoveryKey`), tách biệt hoàn toàn với `BOOTSTRAP_ADMIN_PASSWORD` chỉ dùng cho seed CSDL ban đầu.
+  2. Xác thực kiểm tra hằng thời gian chuỗi bí mật khôi phục (`CryptographicOperations.FixedTimeEquals`).
 - **Hành động xử lý khi khôi phục thành công:**
   1. Hủy bỏ bản ghi `AdminMfa` và xóa toàn bộ mã khôi phục cũ của tài khoản Master.
   2. Đặt cờ `MustChangePassword = true` và `PasswordExpiresAt = DateTime.UtcNow.AddHours(24)`.

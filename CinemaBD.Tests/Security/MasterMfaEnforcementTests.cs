@@ -29,7 +29,7 @@ public sealed class MasterMfaEnforcementTests
             ["Jwt:Issuer"] = "CinemaBD",
             ["Jwt:Audience"] = "CinemaBD.Client",
             ["Mfa:RequireForMaster"] = requireForMaster ? "true" : "false",
-            ["BOOTSTRAP_ADMIN_PASSWORD"] = "BootstrapSecret123!"
+            ["ADMIN_RECOVERY_KEY"] = "RecoveryKeySecret123!"
         }).Build();
 
     private sealed class TestAdminAuthService : IAdminAuthorizationService
@@ -239,12 +239,12 @@ public sealed class MasterMfaEnforcementTests
         var emergencyService = new AdminEmergencyRecoveryService(
             db, config, sessionService, new TestAdminAuthService(isMaster: true), null, NullLogger<AdminEmergencyRecoveryService>.Instance);
 
-        // Wrong bootstrap password fails
-        bool failedResult = await emergencyService.EmergencyResetMasterMfaAsync(24, "WrongBootstrapPassword!", "Lost phone");
+        // Wrong recovery key fails
+        bool failedResult = await emergencyService.EmergencyResetMasterMfaAsync(24, "WrongRecoveryKey!", "Lost phone");
         failedResult.Should().BeFalse();
 
-        // Correct bootstrap password succeeds
-        bool successResult = await emergencyService.EmergencyResetMasterMfaAsync(24, "BootstrapSecret123!", "Lost phone");
+        // Correct recovery key succeeds
+        bool successResult = await emergencyService.EmergencyResetMasterMfaAsync(24, "RecoveryKeySecret123!", "Lost phone");
         successResult.Should().BeTrue();
 
         var mfaInDb = await db.AdminMfas.FirstOrDefaultAsync(x => x.AdminID == 24);
