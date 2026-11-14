@@ -975,6 +975,78 @@ namespace CinemaBD.Infrastructure.Migrations
                     b.ToTable("SecurityAudit", (string)null);
                 });
 
+            modelBuilder.Entity("CinemaBD.Infrastructure.Persistence.AdminMfa", b =>
+                {
+                    b.Property<int>("AdminID")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("SecretProtected")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("EnabledAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("LastUsedStep")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("AdminID");
+
+                    b.ToTable("AdminMfa", (string)null);
+                });
+
+            modelBuilder.Entity("CinemaBD.Infrastructure.Persistence.AdminRecoveryCode", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AdminID")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("CodeHash")
+                        .IsRequired()
+                        .HasColumnType("binary(32)");
+
+                    b.Property<DateTime?>("UsedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdminID");
+
+                    b.HasIndex("CodeHash");
+
+                    b.ToTable("AdminRecoveryCodes", (string)null);
+                });
+
+            modelBuilder.Entity("CinemaBD.Infrastructure.Persistence.AdminMfa", b =>
+                {
+                    b.HasOne("CinemaBD.Infrastructure.Persistence.LegacyAdmin", "Admin")
+                        .WithOne()
+                        .HasForeignKey("CinemaBD.Infrastructure.Persistence.AdminMfa", "AdminID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Admin");
+                });
+
+            modelBuilder.Entity("CinemaBD.Infrastructure.Persistence.AdminRecoveryCode", b =>
+                {
+                    b.HasOne("CinemaBD.Infrastructure.Persistence.LegacyAdmin", "Admin")
+                        .WithMany()
+                        .HasForeignKey("AdminID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Admin");
+                });
+
             modelBuilder.Entity("CinemaBD.Infrastructure.Persistence.RefreshTokenRecord", b =>
                 {
                     b.HasOne("CinemaBD.Infrastructure.Persistence.RefreshTokenRecord", null)

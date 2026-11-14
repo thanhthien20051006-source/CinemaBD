@@ -74,6 +74,36 @@ public class AppDbContext : DbContext
             entity.HasIndex(x => new { x.EventType, x.OccurredAtUtc });
         });
 
+        modelBuilder.Entity<AdminMfa>(entity =>
+        {
+            entity.ToTable("AdminMfa");
+            entity.HasKey(x => x.AdminID);
+            entity.Property(x => x.AdminID).ValueGeneratedNever();
+            entity.Property(x => x.SecretProtected).HasColumnType("varbinary(max)").IsRequired();
+            entity.Property(x => x.Enabled).IsRequired();
+            entity.Property(x => x.EnabledAtUtc).HasColumnType("datetime2");
+            entity.Property(x => x.LastUsedStep).HasColumnType("bigint");
+            entity.HasOne(x => x.Admin)
+                .WithOne()
+                .HasForeignKey<AdminMfa>(x => x.AdminID)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AdminRecoveryCode>(entity =>
+        {
+            entity.ToTable("AdminRecoveryCodes");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).ValueGeneratedOnAdd();
+            entity.Property(x => x.CodeHash).HasColumnType("binary(32)").IsRequired();
+            entity.Property(x => x.UsedAtUtc).HasColumnType("datetime2");
+            entity.HasIndex(x => x.AdminID);
+            entity.HasIndex(x => x.CodeHash);
+            entity.HasOne(x => x.Admin)
+                .WithMany()
+                .HasForeignKey(x => x.AdminID)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<LegacySeat>()
             .HasKey(x => new { x.MaPhong, x.MaGhe });
 
@@ -120,4 +150,6 @@ public class AppDbContext : DbContext
     public DbSet<IdentitySession> IdentitySessions => Set<IdentitySession>();
     public DbSet<RefreshTokenRecord> RefreshTokens => Set<RefreshTokenRecord>();
     public DbSet<SecurityAuditRecord> SecurityAudit => Set<SecurityAuditRecord>();
+    public DbSet<AdminMfa> AdminMfas => Set<AdminMfa>();
+    public DbSet<AdminRecoveryCode> AdminRecoveryCodes => Set<AdminRecoveryCode>();
 }
