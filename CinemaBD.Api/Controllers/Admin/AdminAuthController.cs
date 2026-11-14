@@ -187,12 +187,23 @@ public class AdminAuthController : ControllerBase
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> Refresh([FromBody] AdminRefreshRequest request, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request?.AccessToken) || string.IsNullOrWhiteSpace(request?.RefreshToken))
+            return Unauthorized(new ApiResponse<object>(false, "Refresh token không hợp lệ.", null));
         var verified = await _identityRequestResolver.ResolveAsync($"Bearer {request.AccessToken}", cancellationToken, allowExpired: true);
-        if (verified is null || verified.AccountType != "Admin") return Unauthorized();
+        if (verified is null || verified.AccountType != "Admin")
+            return Unauthorized(new ApiResponse<object>(false, "Phiên không hợp lệ.", null));
         var accountId = verified.AccountId;
-        var result = await _refreshTokenService.RotateAsync(request.RefreshToken, "Admin", accountId, cancellationToken);
-        if (result.SessionId != verified.SessionId || result.AccountType != "Admin" || result.AccountId != accountId) return Unauthorized();
-        return Ok(new ApiResponse<object>(true, "Làm mới phiên thành công.", new { token = result.AccessToken, refreshToken = result.RefreshToken, sessionId = result.SessionId }));
+        try
+        {
+            var result = await _refreshTokenService.RotateAsync(request.RefreshToken, "Admin", accountId, cancellationToken);
+            if (result.SessionId != verified.SessionId || result.AccountType != "Admin" || result.AccountId != accountId)
+                return Unauthorized(new ApiResponse<object>(false, "Refresh token không thuộc phiên.", null));
+            return Ok(new ApiResponse<object>(true, "Làm mới phiên thành công.", new { token = result.AccessToken, refreshToken = result.RefreshToken, sessionId = result.SessionId }));
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new ApiResponse<object>(false, "Refresh token không hợp lệ hoặc đã hết hạn.", null));
+        }
     }
 
     [Authorize(Policy = "AdminOnly")]

@@ -109,10 +109,17 @@ public class AuthController : ControllerBase
             return Unauthorized(new ApiResponse<object>(false, "Phiên không hợp lệ.", null));
         var accountId = verified.AccountId;
         var sessionId = verified.SessionId;
-        var result = await _refreshTokenService.RotateAsync(request.RefreshToken, "KHACHHANG", accountId, cancellationToken);
-        if (result.SessionId != sessionId || result.AccountType != "KHACHHANG" || result.AccountId != accountId)
-            return Unauthorized(new ApiResponse<object>(false, "Refresh token không thuộc phiên.", null));
-        return Ok(new ApiResponse<object>(true, "Làm mới phiên thành công.", new { token = result.AccessToken, refreshToken = result.RefreshToken, sessionId = result.SessionId }));
+        try
+        {
+            var result = await _refreshTokenService.RotateAsync(request.RefreshToken, "KHACHHANG", accountId, cancellationToken);
+            if (result.SessionId != sessionId || result.AccountType != "KHACHHANG" || result.AccountId != accountId)
+                return Unauthorized(new ApiResponse<object>(false, "Refresh token không thuộc phiên.", null));
+            return Ok(new ApiResponse<object>(true, "Làm mới phiên thành công.", new { token = result.AccessToken, refreshToken = result.RefreshToken, sessionId = result.SessionId }));
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new ApiResponse<object>(false, "Refresh token không hợp lệ hoặc đã hết hạn.", null));
+        }
     }
 
     [AllowAnonymous]
