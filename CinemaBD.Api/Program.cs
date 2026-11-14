@@ -11,17 +11,19 @@ using System.Text;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
+CinemaBD.Infrastructure.Configuration.DotEnvLoader.Load(builder.Configuration, builder.Environment.ContentRootPath);
 
 builder.Services.AddProblemDetails();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<CinemaBD.Api.Filters.AdminPermissionAuthorizationFilter>();
 builder.Services.AddScoped<CinemaBD.Api.Filters.PasswordChangeRestrictionFilter>();
 builder.Services.AddScoped<CinemaBD.Api.Filters.AdminPermissionClaimAuthorizationFilter>();
 builder.Services.AddScoped<CinemaBD.Api.Security.AccessTokenProofValidator>();
 builder.Services.AddScoped<CinemaBD.Api.Security.IdentityRequestResolver>();
+builder.Services.AddScoped<CinemaBD.Api.Security.SecurityAuditActionFilter>();
 builder.Services.AddSingleton<CinemaBD.Api.Security.AuthAccountRateLimiter>();
 builder.Services.AddScoped<CinemaBD.Api.Security.AuthAccountRateLimitFilter>();
 builder.Services.AddScoped<CinemaBD.Api.Security.AuthRateLimitFilter>();
-builder.Services.AddScoped<CinemaBD.Api.Security.SecurityAuditActionFilter>();
 builder.Services.AddControllers(options =>
 {
     options.Filters.AddService<CinemaBD.Api.Security.AuthAccountRateLimitFilter>();
@@ -196,16 +198,21 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 var webWwwrootPath = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "CinemaBD.Web", "wwwroot"));
-if (Directory.Exists(webWwwrootPath))
+var apiWwwrootPath = builder.Environment.WebRootPath ?? Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
+var staticPath = Directory.Exists(webWwwrootPath)
+    ? webWwwrootPath
+    : (Directory.Exists(apiWwwrootPath) ? apiWwwrootPath : null);
+
+if (staticPath != null)
 {
     app.UseStaticFiles(new StaticFileOptions
     {
-        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(webWwwrootPath)
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(staticPath)
     });
 }
 else
 {
-    app.Logger.LogWarning("Web wwwroot directory does not exist: {webWwwrootPath}", webWwwrootPath);
+    app.Logger.LogWarning("No wwwroot directory found for static files. Checked: {webWwwrootPath} and {apiWwwrootPath}", webWwwrootPath, apiWwwrootPath);
 }
 
 app.UseHttpsRedirection();
@@ -228,6 +235,7 @@ app.Use(async (context, next) =>
 app.UseCors("WebClients");
 app.UseRateLimiter();
 app.UseAuthentication();
+app.UseMiddleware<CinemaBD.Api.Security.SecurityAuditMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 
