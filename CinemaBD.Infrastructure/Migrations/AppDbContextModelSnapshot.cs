@@ -24,6 +24,56 @@ namespace CinemaBD.Infrastructure.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("CinemaBD.Infrastructure.Persistence.AdminMfa", b =>
+                {
+                    b.Property<int>("AdminID")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("EnabledAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("LastUsedStep")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("SecretProtected")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.HasKey("AdminID");
+
+                    b.ToTable("AdminMfa", (string)null);
+                });
+
+            modelBuilder.Entity("CinemaBD.Infrastructure.Persistence.AdminRecoveryCode", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AdminID")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("CodeHash")
+                        .IsRequired()
+                        .HasColumnType("binary(32)");
+
+                    b.Property<DateTime?>("UsedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdminID");
+
+                    b.HasIndex("CodeHash");
+
+                    b.ToTable("AdminRecoveryCodes", (string)null);
+                });
+
             modelBuilder.Entity("CinemaBD.Infrastructure.Persistence.IdentitySession", b =>
                 {
                     b.Property<Guid>("SessionId")
@@ -43,15 +93,15 @@ namespace CinemaBD.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("DeviceName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<DateTime>("ExpiresAtUtc")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime>("LastSeenAtUtc")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("DeviceName")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("LastSeenIp")
                         .HasMaxLength(45)
@@ -85,6 +135,9 @@ namespace CinemaBD.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AdminID"));
 
+                    b.Property<int?>("AccessFailedCount")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -96,6 +149,9 @@ namespace CinemaBD.Infrastructure.Migrations
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LockoutEndUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<int?>("MaCV")
                         .HasColumnType("int");
@@ -234,12 +290,18 @@ namespace CinemaBD.Infrastructure.Migrations
                     b.Property<string>("MaKH")
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<int?>("AccessFailedCount")
+                        .HasColumnType("int");
+
                     b.Property<string>("Email")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("HoTen")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("LockoutEndUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("MatKhau")
                         .IsRequired()
@@ -973,56 +1035,6 @@ namespace CinemaBD.Infrastructure.Migrations
                     b.HasIndex("EventType", "OccurredAtUtc");
 
                     b.ToTable("SecurityAudit", (string)null);
-                });
-
-            modelBuilder.Entity("CinemaBD.Infrastructure.Persistence.AdminMfa", b =>
-                {
-                    b.Property<int>("AdminID")
-                        .HasColumnType("int");
-
-                    b.Property<byte[]>("SecretProtected")
-                        .IsRequired()
-                        .HasColumnType("varbinary(max)");
-
-                    b.Property<bool>("Enabled")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("EnabledAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<long?>("LastUsedStep")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("AdminID");
-
-                    b.ToTable("AdminMfa", (string)null);
-                });
-
-            modelBuilder.Entity("CinemaBD.Infrastructure.Persistence.AdminRecoveryCode", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AdminID")
-                        .HasColumnType("int");
-
-                    b.Property<byte[]>("CodeHash")
-                        .IsRequired()
-                        .HasColumnType("binary(32)");
-
-                    b.Property<DateTime?>("UsedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AdminID");
-
-                    b.HasIndex("CodeHash");
-
-                    b.ToTable("AdminRecoveryCodes", (string)null);
                 });
 
             modelBuilder.Entity("CinemaBD.Infrastructure.Persistence.AdminMfa", b =>

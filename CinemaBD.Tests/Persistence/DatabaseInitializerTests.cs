@@ -342,7 +342,8 @@ public class DatabaseInitializerTests
             "20260524131837_InitialCinemaBdBaseline",
             "20261112174026_B3SessionRefreshSchema",
             "20261113110000_B3bSessionDeviceMetadata",
-            "20261114000000_B3cSessionLastSeenIp"
+            "20261114000000_B3cSessionLastSeenIp",
+            "20261115034812_B6DurableAccountLockout"
         };
 
         var sql = DatabaseInitializer.BuildBaselineMigrationHistorySql(migrations, "8.0.12");
@@ -367,6 +368,11 @@ public class DatabaseInitializerTests
         // 5. Must verify witness for LastSeenIp column
         sql.Should().Contain("COL_LENGTH(N'[dbo].[IdentitySessions]', N'LastSeenIp') IS NOT NULL");
         sql.Should().Contain("20261114000000_B3cSessionLastSeenIp");
+
+        // 6. Must witness all four durable lockout columns before marking B6 applied.
+        sql.Should().Contain("20261115034812_B6DurableAccountLockout");
+        sql.Should().Contain("COL_LENGTH(N'[dbo].[Admin]', N'AccessFailedCount') IS NOT NULL");
+        sql.Should().Contain("COL_LENGTH(N'[dbo].[KHACHHANG]', N'LockoutEndUtc') IS NOT NULL");
     }
 
     [Fact]

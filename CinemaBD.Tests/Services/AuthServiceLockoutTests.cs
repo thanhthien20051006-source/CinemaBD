@@ -20,7 +20,7 @@ public sealed class AuthServiceLockoutTests
         var hasher = new Pbkdf2PasswordHasher();
         db.Customers.Add(new LegacyCustomer { MaKH = "KH1", HoTen = "Customer", TKhoan = "alice", MatKhau = hasher.Hash("CorrectPassword123!") });
         await db.SaveChangesAsync();
-        var lockout = new AccountLockoutService(Configuration(2, 15));
+        var lockout = new AccountLockoutService(db, Configuration(2, 15));
         var audit = new InMemoryAuditWriter();
         var service = new AuthService(db, hasher, Mock.Of<ITokenService>(), new IdentitySessionService(db), Configuration(2, 15), audit, NullLogger<AuthService>.Instance, lockout);
 
@@ -29,7 +29,7 @@ public sealed class AuthServiceLockoutTests
 
         missing.Message.Should().Be(existing.Message);
         (await lockout.GetAsync("KHACHHANG", "alice")).IsLocked.Should().BeFalse();
-        (await lockout.GetAsync("KHACHHANG", "nobody")).FailedAttempts.Should().Be(1);
+        (await lockout.GetAsync("KHACHHANG", "nobody")).FailedAttempts.Should().Be(0, "only existing accounts have durable lockout columns; unknown-account probes remain protected by account/IP rate limits");
         audit.Events.Should().Contain(item => item.EventType == "login_failed" && item.Result == "failure");
     }
 
@@ -41,7 +41,7 @@ public sealed class AuthServiceLockoutTests
         var hasher = new Pbkdf2PasswordHasher();
         db.Admins.Add(new LegacyAdmin { AdminID = 27, Username = "alice", Password = hasher.Hash("CorrectPassword123!"), IsActive = true });
         await db.SaveChangesAsync();
-        var lockout = new AccountLockoutService(config);
+        var lockout = new AccountLockoutService(db, config);
         var audit = new InMemoryAuditWriter();
         var service = new AdminAuthApiService(db, hasher, Mock.Of<ITokenService>(), new IdentitySessionService(db), new TestAdminAuthorizationService(), audit, NullLogger<AdminAuthApiService>.Instance, lockout);
 
@@ -64,7 +64,7 @@ public sealed class AuthServiceLockoutTests
         db.Customers.Add(new LegacyCustomer { MaKH = "KH-LOCK", HoTen = "Customer", TKhoan = "locked-customer", MatKhau = hasher.Hash("CorrectPassword123!") });
         await db.SaveChangesAsync();
         var clock = new ManualTimeProvider(DateTimeOffset.Parse("2026-11-13T10:00:00Z"));
-        var lockout = new AccountLockoutService(config, clock);
+        var lockout = new AccountLockoutService(db, config, clock);
         var tokenService = new Mock<ITokenService>();
         tokenService.Setup(mock => mock.CreateToken(It.IsAny<CinemaBD.Domain.Entities.UserAccount>(), It.IsAny<Guid>(), It.IsAny<bool>())).Returns("access-test-token");
         var service = new AuthService(db, hasher, tokenService.Object, new IdentitySessionService(db), config,

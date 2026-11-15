@@ -136,6 +136,11 @@ public class DatabaseInitializer
             // Witness: LastSeenIp column added to IdentitySessions.
             "OBJECT_ID(N'[dbo].[IdentitySessions]', N'U') IS NOT NULL AND COL_LENGTH(N'[dbo].[IdentitySessions]', N'LastSeenIp') IS NOT NULL"
         ),
+        (
+            "20261115034812_B6DurableAccountLockout",
+            // Witness: durable lockout fields are present on both legacy account tables.
+            "OBJECT_ID(N'[dbo].[Admin]', N'U') IS NOT NULL AND COL_LENGTH(N'[dbo].[Admin]', N'AccessFailedCount') IS NOT NULL AND COL_LENGTH(N'[dbo].[Admin]', N'LockoutEndUtc') IS NOT NULL AND OBJECT_ID(N'[dbo].[KHACHHANG]', N'U') IS NOT NULL AND COL_LENGTH(N'[dbo].[KHACHHANG]', N'AccessFailedCount') IS NOT NULL AND COL_LENGTH(N'[dbo].[KHACHHANG]', N'LockoutEndUtc') IS NOT NULL"
+        ),
     };
 
     /// <summary>

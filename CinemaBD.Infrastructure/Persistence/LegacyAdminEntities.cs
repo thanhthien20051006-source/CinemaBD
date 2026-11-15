@@ -16,6 +16,8 @@ public class LegacyAdmin
     public string? Role { get; set; }
     public DateTime? CreatedAt { get; set; }
     public bool IsActive { get; set; }
+    public int? AccessFailedCount { get; set; }
+    public DateTime? LockoutEndUtc { get; set; }
     public int? MaCV { get; set; }
     public bool MustChangePassword { get; set; } = false;
     public DateTime? PasswordExpiresAt { get; set; }

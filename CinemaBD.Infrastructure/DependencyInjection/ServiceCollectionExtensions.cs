@@ -28,7 +28,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Pbkdf2PasswordHasher>();
         services.AddScoped<IAccountPasswordService, AccountPasswordService>();
         services.AddScoped<ISecurityAuditWriter, SecurityAuditWriter>();
-        services.AddSingleton<IAccountLockoutService, AccountLockoutService>();
+        services.AddScoped<IAccountLockoutService, AccountLockoutService>();
         services.AddScoped<VnPayUrlBuilder>();
         services.AddScoped<VnPaySignatureValidator>();
         services.AddScoped<DatabaseInitializer>();

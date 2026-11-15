@@ -58,7 +58,7 @@ public sealed class AdminMfaLoginTests
         var tokenService = new JwtTokenService(config);
         var sessionService = new IdentitySessionService(db);
         var revokedTokenService = new RevokedTokenService(db);
-        var lockout = new AccountLockoutService(config);
+        var lockout = new AccountLockoutService(db, config);
         var audit = new InMemoryAuditWriter();
 
         byte[] secret = totpService.GenerateSecret(20);
@@ -99,7 +99,7 @@ public sealed class AdminMfaLoginTests
         var tokenService = new JwtTokenService(config);
         var sessionService = new IdentitySessionService(db);
         var revokedTokenService = new RevokedTokenService(db);
-        var lockout = new AccountLockoutService(config);
+        var lockout = new AccountLockoutService(db, config);
         var audit = new InMemoryAuditWriter();
 
         byte[] secret = totpService.GenerateSecret(20);
@@ -148,7 +148,7 @@ public sealed class AdminMfaLoginTests
         var tokenService = new JwtTokenService(config);
         var sessionService = new IdentitySessionService(db);
         var revokedTokenService = new RevokedTokenService(db);
-        var lockout = new AccountLockoutService(config);
+        var lockout = new AccountLockoutService(db, config);
         var audit = new InMemoryAuditWriter();
 
         byte[] secret = totpService.GenerateSecret(20);
@@ -191,7 +191,7 @@ public sealed class AdminMfaLoginTests
         var tokenService = new JwtTokenService(config);
         var sessionService = new IdentitySessionService(db);
         var revokedTokenService = new RevokedTokenService(db);
-        var lockout = new AccountLockoutService(config);
+        var lockout = new AccountLockoutService(db, config);
         var audit = new InMemoryAuditWriter();
 
         byte[] secret = totpService.GenerateSecret(20);
@@ -250,7 +250,7 @@ public sealed class AdminMfaLoginTests
         var tokenService = new JwtTokenService(config);
         var sessionService = new IdentitySessionService(db);
         var revokedTokenService = new RevokedTokenService(db);
-        var lockout = new AccountLockoutService(config);
+        var lockout = new AccountLockoutService(db, config);
         var audit = new InMemoryAuditWriter();
 
         db.Admins.Add(new LegacyAdmin { AdminID = 14, Username = "mfa_audit_test", Password = hasher.Hash("AdminPass123!"), IsActive = true });
