@@ -1,14 +1,22 @@
 using CinemaBD.Application.Interfaces;
 using CinemaBD.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace CinemaBD.Infrastructure.Services;
 
 public sealed class RevokedTokenService : IRevokedTokenService
 {
     private readonly AppDbContext _db;
+    private readonly ISecurityAuditWriter? _securityAuditWriter;
+    private readonly ILogger<RevokedTokenService>? _logger;
 
-    public RevokedTokenService(AppDbContext db) => _db = db;
+    public RevokedTokenService(AppDbContext db, ISecurityAuditWriter? securityAuditWriter = null, ILogger<RevokedTokenService>? logger = null)
+    {
+        _db = db;
+        _securityAuditWriter = securityAuditWriter;
+        _logger = logger;
+    }
 
     public async Task RevokeAsync(string jti, DateTime expiresAtUtc, CancellationToken cancellationToken = default)
     {
@@ -22,16 +30,37 @@ public sealed class RevokedTokenService : IRevokedTokenService
             existing.ExpiresAtUtc = expiresAtUtc;
 
         await _db.SaveChangesAsync(cancellationToken);
+        if (_securityAuditWriter is not null)
+            await _securityAuditWriter.WriteAsync(new SecurityAuditEvent("token_revocation", Result: "success", Details: "Access token revoked; token identifier omitted."), cancellationToken);
+        else
+            _logger?.LogInformation("Security event token_revocation completed; token identifier omitted.");
     }
 
     public async Task<bool> IsRevokedAsync(string jti, CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
-        var isRevoked = await _db.RevokedTokens.AnyAsync(x => x.Jti == jti && x.ExpiresAtUtc > now, cancellationToken);
+        return await _db.RevokedTokens.AnyAsync(x => x.Jti == jti && x.ExpiresAtUtc > now, cancellationToken);
+    }
 
-        if (!isRevoked)
-            await _db.RevokedTokens.Where(x => x.Jti == jti && x.ExpiresAtUtc <= now).ExecuteDeleteAsync(cancellationToken);
+    public async Task<int> CleanupExpiredTokensAsync(CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        if (_db.Database.IsRelational())
+        {
+            return await _db.RevokedTokens
+                .Where(x => x.ExpiresAtUtc <= now)
+                .ExecuteDeleteAsync(cancellationToken);
+        }
 
-        return isRevoked;
+        var expired = await _db.RevokedTokens
+            .Where(x => x.ExpiresAtUtc <= now)
+            .ToListAsync(cancellationToken);
+
+        if (expired.Count == 0)
+            return 0;
+
+        _db.RevokedTokens.RemoveRange(expired);
+        await _db.SaveChangesAsync(cancellationToken);
+        return expired.Count;
     }
 }

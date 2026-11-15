@@ -13,10 +13,32 @@ namespace CinemaBD.Api.Controllers.Admin;
 public class AdminRolesController : ControllerBase
 {
     private readonly IAdminRoleService _service;
+    private readonly IAdminAuthorizationService _authorizationService;
 
-    public AdminRolesController(IAdminRoleService service)
+    public AdminRolesController(IAdminRoleService service, IAdminAuthorizationService authorizationService)
     {
         _service = service;
+        _authorizationService = authorizationService;
+    }
+
+    [HttpGet("authorization-access")]
+    public async Task<IActionResult> GetAuthorizationAccess(CancellationToken cancellationToken)
+    {
+        var subject = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
+        if (subject is null || !subject.StartsWith("admin:", StringComparison.OrdinalIgnoreCase)
+            || !int.TryParse(subject["admin:".Length..], out var adminId) || adminId <= 0)
+            return Forbid();
+
+        try
+        {
+            var access = await _authorizationService.GetAccessForAdminAsync(adminId, cancellationToken);
+            return Ok(new ApiResponse<object>(true, "Lấy quyền truy cập quản trị thành công",
+                new AdminAuthorizationAccessResponse(access.RoleId, access.IsMaster, access.Permissions)));
+        }
+        catch (InvalidOperationException)
+        {
+            return NotFound(new ApiResponse<object>(false, "Không tìm thấy tài khoản quản trị hoặc chức vụ đang hoạt động", null));
+        }
     }
 
     [HttpGet]

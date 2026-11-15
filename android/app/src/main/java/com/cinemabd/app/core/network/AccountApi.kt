@@ -12,9 +12,13 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Header
 import retrofit2.http.Path
 
 interface AccountApi {
+    @POST("api/auth/logout")
+    suspend fun logout(@Header("Authorization") authorization: String): ApiResponse<Unit>
+
     @GET("api/account/profile")
     suspend fun getProfile(): ApiResponse<CustomerProfileResponse>
 

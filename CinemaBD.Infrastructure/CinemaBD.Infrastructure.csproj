@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <Content Include="..\CinemaBD.sql" Link="Database\CinemaBD.sql" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\CinemaBD.schema.sql" Link="Database\CinemaBD.schema.sql" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\CinemaBD.data.sql" Link="Database\CinemaBD.data.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
@@ -34,6 +36,7 @@
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.7.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.7.0" />
     <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.Abstractions" Version="8.0.12" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.1" />
     <PackageReference Include="Google.Apis.Auth" Version="1.68.0" />
   </ItemGroup>

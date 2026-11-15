@@ -19,6 +19,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
 builder.Services.AddProblemDetails();
+var dataProtectionKeysDir = builder.Configuration["DataProtection:KeyDirectory"]
+    ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtection-Keys");
+builder.Services.AddDataProtection()
+    .SetApplicationName("CinemaBD")
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysDir));
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<DatabaseInitializer>();
 var jwtKey = builder.Configuration["Jwt:Key"];
@@ -37,11 +42,16 @@ if (string.IsNullOrWhiteSpace(qrSigningKey) || qrSigningKey.StartsWith("CHANGE_M
     || Encoding.UTF8.GetByteCount(qrSigningKey) < 32)
     throw new InvalidOperationException("Security:QrSigningKey must be configured with at least 32 bytes of secret material.");
 
+var requireSecureCookies = builder.Configuration.GetValue<bool>("Security:RequireSecureCookies", true);
+var cookieSecurePolicy = requireSecureCookies ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
+
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
+    options.Cookie.SecurePolicy = cookieSecurePolicy;
+    options.Cookie.SameSite = SameSiteMode.Lax;
 });
 
 builder.Services.AddDataProtection()
@@ -74,10 +84,11 @@ builder.Services.AddScoped<ITicketPdfService, TicketPdfService>();
 builder.Services.AddScoped<IInvoiceNotificationService, InvoiceNotificationService>();
 builder.Services.AddHttpClient();
 
+builder.Services.AddTransient<ApiSessionTokenRefreshHandler>();
 builder.Services.AddHttpClient<CinemaApiClient>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5188/");
-});
+}).AddHttpMessageHandler<ApiSessionTokenRefreshHandler>();
 
 builder.Services.AddAuthentication(options =>
 {
@@ -85,7 +96,14 @@ builder.Services.AddAuthentication(options =>
     options.DefaultSignInScheme = "Cookies";
     options.DefaultChallengeScheme = "Google";
 })
-.AddCookie("Cookies")
+.AddCookie("Cookies", options =>
+{
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = cookieSecurePolicy;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    options.SlidingExpiration = true;
+})
 .AddGoogle("Google", options =>
 {
     options.ClientId = builder.Configuration["GoogleAuth:ClientId"] ?? "dummy";
@@ -149,6 +167,14 @@ if (!app.Environment.IsDevelopment())
 }
 app.UseHttpsRedirection();
 
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("X-Frame-Options", "DENY");
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Append("Referrer-Policy", "no-referrer");
+    await next();
+});
+
 app.UseStaticFiles();
 app.UseRouting();
 app.UseSession();
@@ -169,5 +195,11 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();
+
+namespace CinemaBD.Web
+{
+    public partial class Program { }
+}
+
 
 

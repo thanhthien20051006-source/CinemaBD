@@ -2,6 +2,7 @@
 using CinemaBD.Infrastructure.DependencyInjection;
 using CinemaBD.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
@@ -13,7 +14,32 @@ using System.Threading.RateLimiting;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
-builder.Services.AddControllers();
+builder.Services.AddHttpContextAccessor();
+var dataProtectionKeysDir = builder.Configuration["DataProtection:KeyDirectory"]
+    ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtection-Keys");
+builder.Services.AddDataProtection()
+    .SetApplicationName("CinemaBD")
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysDir));
+builder.Services.AddScoped<CinemaBD.Api.Filters.AdminPermissionAuthorizationFilter>();
+builder.Services.AddScoped<CinemaBD.Api.Filters.PasswordChangeRestrictionFilter>();
+builder.Services.AddScoped<CinemaBD.Api.Filters.MfaEnrollmentRestrictionFilter>();
+builder.Services.AddScoped<CinemaBD.Api.Filters.AdminPermissionClaimAuthorizationFilter>();
+builder.Services.AddScoped<CinemaBD.Api.Security.AccessTokenProofValidator>();
+builder.Services.AddScoped<CinemaBD.Api.Security.IdentityRequestResolver>();
+builder.Services.AddScoped<CinemaBD.Api.Security.SecurityAuditActionFilter>();
+builder.Services.AddSingleton<CinemaBD.Api.Security.AuthAccountRateLimiter>();
+builder.Services.AddScoped<CinemaBD.Api.Security.AuthAccountRateLimitFilter>();
+builder.Services.AddScoped<CinemaBD.Api.Security.AuthRateLimitFilter>();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.AddService<CinemaBD.Api.Security.AuthAccountRateLimitFilter>();
+    options.Filters.AddService<CinemaBD.Api.Security.AuthRateLimitFilter>();
+    options.Filters.AddService<CinemaBD.Api.Security.SecurityAuditActionFilter>();
+    options.Filters.AddService<CinemaBD.Api.Filters.AdminPermissionAuthorizationFilter>();
+    options.Filters.AddService<CinemaBD.Api.Filters.AdminPermissionClaimAuthorizationFilter>();
+    options.Filters.AddService<CinemaBD.Api.Filters.PasswordChangeRestrictionFilter>();
+    options.Filters.AddService<CinemaBD.Api.Filters.MfaEnrollmentRestrictionFilter>();
+});
 builder.Services.AddCors(options => options.AddPolicy("WebClients", policy =>
 {
     var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
@@ -36,9 +62,11 @@ builder.Services.AddCors(options => options.AddPolicy("WebClients", policy =>
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    var authIpPermitLimit = Math.Clamp(builder.Configuration.GetValue("Security:RateLimits:AuthIpPermitLimit", 10), 1, 1000);
+    var authWindowSeconds = Math.Clamp(builder.Configuration.GetValue("Security:RateLimits:AuthWindowSeconds", 60), 1, 3600);
     options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
-        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
+        CinemaBD.Api.Security.AuthRateLimitPartitioner.ByIp(context),
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = authIpPermitLimit, Window = TimeSpan.FromSeconds(authWindowSeconds), QueueLimit = 0, AutoReplenishment = true }));
     options.AddPolicy("transactions", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
@@ -134,17 +162,34 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     return;
                 }
 
+                var sidClaims = context.Principal?.FindAll("sid").ToArray() ?? Array.Empty<System.Security.Claims.Claim>();
+                if (sidClaims.Length != 1 || !Guid.TryParse(sidClaims[0].Value, out var sessionId) || sessionId == Guid.Empty)
+                {
+                    context.Fail("JWT is missing a valid session identifier.");
+                    return;
+                }
+
                 var revokedTokens = context.HttpContext.RequestServices
                     .GetRequiredService<CinemaBD.Application.Interfaces.IRevokedTokenService>();
                 if (await revokedTokens.IsRevokedAsync(jti, context.HttpContext.RequestAborted))
+                {
                     context.Fail("JWT has been revoked.");
+                    return;
+                }
+
+                var identitySessions = context.HttpContext.RequestServices
+                    .GetRequiredService<CinemaBD.Application.Interfaces.IIdentitySessionService>();
+                if (!await identitySessions.IsActiveAsync(sessionId, context.HttpContext.RequestAborted))
+                    context.Fail("JWT identity session is inactive.");
             }
         };
     });
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("AdminOnly", policy => policy.RequireClaim("account_type", "admin"));
+    options.AddPolicy("NotPasswordChangeOnly", policy => policy.RequireAssertion(context =>
+        !context.User.HasClaim("password_change_only", "true")));
 });
 
 var app = builder.Build();
@@ -160,16 +205,21 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 var webWwwrootPath = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "CinemaBD.Web", "wwwroot"));
-if (Directory.Exists(webWwwrootPath))
+var apiWwwrootPath = builder.Environment.WebRootPath ?? Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
+var staticPath = Directory.Exists(webWwwrootPath)
+    ? webWwwrootPath
+    : (Directory.Exists(apiWwwrootPath) ? apiWwwrootPath : null);
+
+if (staticPath != null)
 {
     app.UseStaticFiles(new StaticFileOptions
     {
-        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(webWwwrootPath)
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(staticPath)
     });
 }
 else
 {
-    app.Logger.LogWarning("Web wwwroot directory does not exist: {webWwwrootPath}", webWwwrootPath);
+    app.Logger.LogWarning("No wwwroot directory found for static files. Checked: {webWwwrootPath} and {apiWwwrootPath}", webWwwrootPath, apiWwwrootPath);
 }
 
 app.UseHttpsRedirection();
@@ -192,7 +242,14 @@ app.Use(async (context, next) =>
 app.UseCors("WebClients");
 app.UseRateLimiter();
 app.UseAuthentication();
+app.UseMiddleware<CinemaBD.Api.Security.SecurityAuditMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+namespace CinemaBD.Api
+{
+    public partial class Program { }
+}
+

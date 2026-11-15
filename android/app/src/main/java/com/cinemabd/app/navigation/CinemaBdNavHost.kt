@@ -44,6 +44,12 @@ fun CinemaBdNavHost(
                         popUpTo(Routes.LOGIN) { inclusive = true }
                         launchSingleTop = true
                     }
+                },
+                onPasswordChangeCompleted = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(Routes.LOGIN) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
             )
         }

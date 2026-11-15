@@ -10,7 +10,11 @@ COPY CinemaBD.Api/CinemaBD.Api.csproj               CinemaBD.Api/
 COPY CinemaBD.Web/CinemaBD.Web.csproj               CinemaBD.Web/
 
 COPY CinemaBD.sql ./CinemaBD.sql
+COPY CinemaBD.schema.sql ./CinemaBD.schema.sql
+COPY CinemaBD.data.sql ./CinemaBD.data.sql
 COPY CinemaBD.sql CinemaBD.Api/Database/CinemaBD.sql
+COPY CinemaBD.schema.sql CinemaBD.Api/Database/CinemaBD.schema.sql
+COPY CinemaBD.data.sql CinemaBD.Api/Database/CinemaBD.data.sql
 
 RUN dotnet restore CinemaBD.Api/CinemaBD.Api.csproj
 

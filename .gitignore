@@ -388,3 +388,6 @@ sync.json
 
 # Local HTTPS certificates
 certs/
+
+# Data Protection key ring (never commit)
+**/App_Data/

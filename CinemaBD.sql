@@ -74,6 +74,8 @@ CREATE TABLE [dbo].[HoaDons](
 	[NgayThanhToan] [datetime] NOT NULL,
 	[TrangThai] [nvarchar](50) NOT NULL,
 	[GhiChu] [nvarchar](255) NULL,
+	[DaCheckIn] [bit] NULL,
+	[ThoiGianCheckIn] [datetime2] NULL,
 PRIMARY KEY CLUSTERED 
 (
 	[MaHD] ASC
@@ -113,6 +115,8 @@ CREATE TABLE [dbo].[VE](
 	[TrangThai] [nvarchar](50) NOT NULL,
 	[NgayDat] [datetime] NOT NULL,
 	[GatewayTxnRef] [nvarchar](50) NULL,
+	[DaCheckIn] [bit] NULL,
+	[ThoiGianCheckIn] [datetime2] NULL,
 PRIMARY KEY CLUSTERED 
 (
 	[MaVe] ASC
@@ -190,6 +194,8 @@ CREATE TABLE [dbo].[Admin](
 	[CreatedAt] [datetime] NULL,
 	[IsActive] [bit] NULL,
 	[MaCV] [int] NULL,
+	[MustChangePassword] [bit] NOT NULL CONSTRAINT [DF_Admin_MustChangePassword] DEFAULT 0,
+	[PasswordExpiresAt] [datetime2] NULL,
 PRIMARY KEY CLUSTERED 
 (
 	[AdminID] ASC
@@ -257,6 +263,8 @@ CREATE TABLE [dbo].[DanhGia](
 	[MaKH] [nvarchar](50) NOT NULL,
 	[NoiDung] [nvarchar](1000) NOT NULL,
 	[NgayTao] [datetime] NOT NULL,
+	[Rating] [int] NULL,
+	[IsHidden] [bit] NULL,
 PRIMARY KEY CLUSTERED 
 (
 	[MaDG] ASC
@@ -298,6 +306,8 @@ CREATE TABLE [dbo].[KHACHHANG](
 	[NgaySinh] [date] NULL,
 	[MatKhau] [nvarchar](255) NULL,
 	[TongChiTieu] [decimal](18, 0) NULL,
+	[MustChangePassword] [bit] NOT NULL CONSTRAINT [DF_KHACHHANG_MustChangePassword] DEFAULT 0,
+	[PasswordExpiresAt] [datetime2] NULL,
 PRIMARY KEY CLUSTERED 
 (
 	[MaKH] ASC
@@ -392,6 +402,7 @@ CREATE TABLE [dbo].[PHONGCHIEU](
 	[TenPhong] [nvarchar](100) NOT NULL,
 	[SoLuong] [int] NOT NULL,
 	[TrangThai] [nvarchar](50) NULL,
+	[MaRap] [nvarchar](max) NULL,
 PRIMARY KEY CLUSTERED 
 (
 	[MaPhong] ASC
@@ -459,6 +470,107 @@ PRIMARY KEY CLUSTERED
 	[MaTL] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[RevokedTokens] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF OBJECT_ID(N'[dbo].[RevokedTokens]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[RevokedTokens]
+    (
+        [Jti] nvarchar(128) NOT NULL,
+        [ExpiresAtUtc] datetime2 NOT NULL,
+        CONSTRAINT [PK_RevokedTokens] PRIMARY KEY ([Jti])
+    );
+    CREATE INDEX [IX_RevokedTokens_ExpiresAtUtc] ON [dbo].[RevokedTokens] ([ExpiresAtUtc]);
+END;
+GO
+/****** Object:  Table [dbo].[RAP] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF OBJECT_ID(N'[dbo].[RAP]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[RAP]
+    (
+        [MaRap] nvarchar(450) NOT NULL,
+        [TenRap] nvarchar(max) NOT NULL,
+        [DiaChi] nvarchar(max) NULL,
+        [SoDienThoai] nvarchar(max) NULL,
+        [TrangThai] nvarchar(max) NULL,
+        CONSTRAINT [PK_RAP] PRIMARY KEY ([MaRap])
+    );
+END;
+GO
+/****** Object:  Table [dbo].[VOUCHER] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF OBJECT_ID(N'[dbo].[VOUCHER]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[VOUCHER]
+    (
+        [MaVoucher] nvarchar(450) NOT NULL,
+        [MaKH] nvarchar(max) NOT NULL,
+        [MaCode] nvarchar(max) NOT NULL,
+        [MoTa] nvarchar(max) NULL,
+        [NgayHetHan] datetime2 NOT NULL,
+        [GiaTriGiam] decimal(18,2) NULL,
+        [LoaiGiam] nvarchar(max) NULL,
+        [DonToiThieu] decimal(18,2) NULL,
+        [GiamToiDa] decimal(18,2) NULL,
+        [DaSuDung] bit NULL,
+        [NgaySuDung] datetime2 NULL,
+        [GatewayTxnRef] nvarchar(max) NULL,
+        CONSTRAINT [PK_VOUCHER] PRIMARY KEY ([MaVoucher])
+    );
+END;
+GO
+/****** Object:  Table [dbo].[TICHDIEM] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF OBJECT_ID(N'[dbo].[TICHDIEM]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[TICHDIEM]
+    (
+        [MaTichDiem] nvarchar(450) NOT NULL,
+        [MaKH] nvarchar(max) NOT NULL,
+        [DiemThuong] int NOT NULL CONSTRAINT [DF_TICHDIEM_DiemThuong] DEFAULT 0,
+        [DiemCong] int NOT NULL CONSTRAINT [DF_TICHDIEM_DiemCong] DEFAULT 0,
+        [DiemTru] int NOT NULL CONSTRAINT [DF_TICHDIEM_DiemTru] DEFAULT 0,
+        CONSTRAINT [PK_TICHDIEM] PRIMARY KEY ([MaTichDiem])
+    );
+END;
+GO
+/****** Object:  Table [dbo].[RefundRequests] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF OBJECT_ID(N'[dbo].[RefundRequests]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[RefundRequests]
+    (
+        [Id] int IDENTITY(1,1) NOT NULL,
+        [MaHD] nvarchar(max) NOT NULL,
+        [MaVe] nvarchar(max) NULL,
+        [MaKH] nvarchar(max) NOT NULL,
+        [Reason] nvarchar(max) NOT NULL,
+        [Status] nvarchar(max) NOT NULL CONSTRAINT [DF_RefundRequests_Status] DEFAULT N'Pending',
+        [RequestedAt] datetime2 NOT NULL,
+        [ApprovedAt] datetime2 NULL,
+        [RejectedAt] datetime2 NULL,
+        [RefundAmount] decimal(18,2) NOT NULL,
+        [AdminNote] nvarchar(max) NULL,
+        CONSTRAINT [PK_RefundRequests] PRIMARY KEY ([Id])
+    );
+END;
 GO
 SET IDENTITY_INSERT [dbo].[Admin] ON 
 

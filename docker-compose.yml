@@ -32,8 +32,13 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: ${LOCAL_SQL_CONNECTION:-Server=host.docker.internal,1433;Database=CinemaBD;User Id=sa;Password=CHANGE_ME_LOCAL_SA_PASSWORD;TrustServerCertificate=True;MultipleActiveResultSets=True}
-      DatabaseSeed__SqlFile: /app/Database/CinemaBD.sql
+      ConnectionStrings__DefaultConnection: "${LOCAL_SQL_CONNECTION:?LOCAL_SQL_CONNECTION is required; set it to the intended database}"
+      Database__AllowAutoMigrate: ${DATABASE_ALLOW_AUTO_MIGRATE:-false}
+      Database__AllowedNames__0: ${DATABASE_ALLOWED_NAME:-}
+      ShowtimeExpiry__Enabled: ${SHOWTIME_EXPIRY_ENABLED:-false}
+      DatabaseSeed__SchemaSqlFile: /app/Database/CinemaBD.schema.sql
+      DatabaseSeed__DataSqlFile: /app/Database/CinemaBD.data.sql
+      DatabaseSeed__AllowDemoData: ${DATABASE_ALLOW_DEMO_DATA:-false}
       Jwt__Key: ${JWT_KEY:?JWT_KEY is required}
       Jwt__Issuer: ${JWT_ISSUER:-CinemaBD}
       Jwt__Audience: ${JWT_AUDIENCE:-CinemaBD.Client}
@@ -60,6 +65,7 @@ services:
       Jwt__Issuer: ${JWT_ISSUER:-CinemaBD}
       Jwt__Audience: ${JWT_AUDIENCE:-CinemaBD.Client}
       Security__QrSigningKey: ${QR_SIGNING_KEY:?QR_SIGNING_KEY is required}
+      Security__RequireSecureCookies: "false"
       ConnectionStrings__DefaultConnection: Data Source=/app/data/cinemabd.web.db
       PaymentSettings__Url: ${VNPAY_BASE_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
       PaymentSettings__ReturnUrl: ${WEB_PUBLIC_URL:-http://localhost:7188}/booking/payment-return

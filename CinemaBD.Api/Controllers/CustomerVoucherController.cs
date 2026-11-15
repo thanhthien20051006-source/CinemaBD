@@ -9,7 +9,7 @@ using System.Security.Claims;
 namespace CinemaBD.Api.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = "NotPasswordChangeOnly")]
 [Route("api/account/vouchers")]
 public sealed class CustomerVoucherController : ControllerBase
 {

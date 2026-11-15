@@ -16,12 +16,93 @@ public class AppDbContext : DbContext
             .HasIndex(x => x.GatewayTxnRef)
             .IsUnique()
             .HasFilter("[GatewayTxnRef] IS NOT NULL AND [GatewayTxnRef] <> ''");
+        modelBuilder.Entity<LegacyInvoice>()
+            .Ignore(x => x.DaCheckIn)
+            .Ignore(x => x.ThoiGianCheckIn);
+        modelBuilder.Entity<LegacyTicket>()
+            .Ignore(x => x.DaCheckIn)
+            .Ignore(x => x.ThoiGianCheckIn);
 
         modelBuilder.Entity<RevokedToken>()
             .ToTable("RevokedTokens")
             .HasKey(x => x.Jti);
         modelBuilder.Entity<RevokedToken>()
             .HasIndex(x => x.ExpiresAtUtc);
+
+        modelBuilder.Entity<IdentitySession>(entity =>
+        {
+            entity.ToTable("IdentitySessions");
+            entity.HasKey(x => x.SessionId);
+            entity.Property(x => x.AccountType).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.AccountId).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.RevocationReason).HasMaxLength(128);
+            entity.Property(x => x.DeviceName).HasMaxLength(100);
+            entity.Property(x => x.UserAgent).HasMaxLength(512);
+            entity.Property(x => x.LastSeenIp).HasMaxLength(45);
+            entity.HasIndex(x => new { x.AccountType, x.AccountId, x.RevokedAtUtc });
+            entity.HasIndex(x => x.ExpiresAtUtc);
+        });
+
+        modelBuilder.Entity<RefreshTokenRecord>(entity =>
+        {
+            entity.ToTable("RefreshTokens");
+            entity.HasKey(x => x.RefreshTokenId);
+            entity.Property(x => x.TokenHash).HasColumnType("binary(32)").IsRequired();
+            entity.HasIndex(x => x.TokenHash).IsUnique();
+            entity.HasIndex(x => new { x.SessionId, x.ExpiresAtUtc });
+            entity.HasOne(x => x.Session)
+                .WithMany()
+                .HasForeignKey(x => x.SessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<RefreshTokenRecord>()
+                .WithMany()
+                .HasForeignKey(x => x.ReplacedByRefreshTokenId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<SecurityAuditRecord>(entity =>
+        {
+            entity.ToTable("SecurityAudit");
+            entity.HasKey(x => x.AuditId);
+            entity.Property(x => x.EventType).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.AccountType).HasMaxLength(32);
+            entity.Property(x => x.AccountId).HasMaxLength(128);
+            entity.Property(x => x.SourceIp).HasMaxLength(45);
+            entity.Property(x => x.CorrelationId).HasMaxLength(128);
+            entity.Property(x => x.Details).HasMaxLength(1000);
+            entity.HasIndex(x => x.OccurredAtUtc);
+            entity.HasIndex(x => new { x.EventType, x.OccurredAtUtc });
+        });
+
+        modelBuilder.Entity<AdminMfa>(entity =>
+        {
+            entity.ToTable("AdminMfa");
+            entity.HasKey(x => x.AdminID);
+            entity.Property(x => x.AdminID).ValueGeneratedNever();
+            entity.Property(x => x.SecretProtected).HasColumnType("varbinary(max)").IsRequired();
+            entity.Property(x => x.Enabled).IsRequired();
+            entity.Property(x => x.EnabledAtUtc).HasColumnType("datetime2");
+            entity.Property(x => x.LastUsedStep).HasColumnType("bigint");
+            entity.HasOne(x => x.Admin)
+                .WithOne()
+                .HasForeignKey<AdminMfa>(x => x.AdminID)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AdminRecoveryCode>(entity =>
+        {
+            entity.ToTable("AdminRecoveryCodes");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).ValueGeneratedOnAdd();
+            entity.Property(x => x.CodeHash).HasColumnType("binary(32)").IsRequired();
+            entity.Property(x => x.UsedAtUtc).HasColumnType("datetime2");
+            entity.HasIndex(x => x.AdminID);
+            entity.HasIndex(x => x.CodeHash);
+            entity.HasOne(x => x.Admin)
+                .WithMany()
+                .HasForeignKey(x => x.AdminID)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
 
         modelBuilder.Entity<LegacySeat>()
             .HasKey(x => new { x.MaPhong, x.MaGhe });
@@ -66,4 +147,9 @@ public class AppDbContext : DbContext
     public DbSet<LegacyLoyaltyPoints> LoyaltyPoints => Set<LegacyLoyaltyPoints>();
     public DbSet<LegacyRefundRequest> RefundRequests => Set<LegacyRefundRequest>();
     public DbSet<RevokedToken> RevokedTokens => Set<RevokedToken>();
+    public DbSet<IdentitySession> IdentitySessions => Set<IdentitySession>();
+    public DbSet<RefreshTokenRecord> RefreshTokens => Set<RefreshTokenRecord>();
+    public DbSet<SecurityAuditRecord> SecurityAudit => Set<SecurityAuditRecord>();
+    public DbSet<AdminMfa> AdminMfas => Set<AdminMfa>();
+    public DbSet<AdminRecoveryCode> AdminRecoveryCodes => Set<AdminRecoveryCode>();
 }

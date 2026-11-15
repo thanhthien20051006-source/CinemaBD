@@ -9,7 +9,7 @@ using System.Security.Claims;
 namespace CinemaBD.Api.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = "NotPasswordChangeOnly")]
 [Route("api/account")]
 public sealed class AccountTicketsController : ControllerBase
 {
@@ -24,6 +24,7 @@ public sealed class AccountTicketsController : ControllerBase
         _qrCodeSecurityService = qrCodeSecurityService;
     }
 
+    [Authorize(Policy = "NotPasswordChangeOnly")]
     [HttpGet("tickets")]
     public async Task<IActionResult> GetMyTickets(CancellationToken cancellationToken)
     {

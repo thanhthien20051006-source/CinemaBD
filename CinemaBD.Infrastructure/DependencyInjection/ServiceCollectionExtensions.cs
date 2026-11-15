@@ -13,15 +13,41 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<AppDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrWhiteSpace(connectionString))
+            throw new InvalidOperationException("Missing required configuration ConnectionStrings__DefaultConnection.");
 
-        services.AddScoped<Md5PasswordHasher>();
+        var connectionBuilder = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connectionString);
+        if (string.IsNullOrWhiteSpace(connectionBuilder.InitialCatalog))
+            throw new InvalidOperationException("ConnectionStrings__DefaultConnection must include Database/Initial Catalog.");
+
+        services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
+        if (configuration.GetValue<bool>("ShowtimeExpiry:Enabled", false))
+            services.AddHostedService<ShowtimeExpiryHostedService>();
+
+        services.AddScoped<Pbkdf2PasswordHasher>();
+        services.AddScoped<IAccountPasswordService, AccountPasswordService>();
+        services.AddSingleton<CinemaBD.Infrastructure.Security.SecurityAlertThresholds>();
+        services.AddScoped<SecurityAlertEvaluator>();
+        services.AddScoped<ISecurityAuditWriter, SecurityAuditWriter>();
+        services.AddScoped<AccountLockoutService>();
+        services.AddScoped<IAccountLockoutService>(provider => provider.GetRequiredService<AccountLockoutService>());
+        services.AddScoped<IAdministrativeAccountLockoutService>(provider => provider.GetRequiredService<AccountLockoutService>());
         services.AddScoped<VnPayUrlBuilder>();
         services.AddScoped<VnPaySignatureValidator>();
         services.AddScoped<DatabaseInitializer>();
         services.AddScoped<ITokenService, JwtTokenService>();
+        services.AddScoped<ITotpMfaService, TotpMfaService>();
+        services.AddScoped<IAdminEmergencyRecoveryService, AdminEmergencyRecoveryService>();
         services.AddScoped<IRevokedTokenService, RevokedTokenService>();
+        services.AddScoped<IIdentitySessionService, IdentitySessionService>();
+        services.AddScoped<IAdminSecurityResponseService, AdminSecurityResponseService>();
+        services.AddScoped<ISecurityAuditQueryService, SecurityAuditQueryService>();
+        services.AddScoped<ISecurityDataCleanupService, SecurityDataCleanupService>();
+        if (configuration.GetValue("Security:Cleanup:Enabled", true))
+            services.AddHostedService<SecurityDataCleanupHostedService>();
+        services.AddScoped<IRefreshTokenStore, EfRefreshTokenStore>();
+        services.AddScoped<IRefreshTokenService, RefreshTokenService>();
         services.AddSingleton<IQrCodeSecurityService, HmacQrCodeSecurityService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAdminAuthApiService, AdminAuthApiService>();
@@ -31,6 +57,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAdminCustomerService, AdminCustomerService>();
         services.AddScoped<IAdminEmployeeService, AdminEmployeeService>();
         services.AddScoped<IAdminRoleService, AdminRoleService>();
+        services.AddScoped<IAdminAuthorizationService, AdminAuthorizationService>();
         services.AddScoped<IAdminCinemaService, AdminCinemaService>();
         services.AddScoped<IAdminRoomService, AdminRoomService>();
         services.AddScoped<IAdminSeatService, AdminSeatService>();
@@ -55,9 +82,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IReviewService, ReviewService>();
         services.AddScoped<IAdminReviewService, AdminReviewService>();
-
-        // Background service: tự động expire suất chiếu đã qua giờ
-        services.AddHostedService<ShowtimeExpiryHostedService>();
 
         return services;
     }

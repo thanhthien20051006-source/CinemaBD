@@ -22,10 +22,26 @@ public sealed class AdminPermissionAttribute : Attribute, IAsyncAuthorizationFil
             return;
         }
 
-        if (_permissions.Length == 0) return;
+        if (_permissions.Length == 0)
+        {
+            context.Result = new ViewResult
+            {
+                ViewName = "~/Areas/Admin/Views/Shared/AccessDenied.cshtml",
+                StatusCode = StatusCodes.Status403Forbidden
+            };
+            return;
+        }
 
         var navigationService = context.HttpContext.RequestServices.GetService<IAdminNavigationService>();
-        if (navigationService == null) return;
+        if (navigationService is null)
+        {
+            context.Result = new ViewResult
+            {
+                ViewName = "~/Areas/Admin/Views/Shared/AccessDenied.cshtml",
+                StatusCode = StatusCodes.Status403Forbidden
+            };
+            return;
+        }
 
         var access = await navigationService.GetAccessAsync(context.HttpContext.RequestAborted);
         if (access.Can(_permissions)) return;

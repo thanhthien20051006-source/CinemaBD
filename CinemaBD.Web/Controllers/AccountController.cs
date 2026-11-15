@@ -62,6 +62,10 @@ public class AccountController : Controller
             HttpContext.Session.SetString("FullName", auth.FullName ?? string.Empty);
             HttpContext.Session.SetString("UserId", auth.UserId);
             HttpContext.Session.SetString("LoginType", "Customer");
+            HttpContext.Session.SetString("MustChangePassword", (auth.MustChangePassword || auth.PasswordExpired).ToString());
+
+            if (auth.MustChangePassword || auth.PasswordExpired)
+                return RedirectToAction(nameof(ChangePassword));
 
             TempData["Success"] = "Đăng nhập bằng Google thành công.";
             return RedirectToAction("Index", "Home");
@@ -87,12 +91,24 @@ public class AccountController : Controller
         var admin = await _apiClient.AdminLoginAsync(model.Username, model.Password, cancellationToken);
         if (admin != null)
         {
+            if (admin.MfaRequired && !string.IsNullOrWhiteSpace(admin.MfaChallenge))
+            {
+                TempData["MfaChallenge"] = admin.MfaChallenge;
+                TempData["MfaUsername"] = admin.Username;
+                return RedirectToAction("VerifyMfa", "AdminAccount", new { area = "Admin" });
+            }
+
             HttpContext.Session.Clear();
             HttpContext.Session.SetString("AdminToken", admin.Token);
             HttpContext.Session.SetString("AdminUser", admin.Username);
+            HttpContext.Session.SetString("AdminId", admin.AdminId.ToString(System.Globalization.CultureInfo.InvariantCulture));
             HttpContext.Session.SetString("AdminFullName", admin.FullName ?? string.Empty);
             HttpContext.Session.SetString("AdminRole", admin.Role ?? string.Empty);
             HttpContext.Session.SetString("LoginType", "Admin");
+            HttpContext.Session.SetString("MustChangePassword", (admin.MustChangePassword || admin.PasswordExpired).ToString());
+
+            if (admin.MustChangePassword || admin.PasswordExpired)
+                return RedirectToAction(nameof(ChangePassword));
 
             TempData["Success"] = "Đăng nhập admin thành công.";
             return RedirectToAction("Index", "Dashboard", new { area = "Admin" });
@@ -111,6 +127,10 @@ public class AccountController : Controller
         HttpContext.Session.SetString("FullName", auth.FullName ?? string.Empty);
         HttpContext.Session.SetString("UserId", auth.UserId);
         HttpContext.Session.SetString("LoginType", "Customer");
+        HttpContext.Session.SetString("MustChangePassword", (auth.MustChangePassword || auth.PasswordExpired).ToString());
+
+        if (auth.MustChangePassword || auth.PasswordExpired)
+            return RedirectToAction(nameof(ChangePassword));
 
         TempData["Success"] = "Đăng nhập thành công.";
         return RedirectToAction("Index", "Home");
@@ -142,6 +162,59 @@ public class AccountController : Controller
 
         TempData["Success"] = "Đăng ký thành công, bạn đã được đăng nhập.";
         return RedirectToAction("Index", "Home");
+    }
+
+    [HttpGet("change-password")]
+    public IActionResult ChangePassword()
+    {
+        var isAdmin = string.Equals(HttpContext.Session.GetString("LoginType"), "Admin", StringComparison.OrdinalIgnoreCase);
+        var token = HttpContext.Session.GetString(isAdmin ? "AdminToken" : "UserToken");
+        if (string.IsNullOrWhiteSpace(token))
+            return RedirectToAction(nameof(Login));
+        if (!bool.TryParse(HttpContext.Session.GetString("MustChangePassword"), out var mustChange) || !mustChange)
+            return RedirectToAction(isAdmin ? "Index" : "Index", isAdmin ? "Dashboard" : "Home", new { area = isAdmin ? "Admin" : string.Empty });
+
+        return View(new ChangePasswordViewModel { IsAdmin = isAdmin });
+    }
+
+    [HttpPost("change-password")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model, CancellationToken cancellationToken)
+    {
+        var isAdmin = string.Equals(HttpContext.Session.GetString("LoginType"), "Admin", StringComparison.OrdinalIgnoreCase);
+        var token = HttpContext.Session.GetString(isAdmin ? "AdminToken" : "UserToken");
+        if (string.IsNullOrWhiteSpace(token))
+            return RedirectToAction(nameof(Login));
+
+        model.IsAdmin = isAdmin;
+        if (!ModelState.IsValid)
+            return View(model);
+
+        bool changed;
+        try
+        {
+            changed = isAdmin
+                ? await _apiClient.ChangeAdminPasswordAsync(token, model.CurrentPassword, model.NewPassword, cancellationToken)
+                : await _apiClient.ChangeCustomerPasswordAsync(token, model.CurrentPassword, model.NewPassword, cancellationToken);
+        }
+        catch (HttpRequestException)
+        {
+            changed = false;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            changed = false;
+        }
+
+        if (!changed)
+        {
+            ViewBag.Error = "Không đổi được mật khẩu. Vui lòng kiểm tra mật khẩu hiện tại và thử lại.";
+            return View(model);
+        }
+
+        HttpContext.Session.Clear();
+        TempData["Success"] = "Đổi mật khẩu thành công. Vui lòng đăng nhập lại bằng mật khẩu mới.";
+        return RedirectToAction(nameof(Login));
     }
 
     [HttpGet("profile")]
@@ -265,7 +338,7 @@ public class AccountController : Controller
     {
         var token = HttpContext.Session.GetString("UserToken");
         if (!string.IsNullOrWhiteSpace(token))
-            await _apiClient.LogoutAsync(token, cancellationToken);
+            await _apiClient.RevokeCurrentSessionAsync(token, isAdmin: false, cancellationToken);
 
         HttpContext.Session.Clear();
         return RedirectToAction("Index", "Home");

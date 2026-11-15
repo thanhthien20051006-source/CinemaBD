@@ -2,6 +2,7 @@ package com.cinemabd.app.di
 
 import com.cinemabd.app.BuildConfig
 import com.cinemabd.app.core.network.AuthInterceptor
+import com.cinemabd.app.core.network.RefreshAuthenticator
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import dagger.Module
 import dagger.Provides
@@ -31,15 +32,21 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideOkHttpClient(
-        authInterceptor: AuthInterceptor
+        authInterceptor: AuthInterceptor,
+        refreshAuthenticator: RefreshAuthenticator
     ): OkHttpClient {
         val builder = OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
+            .authenticator(refreshAuthenticator)
 
         if (BuildConfig.DEBUG) {
             val logging = HttpLoggingInterceptor { message ->
                 val sanitized = message
                     .replace(Regex("\"password\"\\s*:\\s*\"[^\"]*\""), "\"password\":\"***\"")
+                    .replace(Regex("\"currentPassword\"\\s*:\\s*\"[^\"]*\""), "\"currentPassword\":\"***\"")
+                    .replace(Regex("\"newPassword\"\\s*:\\s*\"[^\"]*\""), "\"newPassword\":\"***\"")
+                    .replace(Regex("\"confirmPassword\"\\s*:\\s*\"[^\"]*\""), "\"confirmPassword\":\"***\"")
+                    .replace(Regex("\"refreshToken\"\\s*:\\s*\"[^\"]*\""), "\"refreshToken\":\"***\"")
                     .replace(Regex("\"token\"\\s*:\\s*\"[^\"]*\""), "\"token\":\"***\"")
                     .replace(Regex("\"qrPayload\"\\s*:\\s*\"[^\"]*\""), "\"qrPayload\":\"***\"")
                     .replace(Regex("\"qrSignature\"\\s*:\\s*\"[^\"]*\""), "\"qrSignature\":\"***\"")
@@ -67,6 +74,20 @@ object NetworkModule {
             .client(okHttpClient)
             .addConverterFactory(json.asConverterFactory(contentType))
             .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideRefreshApi(json: Json): com.cinemabd.app.core.network.RefreshApi {
+        // Keep the refresh client isolated from the main authenticator to prevent recursive 401 refresh.
+        val contentType = "application/json".toMediaType()
+        val refreshClient = OkHttpClient.Builder().build()
+        val refreshRetrofit = Retrofit.Builder()
+            .baseUrl(BuildConfig.API_BASE_URL)
+            .client(refreshClient)
+            .addConverterFactory(json.asConverterFactory(contentType))
+            .build()
+        return refreshRetrofit.create(com.cinemabd.app.core.network.RefreshApi::class.java)
     }
 
     @Provides

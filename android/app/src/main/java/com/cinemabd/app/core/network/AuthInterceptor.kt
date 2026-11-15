@@ -2,6 +2,7 @@ package com.cinemabd.app.core.network
 
 import com.cinemabd.app.core.datastore.TokenDataStore
 import com.cinemabd.app.core.session.SessionManager
+import com.cinemabd.app.core.session.UserRole
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
@@ -12,7 +13,8 @@ import javax.inject.Singleton
 @Singleton
 class AuthInterceptor @Inject constructor(
     private val tokenDataStore: TokenDataStore,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val refreshAuthenticator: RefreshAuthenticator
 ) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -28,14 +30,14 @@ class AuthInterceptor @Inject constructor(
         val token = runBlocking { tokenDataStore.tokenFlow.first() }
 
         val requestBuilder = originalRequest.newBuilder()
-        if (!token.isNullOrEmpty()) {
+        if (!token.isNullOrEmpty() && originalRequest.header("Authorization").isNullOrEmpty()) {
             requestBuilder.header("Authorization", "Bearer $token")
         }
 
         val response = chain.proceed(requestBuilder.build())
 
-        // If an authenticated request returns 401 Unauthorized, clear session and notify expiry.
-        if (response.code == 401 && !token.isNullOrEmpty()) {
+        // OkHttp's Authenticator has already tried one refresh. Expire only after that retry also fails.
+        if (response.code == 401 && !token.isNullOrEmpty() && response.priorResponse != null) {
             sessionManager.notifySessionExpiredAsync()
         }
 
@@ -47,7 +49,9 @@ class AuthInterceptor @Inject constructor(
             val normalized = path.trimStart('/')
             return normalized.contains("api/auth/login") ||
                    normalized.contains("api/admin/auth/login") ||
-                   normalized.contains("api/auth/register")
+                   normalized.contains("api/auth/register") ||
+                   normalized.contains("api/auth/refresh") ||
+                   normalized.contains("api/admin/auth/refresh")
         }
     }
 }

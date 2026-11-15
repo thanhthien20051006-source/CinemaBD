@@ -1,47 +1,21 @@
 using CinemaBD.Domain.Entities;
-using Microsoft.AspNetCore.Identity;
 
 namespace CinemaBD.Infrastructure.Security;
 
+/// <summary>
+/// Compatibility facade for legacy callers. New authentication code should depend on Pbkdf2PasswordHasher.
+/// </summary>
+[Obsolete("Use Pbkdf2PasswordHasher; this facade remains temporarily for legacy initialization code and tests.")]
 public class Md5PasswordHasher
 {
-    private const string IdentityPrefix = "IDENTITY:";
-    private readonly PasswordHasher<UserAccount> _passwordHasher = new();
+    private readonly Pbkdf2PasswordHasher _hasher = new();
 
-    public string Hash(string password)
-    {
-        var hash = _passwordHasher.HashPassword(new UserAccount(), password ?? string.Empty);
-        return IdentityPrefix + hash;
-    }
+    public string Hash(string password) => _hasher.Hash(password);
 
-    public bool Verify(string plainTextPassword, string storedHash)
-    {
-        if (storedHash == null)
-            return false;
+    public virtual bool Verify(string plainTextPassword, string storedHash)
+        => _hasher.Verify(plainTextPassword, storedHash);
 
-        if (storedHash.StartsWith(IdentityPrefix, StringComparison.Ordinal))
-        {
-            var hash = storedHash[IdentityPrefix.Length..];
-            var result = _passwordHasher.VerifyHashedPassword(new UserAccount(), hash, plainTextPassword ?? string.Empty);
-            return result != PasswordVerificationResult.Failed;
-        }
+    public virtual bool DummyVerify(string password) => _hasher.DummyVerify(password);
 
-        var hashedInput = HashMd5(plainTextPassword);
-        if (string.Equals(storedHash, hashedInput, StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        return string.Equals(storedHash, plainTextPassword, StringComparison.Ordinal);
-    }
-
-    public bool NeedsRehash(string storedHash)
-    {
-        return string.IsNullOrWhiteSpace(storedHash) || !storedHash.StartsWith(IdentityPrefix, StringComparison.Ordinal);
-    }
-
-    private static string HashMd5(string? password)
-    {
-        using var md5 = System.Security.Cryptography.MD5.Create();
-        var bytes = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password ?? string.Empty));
-        return BitConverter.ToString(bytes).Replace("-", "").ToLowerInvariant();
-    }
+    public bool NeedsRehash(string storedHash) => _hasher.NeedsRehash(storedHash);
 }

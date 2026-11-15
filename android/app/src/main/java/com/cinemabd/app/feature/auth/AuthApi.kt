@@ -2,6 +2,7 @@ package com.cinemabd.app.feature.auth
 
 import com.cinemabd.app.core.network.ApiResponse
 import retrofit2.http.Body
+import retrofit2.http.Header
 import retrofit2.http.POST
 
 interface AuthApi {
@@ -11,6 +12,21 @@ interface AuthApi {
     @POST("api/admin/auth/login")
     suspend fun adminLogin(@Body request: LoginRequest): ApiResponse<AdminAuthResponse>
 
+    @POST("api/admin/auth/mfa/verify")
+    suspend fun adminMfaVerify(@Body request: AdminMfaVerifyRequest): ApiResponse<AdminAuthResponse>
+
     @POST("api/auth/register")
     suspend fun register(@Body request: RegisterRequest): ApiResponse<AuthResponse>
+
+    @POST("api/auth/password/change")
+    suspend fun changeCustomerPassword(
+        @Header("Authorization") authorization: String,
+        @Body request: ChangePasswordRequest
+    ): ApiResponse<Unit>
+
+    @POST("api/admin/auth/password/change")
+    suspend fun changeAdminPassword(
+        @Header("Authorization") authorization: String,
+        @Body request: ChangePasswordRequest
+    ): ApiResponse<Unit>
 }

@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CinemaBD.Infrastructure", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CinemaBD.Web", "CinemaBD.Web\CinemaBD.Web.csproj", "{5F7D2A20-7722-4D7D-93F1-2B39154F7A10}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CinemaBD.Tests", "CinemaBD.Tests\CinemaBD.Tests.csproj", "{D61A29D4-30A5-4228-87C9-0D5A831E0124}"
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{990285B5-B084-441E-878D-8577A1C9B605}"
 EndProject
 Global
@@ -40,6 +42,10 @@ Global
 		{5F7D2A20-7722-4D7D-93F1-2B39154F7A10}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5F7D2A20-7722-4D7D-93F1-2B39154F7A10}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5F7D2A20-7722-4D7D-93F1-2B39154F7A10}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D61A29D4-30A5-4228-87C9-0D5A831E0124}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D61A29D4-30A5-4228-87C9-0D5A831E0124}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D61A29D4-30A5-4228-87C9-0D5A831E0124}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D61A29D4-30A5-4228-87C9-0D5A831E0124}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

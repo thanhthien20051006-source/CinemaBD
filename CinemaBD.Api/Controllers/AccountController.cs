@@ -22,6 +22,7 @@ public class AccountController : ControllerBase
         _loyaltyPointService = loyaltyPointService;
     }
 
+    [Authorize(Policy = "NotPasswordChangeOnly")]
     [HttpGet("profile")]
     public async Task<IActionResult> GetProfile(CancellationToken cancellationToken)
     {

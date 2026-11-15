@@ -1,6 +1,7 @@
 ﻿using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using CinemaBD.Domain.Entities;
 using CinemaBD.Web.Models;
 
 namespace CinemaBD.Web.Core;
@@ -10,86 +11,86 @@ public interface IAdminNavigationService
     Task<AdminNavigationAccess> GetAccessAsync(CancellationToken cancellationToken = default);
 }
 
-public class AdminNavigationAccess
+public sealed class AdminNavigationAccess
 {
-    public bool AllowAll { get; set; }
-    public HashSet<string> Permissions { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public bool IsMaster { get; init; }
+    public HashSet<string> Permissions { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
     public bool Can(params string[] keywords)
     {
-        if (AllowAll) return true;
-        if (Permissions.Count == 0) return true;
-        return keywords.Any(keyword => Permissions.Any(permission => Normalize(permission).Contains(Normalize(keyword))));
+        if (IsMaster) return true;
+        if (keywords.Length == 0 || Permissions.Count == 0) return false;
+        return keywords.Any(keyword => Permissions.Any(permission => AdminPermissionMatcher.Matches(permission, [keyword])));
     }
 
-    private static string Normalize(string? value) => (value ?? string.Empty)
-        .Trim()
-        .ToLowerInvariant()
-        .Replace("đ", "d")
-        .Replace(" ", "")
-        .Replace("_", "")
-        .Replace("-", "");
 }
 
-public class AdminNavigationService : IAdminNavigationService
+public sealed class AdminNavigationService : IAdminNavigationService
 {
     private readonly HttpClient _httpClient;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ILogger<AdminNavigationService> _logger;
 
-    public AdminNavigationService(HttpClient httpClient, IHttpContextAccessor httpContextAccessor)
+    public AdminNavigationService(HttpClient httpClient, IHttpContextAccessor httpContextAccessor, ILogger<AdminNavigationService> logger)
     {
         _httpClient = httpClient;
         _httpContextAccessor = httpContextAccessor;
+        _logger = logger;
         if (_httpClient.BaseAddress == null) _httpClient.BaseAddress = new Uri("http://localhost:5188/");
     }
 
     public async Task<AdminNavigationAccess> GetAccessAsync(CancellationToken cancellationToken = default)
     {
         var httpContext = _httpContextAccessor.HttpContext;
-        var roleName = httpContext?.Session.GetString("AdminRole") ?? string.Empty;
-        var token = httpContext?.Session.GetString("AdminToken") ?? string.Empty;
-
-        if (string.IsNullOrWhiteSpace(roleName) || IsMasterRole(roleName))
-            return new AdminNavigationAccess { AllowAll = true };
+        var token = httpContext?.Session.GetString("AdminToken");
+        if (string.IsNullOrWhiteSpace(token) || !int.TryParse(httpContext?.Session.GetString("AdminId"), out var adminId) || adminId <= 0)
+        {
+            _logger.LogWarning("Admin permission check denied because authenticated role context is missing.");
+            return new AdminNavigationAccess();
+        }
 
         try
         {
-            var roles = await SendAsync<List<RoleFormViewModel>>("api/admin/roles", token, cancellationToken) ?? new();
-            var role = roles.FirstOrDefault(x => string.Equals(x.Name, roleName, StringComparison.OrdinalIgnoreCase));
-            if (role == null || role.IsMaster)
-                return new AdminNavigationAccess { AllowAll = true };
+            using var request = new HttpRequestMessage(HttpMethod.Get, "api/admin/roles/authorization-access");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Admin permission check denied for admin {AdminId}; authorization lookup returned HTTP {StatusCode}.", adminId, (int)response.StatusCode);
+                return new AdminNavigationAccess();
+            }
 
-            var permissions = await SendAsync<List<PermissionViewModel>>($"api/admin/roles/{role.Id}/permissions", token, cancellationToken) ?? new();
+            var payload = await response.Content.ReadFromJsonAsync<ApiResponse<JsonElement>>(cancellationToken: cancellationToken);
+            if (payload is not { Success: true } || payload.Data.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+            {
+                _logger.LogWarning("Admin permission check denied for admin {AdminId}; authorization response was invalid.", adminId);
+                return new AdminNavigationAccess();
+            }
+
+            var access = JsonSerializer.Deserialize<AdminAuthorizationAccessResponse>(payload.Data.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (access is null || access.RoleId <= 0 || access.Permissions is null)
+            {
+                _logger.LogWarning("Admin permission check denied for admin {AdminId}; authorization response was invalid.", adminId);
+                return new AdminNavigationAccess();
+            }
+
             return new AdminNavigationAccess
             {
-                AllowAll = permissions.Count == 0,
-                Permissions = permissions.Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase)
+                IsMaster = access.IsMaster,
+                Permissions = access.Permissions.ToHashSet(StringComparer.OrdinalIgnoreCase)
             };
         }
-        catch
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            return new AdminNavigationAccess { AllowAll = true };
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Admin permission check denied for admin {AdminId} after an authorization lookup failure.", adminId);
+            return new AdminNavigationAccess();
         }
     }
 
-    private async Task<T?> SendAsync<T>(string url, string token, CancellationToken cancellationToken)
-    {
-        using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        if (!string.IsNullOrWhiteSpace(token))
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
-        if (!response.IsSuccessStatusCode) return default;
-
-        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<JsonElement>>(cancellationToken: cancellationToken);
-        if (payload?.Data.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null) return default;
-        return JsonSerializer.Deserialize<T>(payload!.Data.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-    }
-
-    private static bool IsMasterRole(string roleName)
-    {
-        var role = roleName.Trim().ToLowerInvariant();
-        return role is "admin" or "administrator" or "master" or "quan tri" or "quản trị";
-    }
+    private sealed record ApiResponse<T>(bool Success, string Message, T Data);
+    private sealed record AdminAuthorizationAccessResponse(int RoleId, bool IsMaster, IReadOnlyCollection<string> Permissions);
 }
-

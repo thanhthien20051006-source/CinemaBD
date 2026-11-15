@@ -28,7 +28,7 @@ public class ReviewsController : ControllerBase
         return Ok(new ApiResponse<object>(true, "Lấy đánh giá phim thành công", reviews.Select(ToResponse)));
     }
 
-    [Authorize]
+    [Authorize(Policy = "NotPasswordChangeOnly")]
     [HttpGet("movie/{movieId}/eligibility")]
     public async Task<IActionResult> Eligibility(string movieId, CancellationToken cancellationToken)
     {
@@ -40,7 +40,7 @@ public class ReviewsController : ControllerBase
         return Ok(new ApiResponse<object>(result.CanReview, result.ReviewRuleMessage ?? "OK", ToResponse(result)));
     }
 
-    [Authorize]
+    [Authorize(Policy = "NotPasswordChangeOnly")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateReviewRequest request, CancellationToken cancellationToken)
     {
