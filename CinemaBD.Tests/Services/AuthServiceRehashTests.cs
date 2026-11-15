@@ -42,6 +42,7 @@ public class AuthServiceRehashTests
         tokenServiceMock.Setup(x => x.CreateToken(It.IsAny<UserAccount>(), It.IsAny<Guid>(), true)).Returns("restricted_dummy_token");
         tokenServiceMock.Setup(x => x.CreateToken(It.IsAny<UserAccount>(), It.IsAny<Guid>(), false, It.IsAny<bool>())).Returns("dummy_token");
         tokenServiceMock.Setup(x => x.CreateToken(It.IsAny<UserAccount>(), It.IsAny<Guid>(), true, It.IsAny<bool>())).Returns("restricted_dummy_token");
+        tokenServiceMock.Setup(x => x.CreateToken(It.IsAny<UserAccount>(), It.IsAny<Guid>(), true, true, false)).Returns("restricted_dummy_token");
 
         var rawPassword = "adminSecretPassword123";
         var md5Hash = ComputeMd5(rawPassword);
