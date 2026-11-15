@@ -1,3 +1,6 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using CinemaBD.Api.Contracts.Admin;
 using CinemaBD.Api.Contracts.Auth;
 using CinemaBD.Api.Contracts.Common;
@@ -15,7 +18,7 @@ namespace CinemaBD.Tests.Controllers;
 
 public sealed class AuthControllerRefreshTests
 {
-    private static IdentityRequestResolver CreateRequestResolver(string accountType, string accountId, Guid sessionId)
+    private static IdentityRequestResolver CreateRequestResolver(Guid sessionId)
     {
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -24,30 +27,46 @@ public sealed class AuthControllerRefreshTests
             ["Jwt:Audience"] = "test"
         }).Build();
 
-        var proofValidator = new AccessTokenProofValidator(config);
         var sessionService = new Mock<IIdentitySessionService>();
         sessionService.Setup(x => x.IsActiveAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
         var revokedService = new Mock<IRevokedTokenService>();
-        revokedService.Setup(x => x.IsRevokedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        revokedService.Setup(x => x.IsRevokedAsync("jti_123", It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
-        // Subclass or mock resolver
-        var mockResolver = new Mock<IdentityRequestResolver>(
-            proofValidator,
+        var resolver = new IdentityRequestResolver(
+            new AccessTokenProofValidator(config),
             sessionService.Object,
             revokedService.Object,
             Mock.Of<ILogger<IdentityRequestResolver>>());
 
-        mockResolver.Setup(r => r.ResolveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>(), true))
-            .ReturnsAsync(new VerifiedSessionIdentity(sessionId, accountType, accountId, "jti_123", DateTime.UtcNow.AddHours(1)));
+        return resolver;
+    }
 
-        return mockResolver.Object;
+    private static string CreateAccessToken(string accountType, string accountId, Guid sessionId)
+    {
+        var subject = accountType == "Admin" ? $"admin:{accountId}" : accountId;
+        var token = new JwtSecurityToken(
+            issuer: "test",
+            audience: "test",
+            claims: new[]
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, subject),
+                new Claim(JwtRegisteredClaimNames.Jti, "jti_123"),
+                new Claim("sid", sessionId.ToString("D")),
+                new Claim("account_type", accountType == "Admin" ? "admin" : "customer")
+            },
+            expires: DateTime.UtcNow.AddHours(1),
+            signingCredentials: new Microsoft.IdentityModel.Tokens.SigningCredentials(
+                new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(Encoding.UTF8.GetBytes("0123456789abcdef0123456789abcdef")),
+                Microsoft.IdentityModel.Tokens.SecurityAlgorithms.HmacSha256));
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
     [Fact]
     public async Task CustomerRefresh_WhenRotateAsyncThrowsUnauthorized_Returns401WithGenericMessage()
     {
         var sessionId = Guid.NewGuid();
-        var resolver = CreateRequestResolver("KHACHHANG", "KH01", sessionId);
+        var resolver = CreateRequestResolver(sessionId);
 
         var refreshServiceMock = new Mock<IRefreshTokenService>();
         refreshServiceMock
@@ -62,7 +81,7 @@ public sealed class AuthControllerRefreshTests
             refreshServiceMock.Object,
             resolver);
 
-        var request = new RefreshRequest("valid.access.token", "bad_refresh_token");
+        var request = new AuthController.RefreshRequest(CreateAccessToken("KHACHHANG", "KH01", sessionId), "bad_refresh_token");
         var result = await controller.Refresh(request, CancellationToken.None);
 
         result.Should().BeOfType<UnauthorizedObjectResult>();
@@ -80,7 +99,7 @@ public sealed class AuthControllerRefreshTests
     public async Task AdminRefresh_WhenRotateAsyncThrowsUnauthorized_Returns401WithGenericMessage()
     {
         var sessionId = Guid.NewGuid();
-        var resolver = CreateRequestResolver("Admin", "1", sessionId);
+        var resolver = CreateRequestResolver(sessionId);
 
         var refreshServiceMock = new Mock<IRefreshTokenService>();
         refreshServiceMock
@@ -95,7 +114,7 @@ public sealed class AuthControllerRefreshTests
             refreshServiceMock.Object,
             resolver);
 
-        var request = new AdminAuthController.AdminRefreshRequest("valid.admin.access.token", "bad_admin_token");
+        var request = new AdminAuthController.AdminRefreshRequest(CreateAccessToken("Admin", "1", sessionId), "bad_admin_token");
         var result = await controller.Refresh(request, CancellationToken.None);
 
         result.Should().BeOfType<UnauthorizedObjectResult>();

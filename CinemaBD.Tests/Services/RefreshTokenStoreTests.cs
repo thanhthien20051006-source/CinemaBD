@@ -23,8 +23,50 @@ public sealed class RefreshTokenStoreTests
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(connection)
             .Options;
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            CREATE TABLE "IdentitySessions" (
+                "SessionId" TEXT NOT NULL CONSTRAINT "PK_IdentitySessions" PRIMARY KEY,
+                "AccountType" TEXT NOT NULL,
+                "AccountId" TEXT NOT NULL,
+                "CreatedAtUtc" TEXT NOT NULL,
+                "LastSeenAtUtc" TEXT NOT NULL,
+                "ExpiresAtUtc" TEXT NOT NULL,
+                "RevokedAtUtc" TEXT NULL,
+                "RevocationReason" TEXT NULL,
+                "DeviceName" TEXT NULL,
+                "UserAgent" TEXT NULL,
+                "LastSeenIp" TEXT NULL
+            );
+            CREATE TABLE "RefreshTokens" (
+                "RefreshTokenId" TEXT NOT NULL CONSTRAINT "PK_RefreshTokens" PRIMARY KEY,
+                "SessionId" TEXT NOT NULL,
+                "TokenHash" BLOB NOT NULL,
+                "CreatedAtUtc" TEXT NOT NULL,
+                "ExpiresAtUtc" TEXT NOT NULL,
+                "ConsumedAtUtc" TEXT NULL,
+                "RevokedAtUtc" TEXT NULL,
+                "ReplacedByRefreshTokenId" TEXT NULL,
+                CONSTRAINT "FK_RefreshTokens_IdentitySessions_SessionId"
+                    FOREIGN KEY ("SessionId") REFERENCES "IdentitySessions" ("SessionId") ON DELETE CASCADE,
+                CONSTRAINT "FK_RefreshTokens_RefreshTokens_ReplacedByRefreshTokenId"
+                    FOREIGN KEY ("ReplacedByRefreshTokenId") REFERENCES "RefreshTokens" ("RefreshTokenId") ON DELETE NO ACTION
+            );
+            CREATE TABLE "SecurityAudit" (
+                "AuditId" INTEGER NOT NULL CONSTRAINT "PK_SecurityAudit" PRIMARY KEY AUTOINCREMENT,
+                "OccurredAtUtc" TEXT NOT NULL,
+                "EventType" TEXT NOT NULL,
+                "AccountType" TEXT NULL,
+                "AccountId" TEXT NULL,
+                "SessionId" TEXT NULL,
+                "SourceIp" TEXT NULL,
+                "CorrelationId" TEXT NULL,
+                "Details" TEXT NULL
+            );
+            """;
+        command.ExecuteNonQuery();
+
         var db = new AppDbContext(options);
-        db.Database.EnsureCreated();
         return (db, connection);
     }
 
@@ -57,6 +99,30 @@ public sealed class RefreshTokenStoreTests
         audit.Details.Should().Contain("detected");
         System.Text.Json.JsonSerializer.Serialize(audit).Should().NotContain(Convert.ToHexString(hash));
         audit.Details.Should().NotContain("token=");
+    }
+
+    [Fact]
+    public async Task CreateSqliteDb_EnforcesRefreshTokenSessionForeignKey()
+    {
+        var (db, connection) = CreateSqliteDb();
+        await using (connection)
+        await using (db)
+        {
+            var now = DateTime.UtcNow;
+            db.RefreshTokens.Add(new RefreshTokenRecord
+            {
+                RefreshTokenId = Guid.NewGuid(),
+                SessionId = Guid.NewGuid(),
+                TokenHash = SHA256.HashData(RandomNumberGenerator.GetBytes(32)),
+                CreatedAtUtc = now,
+                ExpiresAtUtc = now.AddDays(1)
+            });
+
+            var foreignKeyViolation = async () => await db.SaveChangesAsync();
+            var exception = await foreignKeyViolation.Should().ThrowAsync<DbUpdateException>();
+            exception.Which.InnerException.Should().BeOfType<SqliteException>()
+                .Which.SqliteExtendedErrorCode.Should().Be(787);
+        }
     }
 
     [Fact]
@@ -99,7 +165,8 @@ public sealed class RefreshTokenStoreTests
             result.Outcome.Should().Be(RefreshTokenStoreOutcome.Rotated);
             result.SessionId.Should().Be(sessionId);
 
-            var oldToken = await db.RefreshTokens.SingleAsync(t => t.RefreshTokenId == oldTokenId);
+            db.ChangeTracker.Clear();
+            var oldToken = await db.RefreshTokens.AsNoTracking().SingleAsync(t => t.RefreshTokenId == oldTokenId);
             oldToken.ConsumedAtUtc.Should().Be(now);
             oldToken.ReplacedByRefreshTokenId.Should().Be(repId);
 
@@ -164,7 +231,11 @@ public sealed class RefreshTokenStoreTests
             audit.AccountType.Should().Be("Admin");
             audit.AccountId.Should().Be("10");
             audit.SessionId.Should().Be(sessionId);
-            audit.Result.Should().Be("detected");
+            audit.EventType.Should().Be("refresh_token_reuse");
+            audit.Details.Should().Contain("detected");
+            audit.Details.Should().Contain("Previously used credential presented again; session revoked.");
+            audit.Details.Should().NotContain(Convert.ToHexString(oldHash));
+            audit.Details.Should().NotContain("token=");
         }
     }
 
@@ -217,15 +288,16 @@ public sealed class RefreshTokenStoreTests
             result2.Outcome.Should().Be(RefreshTokenStoreOutcome.Rotated);
 
             // Verify chain
-            var t1 = await db.RefreshTokens.SingleAsync(t => t.RefreshTokenId == token1Id);
+            db.ChangeTracker.Clear();
+            var t1 = await db.RefreshTokens.AsNoTracking().SingleAsync(t => t.RefreshTokenId == token1Id);
             t1.ConsumedAtUtc.Should().Be(now);
             t1.ReplacedByRefreshTokenId.Should().Be(token2Id);
 
-            var t2 = await db.RefreshTokens.SingleAsync(t => t.RefreshTokenId == token2Id);
+            var t2 = await db.RefreshTokens.AsNoTracking().SingleAsync(t => t.RefreshTokenId == token2Id);
             t2.ConsumedAtUtc.Should().Be(now2);
             t2.ReplacedByRefreshTokenId.Should().Be(token3Id);
 
-            var t3 = await db.RefreshTokens.SingleAsync(t => t.RefreshTokenId == token3Id);
+            var t3 = await db.RefreshTokens.AsNoTracking().SingleAsync(t => t.RefreshTokenId == token3Id);
             t3.ConsumedAtUtc.Should().BeNull();
             t3.ReplacedByRefreshTokenId.Should().BeNull();
 
