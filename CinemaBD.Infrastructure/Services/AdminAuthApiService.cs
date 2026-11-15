@@ -1,4 +1,5 @@
-﻿using CinemaBD.Application.Interfaces;
+﻿using CinemaBD.Application.Exceptions;
+using CinemaBD.Application.Interfaces;
 using CinemaBD.Domain.Entities;
 using CinemaBD.Infrastructure.Persistence;
 using CinemaBD.Infrastructure.Security;
@@ -127,7 +128,7 @@ public class AdminAuthApiService : IAdminAuthApiService
         {
             _passwordHasher.DummyVerify(password);
             await WriteAuditSafelyAsync("login_failed", "Admin", lockout.AccountId ?? admin?.AdminID.ToString(System.Globalization.CultureInfo.InvariantCulture), deviceName, userAgent, "failure", "Invalid credentials; temporary lockout active.", cancellationToken);
-            throw new InvalidOperationException("Tài khoản hoặc mật khẩu không chính xác.");
+            throw new AccountLockedException(lockout.LockoutEndUtc!.Value);
         }
         if (admin == null)
         {

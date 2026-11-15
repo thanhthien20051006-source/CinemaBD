@@ -88,7 +88,13 @@ public class AccountController : Controller
         if (!ModelState.IsValid)
             return View(model);
 
-        var admin = await _apiClient.AdminLoginAsync(model.Username, model.Password, cancellationToken);
+        var adminLogin = await _apiClient.AdminLoginAsync(model.Username, model.Password, cancellationToken);
+        var admin = adminLogin.Admin;
+        if (adminLogin.IsLocked)
+        {
+            ViewBag.Error = adminLogin.ErrorMessage;
+            return View(model);
+        }
         if (admin != null)
         {
             if (admin.MfaRequired && !string.IsNullOrWhiteSpace(admin.MfaChallenge))

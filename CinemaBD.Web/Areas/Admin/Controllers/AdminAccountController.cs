@@ -24,10 +24,16 @@ public class AdminAccountController : Controller
         if (!ModelState.IsValid)
             return View("~/Views/Account/Login.cshtml", model);
 
-        var admin = await _apiClient.AdminLoginAsync(model.Username, model.Password, cancellationToken);
+        var loginOutcome = await _apiClient.AdminLoginAsync(model.Username, model.Password, cancellationToken);
+        var admin = loginOutcome.Admin;
+        if (loginOutcome.IsLocked)
+        {
+            ViewBag.Error = loginOutcome.ErrorMessage;
+            return View("~/Views/Account/Login.cshtml", model);
+        }
         if (admin == null)
         {
-            ViewBag.Error = "Tài khoản hoặc mật khẩu không chính xác.";
+            ViewBag.Error = loginOutcome.ErrorMessage ?? "Tài khoản hoặc mật khẩu không chính xác.";
             return View("~/Views/Account/Login.cshtml", model);
         }
 
