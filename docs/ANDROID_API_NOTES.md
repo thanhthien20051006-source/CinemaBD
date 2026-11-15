@@ -103,7 +103,7 @@ Login/đăng ký trả thêm `refreshToken` và `sessionId`. Refresh token là g
 
 `GET /api/auth/sessions` liệt kê phiên thuộc khách hàng hiện tại, bao gồm nhãn thiết bị/User-Agent đã lưu và cờ phiên hiện tại; `DELETE /api/auth/sessions/{sessionId}` thu hồi một phiên do khách hàng sở hữu. `POST /api/auth/logout` thu hồi phiên hiện tại; đổi mật khẩu thu hồi mọi phiên của tài khoản. `401` vẫn cần xử lý an toàn: app có thể thử refresh một lần trước khi xóa session/điều hướng đăng nhập, không lặp refresh khi refresh thất bại.
 
-Không có refresh-token endpoint. Khi nhận `401`, Android nên xóa token cũ, đưa người dùng về đăng nhập, và không tự gửi lại mật khẩu.
+Nếu refresh thất bại hoặc `401` vẫn còn sau một lần retry, Android xóa session cục bộ và đưa người dùng về đăng nhập; không tự gửi lại mật khẩu.
 
 ### Request mẫu
 

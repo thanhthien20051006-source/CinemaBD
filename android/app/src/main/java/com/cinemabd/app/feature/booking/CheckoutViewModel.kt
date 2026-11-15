@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.cinemabd.app.core.network.toUserFriendlyMessage
 import com.cinemabd.app.data.repository.BookingsRepository
 import com.cinemabd.app.data.repository.PaymentsRepository
+import com.cinemabd.app.data.repository.TicketsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +29,8 @@ sealed interface CheckoutEvent {
 @HiltViewModel
 class CheckoutViewModel @Inject constructor(
     private val bookingsRepository: BookingsRepository,
-    private val paymentsRepository: PaymentsRepository
+    private val paymentsRepository: PaymentsRepository,
+    private val ticketsRepository: TicketsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<CheckoutUiState>(CheckoutUiState.Loading)
@@ -87,26 +89,69 @@ class CheckoutViewModel @Inject constructor(
     }
 
     fun applyVoucher(code: String) {
-        _uiState.update { current ->
-            if (current is CheckoutUiState.Ready) {
-                val cleanCode = code.trim().uppercase()
-                if (cleanCode.isBlank()) {
+        val cleanCode = code.trim().uppercase()
+        val state = _uiState.value as? CheckoutUiState.Ready ?: return
+
+        if (cleanCode.isBlank()) {
+            _uiState.update { current ->
+                if (current is CheckoutUiState.Ready) {
                     current.copy(
                         voucherCode = "",
                         discountAmount = 0.0,
                         finalTotal = current.subtotal,
                         voucherMessage = null
                     )
-                } else {
-                    val discount = calculateEstimatedDiscount(cleanCode, current.subtotal)
-                    current.copy(
-                        voucherCode = cleanCode,
-                        discountAmount = discount,
-                        finalTotal = maxOf(0.0, current.subtotal - discount),
-                        voucherMessage = if (discount > 0) cleanCode else null
-                    )
+                } else current
+            }
+            return
+        }
+
+        viewModelScope.launch {
+            val comboParts = state.selectedCombos.entries
+                .filter { it.value > 0 }
+                .map { "${it.key}:${it.value}" }
+            val comboQuery = if (comboParts.isEmpty()) null else comboParts.joinToString(",")
+
+            val result = ticketsRepository.previewVoucher(
+                showtimeId = state.showtimeId,
+                seats = state.seats,
+                combos = comboQuery,
+                code = cleanCode
+            )
+
+            result.onSuccess { response ->
+                _uiState.update { current ->
+                    if (current is CheckoutUiState.Ready) {
+                        current.copy(
+                            voucherCode = response.code ?: cleanCode,
+                            discountAmount = response.discountAmount,
+                            finalTotal = response.finalAmount,
+                            voucherMessage = response.message
+                        )
+                    } else current
                 }
-            } else current
+            }.onFailure {
+                val discount = calculateEstimatedDiscount(cleanCode, state.subtotal)
+                _uiState.update { current ->
+                    if (current is CheckoutUiState.Ready) {
+                        if (discount > 0) {
+                            current.copy(
+                                voucherCode = cleanCode,
+                                discountAmount = discount,
+                                finalTotal = maxOf(0.0, state.subtotal - discount),
+                                voucherMessage = "Đã tạm áp dụng mã $cleanCode, giảm ${discount.toLong()} đ"
+                            )
+                        } else {
+                            current.copy(
+                                voucherCode = "",
+                                discountAmount = 0.0,
+                                finalTotal = state.subtotal,
+                                errorMessage = it.message ?: "Mã voucher không hợp lệ"
+                            )
+                        }
+                    } else current
+                }
+            }
         }
     }
 

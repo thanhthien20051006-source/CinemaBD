@@ -83,7 +83,7 @@ Hoàn thiện nghiệp vụ -> Chuẩn hóa kiến trúc -> Tăng bảo mật ->
 
 | STT | Công việc | Kết quả cần đạt |
 |---:|---|---|
-| 1 | Kiểm tra lại Docker Compose | Chạy được `web`, `api`, `sqlserver` |
+| 1 | Kiểm tra lại Docker Compose | Build `api`/`web` đã được báo thành công; cần xác minh riêng `config`, khởi chạy và trạng thái `web`, `api`, `sqlserver` |
 | 2 | Chuẩn hóa `.env.example` | Không chứa secret thật |
 | 3 | Chuẩn hóa seed database | SQL Server tự import `CinemaBD.sql` khi DB trống |
 | 4 | Kiểm tra tài khoản demo | Có tài khoản admin/user để test |
@@ -293,13 +293,16 @@ Bảo vệ dữ liệu người dùng, giao dịch và khu vực quản trị.
 | STT | Công việc | Mô tả |
 |---:|---|---|
 | 1 | Bảo mật secret | Dùng `.env`, không commit secret thật |
-| 2 | JWT chuẩn | Key đủ mạnh, issuer/audience rõ ràng |
-| 3 | Role-based authorization | Admin/Employee/Customer |
-| 4 | Phân quyền chi tiết | Quyền theo module: phim, vé, hóa đơn, thống kê |
-| 5 | Validate input | Tránh dữ liệu sai hoặc tấn công cơ bản |
-| 6 | Log giao dịch | Lưu lịch sử thanh toán, refund, check-in |
-| 7 | HTTPS production | Không chạy HTTP khi deploy thật |
-| 8 | Backup database | Sao lưu SQL Server định kỳ |
+| 2 | Quản lý phiên IAM | Access token 15 phút; token mang `sid` phải đối chiếu phiên còn hiệu lực ở mọi request, không cache; JWT cũ 12 giờ không có `sid` bị từ chối và yêu cầu đăng nhập lại |
+| 3 | Refresh token | Chỉ lưu SHA-256 hash; rotation bằng UPDATE có điều kiện nguyên tử và xác nhận đúng một dòng bị ảnh hưởng; phát hiện reuse thì thu hồi cả phiên và audit không chứa token/hash |
+| 4 | Credential nhân viên (đề xuất) | Ưu tiên bảng credential riêng liên kết `MaNV`; chưa triển khai trong B3. Phân quyền cần ánh xạ `NhanVien.MaCV` → `ChucVu` → `PhanQuyen`, xác định quyền được nạp thành claim hay kiểm tra động và cách vô hiệu hóa phiên khi quyền thay đổi |
+| 5 | Role-based authorization | Admin/Employee/Customer |
+| 6 | JWT chuẩn | Key đủ mạnh, issuer/audience rõ ràng |
+| 7 | Phân quyền chi tiết | Quyền theo module: phim, vé, hóa đơn, thống kê |
+| 8 | Validate input | Tránh dữ liệu sai hoặc tấn công cơ bản |
+| 9 | Log giao dịch | Lưu lịch sử thanh toán, refund, check-in |
+| 10 | HTTPS production | Không chạy HTTP khi deploy thật |
+| 11 | Backup database | Sao lưu SQL Server định kỳ |
 
 ### Tiêu chí hoàn thành
 

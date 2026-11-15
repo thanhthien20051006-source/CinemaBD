@@ -384,4 +384,52 @@ public class DatabaseInitializerTests
         sql.Should().Contain("IF NOT EXISTS (SELECT 1 FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = N'20260524131837_InitialCinemaBdBaseline')");
         sql.Should().Contain("IF NOT EXISTS (SELECT 1 FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = N'20261112174026_B3SessionRefreshSchema')");
     }
+
+    [Fact]
+    public void TestBranch5_DatabaseWith27TablesWithoutB3_WitnessSeparatesBaselineFromB3Migrations()
+    {
+        // Kịch bản: CSDL 27 bảng nghiệp vụ (legacy) đã tồn tại (có bảng KHACHHANG), nhưng chưa từng có B3 (chưa có IdentitySessions).
+        // Yêu cầu:
+        // 1. Witness của InitialCinemaBdBaseline chỉ dựa vào bảng legacy (KHACHHANG), nên sẽ được đánh dấu đã áp dụng.
+        // 2. Witness của B3, B3b, B3c bắt buộc phải dựa vào bảng/cột mới (IdentitySessions, DeviceName, LastSeenIp),
+        //    KHÔNG được dựa vào bảng legacy, để tránh việc đánh dấu nhầm B3 là đã áp dụng khi nó chưa hề tồn tại trong CSDL.
+        var witnesses = DatabaseInitializer.DefaultWitnesses.ToDictionary(w => w.MigrationId, w => w.WitnessSql);
+
+        // Baseline migration witness: dựa vào bảng legacy KHACHHANG
+        witnesses.Should().ContainKey("20260524131837_InitialCinemaBdBaseline");
+        witnesses["20260524131837_InitialCinemaBdBaseline"].Should().Contain("KHACHHANG");
+        witnesses["20260524131837_InitialCinemaBdBaseline"].Should().NotContain("IdentitySessions");
+
+        // B3 witness: chỉ dựa vào bảng IdentitySessions mới
+        witnesses.Should().ContainKey("20261112174026_B3SessionRefreshSchema");
+        witnesses["20261112174026_B3SessionRefreshSchema"].Should().Contain("IdentitySessions");
+        witnesses["20261112174026_B3SessionRefreshSchema"].Should().NotContain("KHACHHANG");
+
+        // B3b witness: yêu cầu cả bảng IdentitySessions và cột DeviceName
+        witnesses.Should().ContainKey("20261113110000_B3bSessionDeviceMetadata");
+        witnesses["20261113110000_B3bSessionDeviceMetadata"].Should().Contain("IdentitySessions");
+        witnesses["20261113110000_B3bSessionDeviceMetadata"].Should().Contain("DeviceName");
+
+        // B3c witness: yêu cầu cả bảng IdentitySessions và cột LastSeenIp
+        witnesses.Should().ContainKey("20261114000000_B3cSessionLastSeenIp");
+        witnesses["20261114000000_B3cSessionLastSeenIp"].Should().Contain("IdentitySessions");
+        witnesses["20261114000000_B3cSessionLastSeenIp"].Should().Contain("LastSeenIp");
+
+        // Khi sinh SQL cho cả 4 migrations:
+        var allMigrations = new[]
+        {
+            "20260524131837_InitialCinemaBdBaseline",
+            "20261112174026_B3SessionRefreshSchema",
+            "20261113110000_B3bSessionDeviceMetadata",
+            "20261114000000_B3cSessionLastSeenIp"
+        };
+        var sql = DatabaseInitializer.BuildBaselineMigrationHistorySql(allMigrations, "8.0.12");
+
+        // SQL kiểm tra điều kiện độc lập:
+        // Nếu DB chỉ có 27 bảng legacy (có KHACHHANG nhưng KHÔNG có IdentitySessions),
+        // câu lệnh INSERT chỉ chèn bản ghi InitialCinemaBdBaseline vào __EFMigrationsHistory;
+        // ba migration B3, B3b, B3c sẽ không được chèn, giữ nguyên ở trạng thái Pending để EF Core MigrateAsync thực thi.
+        sql.Should().Contain("AND (OBJECT_ID(N'[dbo].[KHACHHANG]', N'U') IS NOT NULL)");
+        sql.Should().Contain("AND (OBJECT_ID(N'[dbo].[IdentitySessions]', N'U') IS NOT NULL)");
+    }
 }

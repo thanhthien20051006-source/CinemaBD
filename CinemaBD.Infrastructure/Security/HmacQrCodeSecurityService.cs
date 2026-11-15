@@ -31,7 +31,11 @@ public sealed class HmacQrCodeSecurityService : IQrCodeSecurityService
         var issuedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var canonical = string.Join('|', "v1", encoded[0], encoded[1], encoded[2], encoded[3], encoded[4], issuedAt);
         var signature = HMACSHA256.HashData(_key, Encoding.UTF8.GetBytes(canonical));
-        return $"CinemaBD|TICKET|v1|{string.Join('|', encoded)}|{issuedAt}|{Convert.ToBase64String(signature)}";
+        // Use base64url (no +, /, =) so the signature survives QR scanning,
+        // URL encoding, and HTML form POST without corruption.
+        var signatureB64 = Convert.ToBase64String(signature)
+            .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        return $"CinemaBD|TICKET|v1|{string.Join('|', encoded)}|{issuedAt}|{signatureB64}";
     }
 
     public bool TryVerifyTicket(string payload, out VerifiedTicketQr? ticketQr)
@@ -63,7 +67,7 @@ public sealed class HmacQrCodeSecurityService : IQrCodeSecurityService
         byte[] suppliedSignature;
         try
         {
-            suppliedSignature = Convert.FromBase64String(parts[9]);
+            suppliedSignature = DecodeBase64Flexible(parts[9]);
         }
         catch (FormatException)
         {
@@ -102,6 +106,18 @@ public sealed class HmacQrCodeSecurityService : IQrCodeSecurityService
         var normalized = value.Replace('-', '+').Replace('_', '/');
         normalized = normalized.PadRight(normalized.Length + (4 - normalized.Length % 4) % 4, '=');
         return Encoding.UTF8.GetString(Convert.FromBase64String(normalized));
+    }
+
+    /// <summary>
+    /// Decode a base64 string that may be standard base64 or base64url.
+    /// Also handles '+' being corrupted to ' ' by HTML form POST / URL decoding.
+    /// </summary>
+    private static byte[] DecodeBase64Flexible(string value)
+    {
+        // Normalize: base64url → standard base64, fix space → '+'
+        var normalized = value.Replace('-', '+').Replace('_', '/').Replace(' ', '+');
+        normalized = normalized.PadRight(normalized.Length + (4 - normalized.Length % 4) % 4, '=');
+        return Convert.FromBase64String(normalized);
     }
 
 }

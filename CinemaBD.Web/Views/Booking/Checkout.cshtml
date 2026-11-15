@@ -203,20 +203,80 @@
                 return Math.min(subtotal, 20000);
             }
 
-            document.getElementById('applyVoucherBtn')?.addEventListener('click', () => {
-                const code = voucherInput?.value || '';
-                const discount = estimateDiscount(code);
-                voucherDiscount = discount;
-                const total = Math.max(0, subtotal - voucherDiscount - loyaltyDiscount);
+            const tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
+            const antiForgeryToken = tokenEl ? tokenEl.value : '';
 
-                document.querySelectorAll('.voucher-code-hidden').forEach(x => x.value = code.trim());
-                document.querySelectorAll('.discount-amount-input').forEach(x => x.value = discount.toString());
-                document.querySelectorAll('.total-amount-input').forEach(x => x.value = total.toString());
-                if (discountText) discountText.textContent = '-' + formatMoney(discount);
-                if (totalText) totalText.textContent = formatMoney(total);
-                if (voucherMessage) voucherMessage.textContent = code.trim()
-                    ? `Đã tạm tính giảm ${formatMoney(discount)}. Server sẽ xác thực mã khi tạo đơn.`
-                    : 'Chưa nhập mã voucher.';
+            async function applyVoucherServer(code) {
+                if (!code) {
+                    voucherDiscount = 0;
+                    const total = Math.max(0, subtotal - loyaltyDiscount);
+                    document.querySelectorAll('.voucher-code-hidden').forEach(x => x.value = '');
+                    document.querySelectorAll('.discount-amount-input').forEach(x => x.value = '0');
+                    document.querySelectorAll('.total-amount-input').forEach(x => x.value = total.toString());
+                    if (discountText) discountText.textContent = '-0 ₫';
+                    if (totalText) totalText.textContent = formatMoney(total);
+                    if (voucherMessage) {
+                        voucherMessage.textContent = 'Chưa nhập mã voucher.';
+                        voucherMessage.className = 'form-text text-muted';
+                    }
+                    return;
+                }
+
+                try {
+                    const res = await fetch('/booking/apply-voucher', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': antiForgeryToken
+                        },
+                        body: JSON.stringify({ code: code, subtotal: subtotal })
+                    });
+                    const data = await res.json();
+                    if (data.success && data.discountAmount > 0) {
+                        voucherDiscount = Number(data.discountAmount);
+                        const total = Math.max(0, subtotal - voucherDiscount - loyaltyDiscount);
+                        document.querySelectorAll('.voucher-code-hidden').forEach(x => x.value = (data.code || code).trim());
+                        document.querySelectorAll('.discount-amount-input').forEach(x => x.value = voucherDiscount.toString());
+                        document.querySelectorAll('.total-amount-input').forEach(x => x.value = total.toString());
+                        if (discountText) discountText.textContent = '-' + formatMoney(voucherDiscount);
+                        if (totalText) totalText.textContent = formatMoney(total);
+                        if (voucherMessage) {
+                            voucherMessage.textContent = data.message || `Áp dụng thành công, giảm ${formatMoney(voucherDiscount)}.`;
+                            voucherMessage.className = 'form-text text-success fw-semibold';
+                        }
+                    } else {
+                        voucherDiscount = 0;
+                        const total = Math.max(0, subtotal - loyaltyDiscount);
+                        document.querySelectorAll('.voucher-code-hidden').forEach(x => x.value = '');
+                        document.querySelectorAll('.discount-amount-input').forEach(x => x.value = '0');
+                        document.querySelectorAll('.total-amount-input').forEach(x => x.value = total.toString());
+                        if (discountText) discountText.textContent = '-0 ₫';
+                        if (totalText) totalText.textContent = formatMoney(total);
+                        if (voucherMessage) {
+                            voucherMessage.textContent = data.message || 'Mã voucher không hợp lệ.';
+                            voucherMessage.className = 'form-text text-danger fw-semibold';
+                        }
+                    }
+                } catch {
+                    // Fallback to client estimate if fetch fails
+                    const discount = estimateDiscount(code);
+                    voucherDiscount = discount;
+                    const total = Math.max(0, subtotal - voucherDiscount - loyaltyDiscount);
+                    document.querySelectorAll('.voucher-code-hidden').forEach(x => x.value = code.trim());
+                    document.querySelectorAll('.discount-amount-input').forEach(x => x.value = discount.toString());
+                    document.querySelectorAll('.total-amount-input').forEach(x => x.value = total.toString());
+                    if (discountText) discountText.textContent = '-' + formatMoney(discount);
+                    if (totalText) totalText.textContent = formatMoney(total);
+                    if (voucherMessage) {
+                        voucherMessage.textContent = code.trim() ? `Đã tạm tính giảm ${formatMoney(discount)}.` : 'Chưa nhập mã voucher.';
+                        voucherMessage.className = 'form-text text-muted';
+                    }
+                }
+            }
+
+            document.getElementById('applyVoucherBtn')?.addEventListener('click', () => {
+                const code = (voucherInput?.value || '').trim();
+                applyVoucherServer(code);
             });
 
             document.querySelectorAll('.applyPointsBtn').forEach(btn => btn.addEventListener('click', () => {

@@ -14,28 +14,20 @@ Hoặc chạy CLI tại thư mục gốc:
 dotnet build CinemaBD.WebApi.sln
 ```
 
-## 3. Cấu hình database
-Mở file:
-- `CinemaBD.Api/appsettings.json`
+## 3. Cấu hình database & secrets
+API tự động tải cấu hình và secrets từ file `.env` ở thư mục gốc (hoặc biến môi trường).
 
-Sửa connection string:
-```json
-"ConnectionStrings": {
-  "DefaultConnection": "Server=localhost;Database=CinemaBD;Trusted_Connection=True;TrustServerCertificate=True"
-}
+Tạo file `.env` (từ `.env.example`) và cấu hình:
+```env
+LOCAL_SQL_CONNECTION=Server=localhost,1433;Database=CinemaBD;User Id=sa;Password=YOUR_PASSWORD;TrustServerCertificate=True;MultipleActiveResultSets=True
+JWT_KEY=YOUR_LONG_RANDOM_SECRET_KEY_AT_LEAST_32_CHARS
+QR_SIGNING_KEY=YOUR_LONG_RANDOM_SECRET_KEY_AT_LEAST_32_CHARS
 ```
 
-Lưu ý: database nên trỏ về chính DB hiện tại của project MVC 5 nếu bạn muốn API đọc dữ liệu thật.
+Lưu ý: API sẽ tự động chuyển đổi `host.docker.internal` sang `localhost` nếu chạy trực tiếp ngoài Docker.
 
 ## 4. Cấu hình JWT
-Trong `appsettings.json`, sửa:
-```json
-"Jwt": {
-  "Issuer": "CinemaBD",
-  "Audience": "CinemaBD.Client",
-  "Key": "YOUR_LONG_RANDOM_SECRET_KEY_AT_LEAST_32_CHARS"
-}
-```
+Được cấu hình tự động qua biến `JWT_KEY` trong `.env` (hoặc `Jwt__Key`).
 
 ## 5. Cấu hình VNPAY
 Sửa phần:

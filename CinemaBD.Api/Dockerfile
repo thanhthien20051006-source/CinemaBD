@@ -22,6 +22,7 @@ COPY CinemaBD.Domain/        CinemaBD.Domain/
 COPY CinemaBD.Application/   CinemaBD.Application/
 COPY CinemaBD.Infrastructure/ CinemaBD.Infrastructure/
 COPY CinemaBD.Api/           CinemaBD.Api/
+COPY CinemaBD.Web/wwwroot/   CinemaBD.Api/wwwroot/
 
 RUN dotnet publish CinemaBD.Api/CinemaBD.Api.csproj \
     -c Release -o /app/publish --no-restore

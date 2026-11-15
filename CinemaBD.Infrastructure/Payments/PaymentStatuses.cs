@@ -13,5 +13,6 @@ internal static class PaymentStatuses
         => string.Equals(status, Paid, StringComparison.OrdinalIgnoreCase)
             || string.Equals(status, "Success", StringComparison.OrdinalIgnoreCase)
             || string.Equals(status, "Thành công", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(status, "Đã thanh toán", StringComparison.OrdinalIgnoreCase);
+            || string.Equals(status, "Đã thanh toán", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(status, "CheckedIn", StringComparison.OrdinalIgnoreCase);
 }

@@ -97,7 +97,23 @@ public class AdminVoucherService : IAdminVoucherService
             .OrderBy(x => x.MaKH == customerId ? 0 : 1)
             .FirstOrDefaultAsync(ct);
 
-        if (voucher == null) return Fail("Mã voucher không tồn tại hoặc không thuộc tài khoản này.", subtotal, code);
+        if (voucher == null)
+        {
+            var patternDiscount = ResolvePatternDiscount(normalizedCode, subtotal);
+            if (patternDiscount > 0)
+            {
+                return new VoucherValidationResult
+                {
+                    Success = true,
+                    Message = $"Áp dụng mã khuyến mãi {normalizedCode} thành công, giảm {patternDiscount:N0} đ.",
+                    Code = normalizedCode,
+                    Subtotal = subtotal,
+                    DiscountAmount = patternDiscount,
+                    FinalAmount = Math.Max(0, subtotal - patternDiscount)
+                };
+            }
+            return Fail("Mã voucher không tồn tại hoặc không thuộc tài khoản này.", subtotal, code);
+        }
         if (voucher.DaSuDung == true) return Fail("Voucher đã bị vô hiệu hóa hoặc đã được sử dụng.", subtotal, code);
         if (voucher.NgayHetHan.Date < DateTime.Today) return Fail("Voucher đã hết hạn.", subtotal, code);
         if ((voucher.DonToiThieu ?? 0) > subtotal) return Fail($"Đơn tối thiểu {voucher.DonToiThieu:N0} đ để dùng voucher.", subtotal, code);
@@ -126,6 +142,27 @@ public class AdminVoucherService : IAdminVoucherService
         entity.GatewayTxnRef ??= "DISABLED_BY_ADMIN";
         await _db.SaveChangesAsync(ct);
         return true;
+    }
+
+    public static decimal ResolvePatternDiscount(string code, decimal subtotal)
+    {
+        if (string.IsNullOrWhiteSpace(code) || subtotal <= 0)
+            return 0;
+
+        var normalized = code.Trim().ToUpperInvariant();
+        var percentMatch = System.Text.RegularExpressions.Regex.Match(normalized, @"^(GIAM|SALE|DISCOUNT)(\d{1,2})$");
+        if (percentMatch.Success && int.TryParse(percentMatch.Groups[2].Value, out var percent) && percent is > 0 and <= 100)
+        {
+            return Math.Round(subtotal * percent / 100m, 0);
+        }
+
+        var amountMatch = System.Text.RegularExpressions.Regex.Match(normalized, @"^(GIAM|SALE|DISCOUNT)?(\d{4,})$");
+        if (amountMatch.Success && decimal.TryParse(amountMatch.Groups[2].Value, out var amount) && amount > 0)
+        {
+            return Math.Min(subtotal, amount);
+        }
+
+        return 0;
     }
 
     public static decimal CalculateDiscount(LegacyVoucher voucher, decimal subtotal)

@@ -60,25 +60,33 @@ CinemaBD.Web
 CinemaBD.Api
 ```
 
-## 2.3. Docker Compose config
+## 2.3. Docker Compose config và image build
 
-Lệnh kiểm tra:
+Ghi chú dưới đây là kết quả lịch sử tại thời điểm bắt đầu giai đoạn 1; không phải trạng thái hiện tại:
 
 ```powershell
 docker compose config --quiet
 ```
 
-Kết quả: chưa kiểm tra được do Docker Engine chưa chạy.
-
-Lỗi hiện tại:
+Lần kiểm tra trước chưa thực hiện được do Docker Engine chưa chạy:
 
 ```text
 failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine
 The system cannot find the file specified.
 ```
 
-Ý nghĩa: Docker CLI có cài, nhưng Docker Desktop/Linux Engine chưa bật.
+Sau đó, chủ dự án báo đã chạy thành công:
 
+```text
+docker compose build api web
+Kết quả: build thành công, 90,8 giây, không lỗi.
+```
+
+Kết quả build trên chỉ xác nhận hai image được build; không xác nhận `docker compose up`, trạng thái healthy của service hay khởi tạo/seed database.
+
+Lệnh `docker compose config --quiet` và việc khởi chạy các container chưa được xác minh trong lần cập nhật này.
+
+Lưu ý: lỗi lịch sử cho biết Docker CLI không kết nối được Docker Engine vào thời điểm kiểm tra đó; không có nghĩa Dockerfile không build được.
 ## 2.4. Docker CLI
 
 Lệnh:
@@ -168,15 +176,16 @@ Mật khẩu tương ứng: 123456
 
 ---
 
-## 4. Blocker hiện tại
+## 4. Trạng thái còn cần xác minh
 
-Docker Desktop/Docker Engine chưa chạy trên máy.
+Lệnh `docker compose build api web` đã được báo thành công ở mục 2.3. Việc này không chứng minh Docker Compose config đã được kiểm tra, cũng không chứng minh các container đã khởi chạy hoặc ứng dụng kết nối/seed database thành công.
 
-Cần bật Docker Desktop trước khi chạy các lệnh:
+Nếu cần xác minh runtime, thực hiện riêng các bước sau khi Docker Engine sẵn sàng:
 
 ```powershell
 docker compose config --quiet
-docker compose up -d --build
+docker compose up -d
+docker compose ps
 ```
 
 ---
@@ -210,8 +219,8 @@ User: ttt123 / 123
 
 ---
 
-## 6. Kết luận giai đoạn 1 hiện tại
+## 6. Kết luận và phạm vi bằng chứng
 
-Phần source code, build, cấu hình môi trường và dữ liệu demo đã ổn. Blocker duy nhất là Docker Engine chưa chạy nên chưa thể xác nhận Docker Compose build/up.
+Build solution .NET và dữ liệu demo có kết quả như ghi ở trên. Chủ dự án báo `docker compose build api web` hoàn tất thành công trong 90,8 giây, không lỗi. Đây là bằng chứng build image API/Web, không phải bằng chứng Compose runtime.
 
-Khi Docker Desktop được bật, tiếp tục chạy Docker Compose để hoàn tất giai đoạn 1.
+`docker compose config --quiet`, khởi chạy/health của các service, và khởi tạo database trong container vẫn chưa được xác minh trong lần cập nhật này. Lỗi kết nối Docker Engine ở mục 2.3 là kết quả lịch sử tại thời điểm kiểm tra trước đó.

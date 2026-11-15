@@ -299,7 +299,7 @@ public class BookingService : IBookingService
             .FirstOrDefaultAsync(cancellationToken);
 
         if (voucher == null)
-            return 0;
+            return AdminVoucherService.ResolvePatternDiscount(normalizedCode, subtotal);
 
         if (voucher.DaSuDung == true)
             return 0;
