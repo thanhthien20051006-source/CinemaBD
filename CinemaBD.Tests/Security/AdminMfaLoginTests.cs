@@ -1,3 +1,4 @@
+using CinemaBD.Application.Exceptions;
 using CinemaBD.Application.Interfaces;
 using CinemaBD.Domain.Entities;
 using CinemaBD.Infrastructure.Persistence;
@@ -222,6 +223,12 @@ public sealed class AdminMfaLoginTests
 
         ex2.Message.Should().Be("Mã xác minh không chính xác hoặc phiên đã hết hạn.");
         (await lockout.GetAsync("Admin", "mfa_admin4")).IsLocked.Should().BeTrue();
+
+        var lockedChallenge = tokenService.CreateMfaChallengeToken(13, "mfa_admin4", out _, out _);
+        var lockedMfaError = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.VerifyMfaAsync(lockedChallenge, "000000", false, null, null));
+        lockedMfaError.Message.Should().Be("Mã xác minh không chính xác hoặc phiên đã hết hạn.");
+        lockedMfaError.Should().NotBeOfType<AccountLockedException>();
     }
 
     [Fact]
