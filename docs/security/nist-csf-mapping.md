@@ -1,261 +1,68 @@
-# Bảng Ánh xạ Kiểm soát An ninh Thông tin theo Khung NIST CSF 1.1 — CinemaBD (IAM)
+# Ánh xạ hiện trạng NIST CSF 1.1 — CinemaBD (B7)
 
-> Tài liệu này được xây dựng trong **Phase 1** theo đề cương `docs/nist-iam-prompt.md`.  
-> Mục tiêu: Tổng hợp hiện trạng, xác định khoảng cách (Gap Analysis) và định hình các gói công việc (Work Packages - WP) cho hệ thống Quản lý Định danh & Kiểm soát Truy cập (IAM), kế thừa từ [`docs/NIST_1_IDENTIFY.md`](../NIST_1_IDENTIFY.md) và làm cơ sở đối chiếu cho các tài liệu chi tiết tiếp theo ([`docs/NIST_2_PROTECT.md`](../NIST_2_PROTECT.md), [`docs/NIST_3_DETECT.md`](../NIST_3_DETECT.md), [`docs/NIST_4_RESPOND.md`](../NIST_4_RESPOND.md), [`docs/NIST_5_RECOVER.md`](../NIST_5_RECOVER.md)).
+> **Phạm vi:** đánh giá tài liệu các hạng mục IAM, phát hiện, ứng phó và khôi phục được liệt kê trong ma trận dưới đây. Đây là ảnh chụp trạng thái của nhánh `feature/nist-iam` tại B7; không phải chứng nhận tuân thủ NIST CSF, không phải kết quả pentest, và không khẳng định các kiểm soát vận hành đã được triển khai ở mọi môi trường.
+>
+> **Quy tắc bằng chứng:** (1) đường dẫn mã nguồn cho biết có triển khai kỹ thuật, không tự chứng minh hiệu lực vận hành; (2) tên test được nêu cùng provider, không đánh đồng InMemory/SQLite với SQL Server; (3) kết quả SQL Server thật trong bảng là kết quả kiểm chứng được cung cấp cho B7, không phải test do lần sửa tài liệu này chạy. Tài liệu `B6-sqlserver-verification.md` hiện là kịch bản hướng dẫn, ghi rõ chưa được thực thi; không dùng các expected result trong đó làm bằng chứng đã chạy. Hồ sơ kết quả SQL Server độc lập kèm ngày/giờ, build và phiên bản máy chủ chưa được lưu cùng tài liệu này.
+>
+> **Trạng thái:** **Đã làm** = có bằng chứng cho phạm vi hẹp được nêu; **Một phần** = đã có kiểm soát nhưng còn giới hạn hoặc thiếu xác nhận vận hành; **Backlog** = chưa có bằng chứng thực thi kiểm soát/hạng mục được yêu cầu. Trạng thái không thay thế đánh giá rủi ro của từng môi trường.
+>
+> B7 cố ý không ánh xạ **PR.DS** theo yêu cầu phạm vi; việc loại trừ khỏi bảng không có nghĩa dữ liệu đã được bảo vệ đầy đủ. Các nội dung bảo vệ dữ liệu như bảo vệ/sao lưu Data Protection key ring vẫn được ghi nhận là khoảng hở liên quan.
 
----
+## Ma trận kiểm soát
 
-## 1. Ma trận Ánh xạ Khung NIST CSF 1.1 với Kiến trúc IAM của CinemaBD
-
-| Chức năng (Function) | Mã NIST (Subcategory) | Yêu cầu Kiểm soát An ninh | Hiện trạng tại CinemaBD (Phase 0) | Khoảng cách Nhận diện (Gap) | Gói Công việc | Bằng chứng Dự kiến (Code / Test / Config) |
+| Function | Category / Subcategory | Hạng mục đã làm (phạm vi bằng chứng) | File / commit tham chiếu | Bằng chứng kiểm thử hoặc xác minh SQL Server thật | Trạng thái | Chỗ còn hở |
 |---|---|---|---|---|---|---|
-| **IDENTIFY (ID)** | **ID.AM-2** | Kiểm kê phần mềm, nền tảng, dịch vụ ngoài và toàn bộ API endpoint. | Đã khảo sát 30 controller (19 Admin, 11 Client) với hơn 60 endpoints; tích hợp VNPay, MoMo, Google OAuth. | Nhiều endpoint công khai "by omission" (thiếu `[AllowAnonymous]` tường minh). | **WP2** | `docs/security/iam-baseline.md#4`, `PermissionsMatrixTests.cs` |
-| **IDENTIFY (ID)** | **ID.RA-1** | Nhận diện lỗ hổng bảo mật của tài sản và dữ liệu hệ thống. | Kế thừa 16 lỗ hổng từ `NIST_1_IDENTIFY.md` (F-01 đến F-16). Bổ sung lỗ hổng logic rehash admin và hở quyền runtime. | Chưa có kiểm soát permission ở runtime; token 12h không có refresh; thiếu lockout. | **Phase 1** | `docs/security/iam-baseline.md#11`, `docs/NIST_1_IDENTIFY.md` |
-| **IDENTIFY (ID)** | **ID.GV-1** | Ban hành và duy trì chính sách an toàn thông tin & phân quyền. | Đã có tài liệu kiến trúc kỹ thuật (`LAYERED_ARCHITECTURE.md`, `CLAUDE.md`). | Chưa có tài liệu chính sách IAM chính thức (vòng đời tài khoản, mật khẩu, MFA, rà soát quyền định kỳ). | **WP5** | `docs/security/iam-policy.md` |
-| **PROTECT (PR)** | **PR.AC-1** | Quản lý định danh, cấp phát, băm mật khẩu hiện đại và thu hồi chứng thực. | Dùng PBKDF2 (`PasswordHasher<UserAccount>`) kèm prefix `IDENTITY:`. Tự động rehash MD5 khi login. Thu hồi token qua JTI `RevokedTokens` và phiên qua `IdentitySessions`. Đã có MFA TOTP (RFC 6238) cho Admin. | **Trạng thái: "Một phần" (Partial)**: NhanVien (chưa có tài khoản đăng nhập) và KHACHHANG chưa được triển khai MFA (ghi nhận vào Backlog). | **WP1 (QW-1), B5** | `AdminAuthApiService.cs`, `TotpMfaService.cs`, `IdentitySessionService.cs` |
-| **PROTECT (PR)** | **PR.AC-3** | Kiểm soát truy cập từ xa và kênh truyền thông tin. | HTTPS/HSTS cho API ngoài dev; CORS `WebClients` kiểm tra origin nghiêm ngặt. | Web MVC thiếu security headers; cookie session/auth thiếu `SecurePolicy` và `SameSite`. | **WP3 (QW-4, QW-5)** | `CinemaBD.Web/Program.cs`, `SecurityHeadersMiddleware.cs` |
-| **PROTECT (PR)** | **PR.AC-4** | Quản lý quyền tối thiểu (Least Privilege) và tách biệt nhiệm vụ (SoD). | CSDL có bảng `Roles`, `Permissions`, `RolePermissions`. Giao diện Web có `AdminPermissionAttribute`. | **CÁC PERMISSION HOÀN TOÀN CHƯA THỰC THI Ở RUNTIME API**. Mọi admin đều có toàn quyền. Web admin có nguy cơ Fail-Open. | **WP2 (Gói 1)** | `HasPermissionAttribute.cs`, `PermissionAuthorizationHandler.cs`, `Permissions.cs` |
-| **PROTECT (PR)** | **PR.AC-6** | Định danh được gắn chặt chẽ với thông tin xác thực (Google OAuth). | API có `POST /api/auth/google` xác thực Google ID token qua thư viện chính thức. | Web MVC tự sinh password giả `"GoogleAuth_" + googleId`, gọi API password thông thường, phá vỡ luồng chuẩn. | **WP1, WP4** | `AccountController.cs:53`, `AuthController.cs:40` |
-| **PROTECT (PR)** | **PR.AC-7** | Mức độ xác thực tương xứng với mức độ rủi ro (MFA, Rate Limiting, Lockout). | Rate limiter cho auth (IP & account) trên API. Chính sách khóa tài khoản tạm thời qua `AccountLockoutService` (5 lần sai, khóa 15 phút). MFA TOTP (RFC 6238) cho Admin: Secret mã hóa Data Protection, 10 recovery codes SHA-256, chống replay qua `LastUsedStep`, login 2 bước với `mfa_challenge` (5 phút), bắt buộc cho Master qua `Mfa:RequireForMaster`. | **Trạng thái: "Một phần" (Partial)**. Các khoảng cách còn lại: (1) Lockout còn in-memory cục bộ tiến trình; (2) NhanVien và KHACHHANG chưa có MFA (Backlog); (3) TOTP về bản chất không chống được tấn công Phishing thời gian thực (đề xuất WebAuthn/FIDO2). | **WP1, WP3, B5** | `TotpMfaService.cs`, `AdminAuthApiService.cs`, `AccountLockoutService.cs`, `MfaEnrollmentRestrictionFilter.cs` |
-| **PROTECT (PR)** | **PR.DS-1** | Bảo vệ dữ liệu nhạy cảm lưu trữ (Data-at-Rest). | Khóa JWT/QR đọc từ biến môi trường/User Secrets; không lưu secret trong git. | Mật khẩu cũ trong CSDL dạng MD5/plaintext chưa được mã hóa lại; token trên Android lưu dạng plain XML. | **WP1, WP3** | `TokenDataStore.kt` (EncryptedSharedPreferences), `DatabaseInitializer.cs` |
-| **PROTECT (PR)** | **PR.DS-2** | Bảo vệ tính toàn vẹn dữ liệu truyền tải (Data-in-Transit & Digital Signatures). | Chữ ký số HMAC-SHA256 cho mã QR vé (`IQrCodeSecurityService`); xác thực chữ ký HMAC-SHA512 VNPay callback. | Chưa hỗ trợ xoay khóa JWT (`kid`); chưa hỗ trợ fallback key cũ trong thời gian chuyển tiếp. | **WP3** | `HmacQrCodeSecurityService.cs`, `VnPaySignatureValidator.cs`, `JwtTokenService.cs` |
-| **PROTECT (PR)** | **PR.DS-5** | Bảo vệ chống rò rỉ dữ liệu nhạy cảm và thông tin định danh (PII). | `ExceptionHandlingMiddleware` đóng gói ProblemDetails tiếng Việt, che giấu stack trace; log không in password. | Thông báo lỗi đăng nhập phân biệt "tài khoản không tồn tại" vs "sai mật khẩu" (Account Enumeration). | **WP1 (QW-2)** | `AuthService.cs`, `AdminAuthApiService.cs` |
-| **PROTECT (PR)** | **PR.IP-1** | Cấu hình nền tảng an toàn (Security Baseline Configuration). | Deny-by-default chưa bật trên API (Public by omission); Web MVC thiếu toàn bộ Security Headers. | Cần thiết lập `FallbackPolicy = RequireAuthenticatedUser` và cấu hình đồng bộ bảo mật cho Web. | **WP2, WP3** | `CinemaBD.Api/Program.cs`, `CinemaBD.Web/Program.cs` |
-| **PROTECT (PR)** | **PR.PT-1** | Cơ chế nhật ký kiểm toán (Audit Trail) được tích hợp trong hệ thống. | Chỉ có log lỗi trong middleware và bảng `HOADON_LICHSU` ghi nhận trạng thái hóa đơn. | **CHƯA CÓ bảng AuditLog** ghi nhận nhật ký kiểm toán an ninh cho đăng nhập, đổi quyền, duyệt hoàn tiền, chỉnh loyalty. | **WP4** | `AppDbContext.cs` (`AuditLog`), `AuditLogService.cs`, `AuditLogMiddleware.cs` |
-| **PROTECT (PR)** | **PR.PT-3** | Giảm thiểu bề mặt tấn công qua nguyên tắc chức năng tối thiểu. | Endpoint `demo-confirm` đã có guard chỉ chạy trong `Environment.IsDevelopment()`. | Cần rà soát các endpoint dev và dọn dẹp các route/area thừa trước khi đóng gói production. | **WP3** | `PaymentsController.cs:110` |
-| **DETECT (DE)** | **DE.AE-2** | Phân tích và phát hiện các sự kiện đăng nhập bất thường hoặc tấn công brute-force. | Chỉ có rate limiting 10 requests/phút theo địa chỉ IP. | Chưa phát hiện và cảnh báo nhiều lần đăng nhập thất bại trên cùng một tài khoản từ nhiều IP hoặc ngược lại. | **WP4** | `SecurityEventDetector.cs`, `AuditLogAnalyzerTests.cs` |
-| **DETECT (DE)** | **DE.AE-3** | Thu thập và tương quan dữ liệu sự kiện an ninh từ nhiều nguồn. | Chưa có hệ thống tập trung gom log giữa API, Web và Client. | Cần cơ chế chuẩn hóa log sự kiện an ninh `[SECURITY_AUDIT]` và correlation ID xuyên suốt. | **WP4** | `ExceptionHandlingMiddleware.cs`, `CorrelationIdMiddleware.cs` |
-| **DETECT (DE)** | **DE.CM-3** | Giám sát các quyền truy cập quản trị và thay đổi cấu hình phân quyền. | Thay đổi role/permission trong `AdminRolesController` chỉ cập nhật DB, không có log cảnh báo. | Mọi thao tác gán/gỡ quyền cần được ghi audit log và phát hiện leo thang đặc quyền. | **WP4** | `AdminRolesController.cs`, `AuditLog.cs` |
-| **DETECT (DE)** | **DE.CM-7** | Giám sát mã nguồn và hoạt động trái phép (truy cập 403, vượt quyền). | Chưa có cơ chế đếm và cảnh báo khi có tần suất mã HTTP 403 Forbidden bất thường. | Cần ghi nhận mọi lần từ chối quyền (Forbidden) vào Audit Trail để phát hiện tấn công leo thang. | **WP2, WP4** | `PermissionAuthorizationHandler.cs` (Audit-Only & 403 Logging) |
-| **RESPOND (RS)** | **RS.AN-1** | Phân tích và điều tra nguyên nhân sự cố an ninh định danh. | Chưa có quy trình điều tra khi phát hiện token hoặc tài khoản admin bị lộ. | Cần tài liệu Runbook hướng dẫn trích xuất audit log, xác định phạm vi tài khoản bị thỏa hiệp. | **WP5** | `docs/security/runbook-account-compromise.md` |
-| **RESPOND (RS)** | **RS.MI-2** | Giảm thiểu và ngăn chặn sự cố lan rộng (Khóa tài khoản, thu hồi phiên tức thì). | `AuthController.Logout` đã thu hồi được JTI vào DB `RevokedTokens`. | Chưa có cơ chế khóa phiên Admin tức thì khi tài khoản bị vô hiệu hóa (`IsActive = false`); thiếu endpoint logout admin. | **WP1 (QW-3)** | `AdminAuthController.cs`, `RevokedTokenService.cs` |
-| **RESPOND (RS)** | **RS.RP-1** | Kế hoạch phản ứng và quy trình xử lý sự cố an ninh thông tin. | Chưa có quy trình chuẩn khi phát hiện tấn công brute-force hoặc rò rỉ JWT key. | Cần xây dựng tài liệu kế hoạch ứng phó sự cố IAM cho đội ngũ vận hành. | **WP5** | `docs/NIST_4_RESPOND.md`, `docs/security/iam-policy.md` |
-| **RECOVER (RC)** | **RC.RP-1** | Kế hoạch khôi phục và duy trì tính liên tục của hệ thống xác thực. | Đã có Dockerfile, script `CinemaBD.sql` và `DatabaseInitializer` khôi phục CSDL trống. | Cần kiểm tra tính toàn vẹn của dữ liệu phân quyền khi khôi phục từ backup; quy trình xoay key an toàn. | **WP5** | `docs/NIST_5_RECOVER.md` |
+| Identify (ID) | ID.AM — ID.AM-2: kiểm kê thành phần hệ thống | README và baseline IAM mô tả thành phần, luồng xác thực, API, tích hợp và một số tài sản/dữ liệu. Đây là tài liệu khảo sát, chưa phải inventory vận hành có chủ sở hữu, vòng đời và lịch rà soát. | `README.md`; `docs/security/iam-baseline.md`; controller/API trong `CinemaBD.Api/Controllers/` | Không có test được viện dẫn để chứng minh inventory đầy đủ; chưa có kiểm chứng SQL Server áp dụng cho việc kiểm kê. | Một phần | Cần duy trì danh mục endpoint, dữ liệu, dịch vụ ngoài, môi trường, chủ sở hữu và luồng dữ liệu; baseline có nội dung cũ cần được rà soát định kỳ. |
+| Identify (ID) | ID.RA — ID.RA-1: đánh giá rủi ro | `iam-baseline.md` ghi nhận rủi ro IAM; `incident-log.md` ghi các sự cố/bài học và nêu giới hạn bằng chứng. Các ghi nhận này không chứng minh đã có quy trình đánh giá rủi ro định kỳ hay quản lý lỗ hổng chính thức. | `docs/security/iam-baseline.md`; `docs/security/incident-log.md`; `docs/security/runbook-incident.md` | Không có tên test hay kiểm chứng SQL Server nào chứng minh quy trình đánh giá rủi ro. | Một phần | Chưa có bằng chứng về risk register có chủ sở hữu/mức độ/biện pháp/đánh giá tồn dư, quy trình quét và rà soát rủi ro theo chu kỳ. |
+| Protect (PR) | PR.AC — PR.AC-1: định danh, credential, vòng đời và thu hồi | Mật khẩu mới dùng ASP.NET Core Identity/PBKDF2; hỗ trợ tương thích legacy; có session, refresh-token rotation, revoke và MFA TOTP cho Admin. Khôi phục recovery code và challenge một lần được kiểm tra. Không có credential đăng nhập cho `NHANVIEN`; MFA khách hàng chưa triển khai. | `CinemaBD.Infrastructure/Security/Pbkdf2PasswordHasher.cs`; `CinemaBD.Infrastructure/Services/IdentitySessionService.cs`; `CinemaBD.Infrastructure/Services/RefreshTokenService.cs`; `CinemaBD.Infrastructure/Security/TotpMfaService.cs`; các commit `6614f4b`, `733cfa5`, `e839f67`, `5e6ba4d` (refresh/session), `4ce0dde` (lockout bền vững) | **SQL Server thật — kết quả B7 cung cấp:** replay TOTP và MFA challenge một lần bị chặn; race recovery code cho kết quả HTTP `400, 200`; race refresh rotation cho `401, 200`, token cũ replay nhận `401` và phiên bị thu hồi. **Test repo:** `TotpMfaTests` và `AdminMfaLoginTests` (MFA); `AdminRecoveryCodeTests`; `RefreshTokenServiceTests` (InMemory); `RefreshTokenStoreTests` (SQLite và InMemory). Các test lưu trữ không thay cho xác minh SQL Server. | Một phần | Nhân viên chưa có credential/MFA; khách hàng chưa có MFA; TOTP không chống phishing. Chưa có báo cáo SQL Server có ngày/build/phiên bản DB được lưu trong repo. Khả năng tương thích legacy không đồng nghĩa mọi hash cũ đã được nâng cấp. |
+| Protect (PR) | PR.AC — PR.AC-3: truy cập từ xa và kênh truyền | API cấu hình HTTPS redirection, HSTS ngoài Development, CORS theo allowlist và các security headers; Web MVC cấu hình cookie `SecurePolicy`/`SameSite`, HSTS ngoài Development, HTTPS redirection và security headers. Đây là cấu hình ứng dụng, không chứng minh TLS/proxy triển khai đúng ở production. | `CinemaBD.Api/Program.cs`; `CinemaBD.Web/Program.cs`; `CinemaBD.Tests/Web/WebSecurityHeadersTests.cs`; commit `27a2ebc` (cập nhật baseline bảo mật web trong tài liệu) | `WebSecurityHeadersTests.RealPipeline_HttpResponse_ShouldIncludeSecurityHeaders` kiểm tra header trong test pipeline; không phải kiểm thử TLS production hoặc SQL Server. | Một phần | Cần xác minh HTTPS/TLS tại ingress/proxy, điều kiện cấu hình `SecurePolicy` theo môi trường (`Always` mặc định; `SameAsRequest` nếu `Security:RequireSecureCookies=false`), cấu hình production và CORS theo môi trường; chưa có bằng chứng kiểm tra endpoint production. |
+| Protect (PR) | PR.AC — PR.AC-4: least privilege và phân tách nhiệm vụ | API có lọc quyền Admin dựa trên claim và quyền hiện hành từ DB; hành động security response yêu cầu quyền phù hợp/MFA; các kiểm soát fail-closed được bổ sung. Không đồng nghĩa đã chứng minh toàn bộ chức năng đáp ứng least privilege hoặc SoD. | `CinemaBD.Api/Filters/AdminPermissionAuthorizationFilter.cs`; `CinemaBD.Api/Filters/AdminPermissionClaimAuthorizationFilter.cs`; `CinemaBD.Infrastructure/Services/AdminAuthorizationService.cs`; `CinemaBD.Infrastructure/Services/AdminSecurityResponseService.cs`; commit `9ce7376`, `8ca3fea` | `AdminAuthorizationServiceTests` và `AdminSecurityResponseServiceTests` dùng InMemory; `AdminPermissionClaimAuthorizationFilterTests` kiểm tra filter/claims. Các test này không xác minh SQL Server thật. Kết quả SQL Server về Master chưa MFA bị `403` thuộc enforcement MFA (PR.AC-7), không phải bằng chứng đầy đủ về SoD. | Một phần | Cần rà soát mapping quyền theo từng endpoint/role, phân tách thao tác nhạy cảm và kiểm tra thay đổi quyền có hiệu lực trên SQL Server; chưa có bằng chứng rà soát quyền định kỳ. |
+| Protect (PR) | PR.AC — PR.AC-6: định danh gắn với credential | API có đăng nhập mật khẩu/Google ID token cho khách hàng; JWT kiểm tra issuer, audience, chữ ký, thời hạn và gắn với session ID; Admin MFA yêu cầu xác minh bước hai cho Master theo cấu hình mặc định. | `CinemaBD.Api/Program.cs`; `CinemaBD.Infrastructure/Services/AuthService.cs`; `CinemaBD.Infrastructure/Services/AdminAuthApiService.cs`; `CinemaBD.Infrastructure/Security/JwtTokenService.cs`; `docs/B3B_IAM_RUNTIME.md`; commit `ca731a9`, `81d78bc` | `AdminMfaLoginTests`, `AdminMfaVerifiedTokenTests`, `MasterMfaEnforcementTests` chủ yếu kiểm tra bằng InMemory/mocks. SQL Server thật — kết quả B7 cung cấp: Master chưa MFA bị `403`. | Một phần | MFA chỉ áp dụng cho Admin; nhân viên chưa có credential đăng nhập và khách hàng chưa có MFA. Cần kiểm chứng thêm liên kết account-provider, thu hồi credential và luồng đăng nhập Google trên cấu hình production. |
+| Protect (PR) | PR.AC — PR.AC-7: xác thực tương xứng rủi ro | Có rate limit theo IP/tài khoản, lockout bền vững ở Admin/KHACHHANG, MFA TOTP 2 bước cho Admin, recovery code một lần, chống replay và bắt buộc MFA với Master theo cấu hình. | `CinemaBD.Api/Program.cs`; `CinemaBD.Infrastructure/Services/AccountLockoutService.cs`; `CinemaBD.Infrastructure/Services/AdminAuthApiService.cs`; `CinemaBD.Infrastructure/Security/TotpMfaService.cs`; migration `20261114120000_B5AdminTotpMfaSchema`, `20261115034812_B6DurableAccountLockout`; commits `a4f6559`, `2314cc0`, `733cfa5`, `4ce0dde` | **SQL Server thật — kết quả B7 cung cấp:** các race/replay và Master chưa MFA `403` như PR.AC-1/6; lockout được giữ qua restart, `AccessFailedCount`/`LockoutEndUtc` lưu DB và cảnh báo ngưỡng được kiểm chứng. **Test repo:** `AuthRateLimitTests`, `AuthAccountRateLimitTests`, `TotpMfaTests`, `MasterMfaEnforcementTests`; `AccountLockoutServiceTests` dùng SQLite; `AuthServiceLockoutTests` dùng InMemory. `AccountLockoutServiceTests.LockoutState_IsDurableAcrossServiceRecreation_ForAdminAndCustomer` kiểm tra SQLite connection in-memory với service recreation, không restart API process hay SQL Server. Không coi các test provider này là SQL Server verification. | Một phần | Nhân viên và khách hàng chưa có MFA; TOTP chịu phishing thời gian thực; chưa kiểm chứng SQL Server thật cho thao tác quản trị lock/unlock tài khoản và bắt buộc đổi mật khẩu. Cần tiếp tục đánh giá lockout abuse/false positive và thiết bị lạ. |
+| Protect (PR) | PR.IP — PR.IP-1: cấu hình nền tảng an toàn | Khởi tạo DB yêu cầu cờ cho phép và tên DB nằm trong allowlist; seed demo tách cờ; `ShowtimeExpiry` mặc định tắt; Data Protection key ring được lưu vào thư mục cấu hình. | `CinemaBD.Infrastructure/Persistence/DatabaseInitializer.cs`; `CinemaBD.Api/Program.cs`; `README.md`; `.env.example`; `docs/security/incident-log.md`; commits `b30da7f`, `c19d399`, `59f5d38`, `4ce0dde` | Các test về initializer trong `DatabaseInitializerTests` và `DatabaseInitializerSqlServerTests` dùng InMemory cho các nhánh unit test được nêu; `DatabaseInitializerSqlServerTests.DatabaseInitializer_OnRealSqlServer_WhenContainerAvailable_ShouldInitializeSuccessfully` có `[Fact(Skip = ...)]` trong cấu hình hiện tại. SQL Server thật — kết quả B7 cung cấp: cài mới chạy qua 6 migration. Không suy rộng kết quả đó thành kiểm thử toàn bộ cấu hình production. | Một phần | `DotEnvLoader`/`.env` loader đã bị gỡ; cần đảm bảo biến môi trường/secret manager thực sự được cấp trong môi trường chạy. Data Protection key ring cần ACL, backup và kiểm tra phục hồi. `ShowtimeExpiry` đang tắt mặc định; chưa chứng minh baseline đã được rollout lên CinemaBD thật. |
+| Protect (PR) | PR.PT — PR.PT-1: nhật ký kiểm toán | Có `SecurityAudit`/`SecurityAuditWriter`, action/filter và middleware ghi sự kiện IAM/quyền; query có whitelist metadata, correlation ID và chính sách retention/cleanup. Đây là audit trong DB/app log, chưa phải kho chứng cứ bất biến tập trung. | `CinemaBD.Infrastructure/Persistence/SecurityAuditRecord.cs`; `CinemaBD.Infrastructure/Services/SecurityAuditWriter.cs`; `CinemaBD.Api/Security/SecurityAuditMiddleware.cs`; `docs/security/B6-operations-policy.md`; commits `b0af650`, `5ba3732`, `2288666` | **SQL Server thật — kết quả B7 cung cấp:** kiểm tra audit không chứa chuỗi giống token. **Test repo:** `SecurityAuditWriterTests`/`SecurityAuditActionTests` dùng InMemory; `SecurityAuditQueryServiceTests` dùng SQLite/InMemory. Các test này không chứng minh độ bền hoặc cấu hình retention trên SQL Server production. | Một phần | Chưa có bằng chứng về lưu trữ log ngoài DB, chống sửa/xóa độc lập, giám sát truy cập audit hay kiểm chứng retention/legal hold tại CinemaBD thật. Không log password, token, key, OTP hoặc recovery code. |
+| Detect (DE) | DE.AE — DE.AE-2: phân tích sự kiện bất lợi | Có audit login thất bại/khóa, evaluator đếm failed login, refresh reuse và sự kiện đăng nhập thiết bị mới theo ngưỡng; phát cảnh báo mức Warning có metadata đã làm sạch. | `CinemaBD.Infrastructure/Services/SecurityAlertEvaluator.cs`; `CinemaBD.Infrastructure/Services/SecurityAuditWriter.cs`; `docs/security/B6-operations-policy.md`; commit `8ca3fea` | SQL Server thật — kết quả B7 cung cấp: trạng thái lockout và cảnh báo ngưỡng đã được kiểm chứng. `SecurityAuditWriterTests`, `SecurityAuditQueryServiceTests` dùng InMemory/SQLite, không xác minh SQL Server. | Một phần | Cảnh báo hiện là log Warning trong ứng dụng, không có email/SIEM/external notification theo policy. Chưa có bằng chứng về hiệu quả phân tích/brute-force đa IP, tuning ngưỡng hoặc quy trình xử lý alert vận hành. |
+| Detect (DE) | DE.AE — DE.AE-3: tương quan sự kiện | Audit event chứa correlation metadata; log IAM có thể tra cứu theo loại sự kiện/tài khoản/session và thời gian. | `CinemaBD.Api/Security/SecurityAuditMiddleware.cs`; `CinemaBD.Infrastructure/Services/SecurityAuditQueryService.cs`; `docs/security/B6-operations-policy.md`; commit `5ba3732` | `SecurityAuditQueryServiceTests.QueryAsync_FiltersAndPaginatesWithWhitelistedOutput_OnSqlite` (SQLite) và `ThresholdAlerts_LogWarningWithCorrelationId_AtConfiguredThreshold` (InMemory) kiểm tra query/projection và Warning threshold; không xác minh tổng hợp log giữa nhiều nguồn. SQL Server thật — kết quả B7 cung cấp việc kiểm tra audit không có chuỗi giống token; chưa có kiểm chứng hệ thống tổng hợp sự kiện nhiều nguồn. | Một phần | Chưa có hệ thống tập trung tương quan log API/Web/Android/hạ tầng, SIEM, dashboard hoặc kiểm chứng correlation end-to-end giữa nhiều instance. |
+| Detect (DE) | DE.CM — DE.CM-1: giám sát mạng/môi trường vật lý | Trong phạm vi repo có API rate-limit/auth và app-level security audit/log; các bằng chứng này không phải giám sát mạng hay môi trường vật lý. | `CinemaBD.Api/Program.cs`; `CinemaBD.Api/Security/SecurityAuditMiddleware.cs`; `docs/security/B6-operations-policy.md` | Không có test hoặc xác minh SQL Server nào chứng minh network/physical monitoring. | Backlog | Chưa có cấu hình hay hồ sơ vận hành về firewall/WAF, IDS/IPS, giám sát hạ tầng/rạp vật lý, alert và người trực xử lý. Cần xác định kiểm soát do đơn vị triển khai/hạ tầng chịu trách nhiệm. |
+| Detect (DE) | DE.CM — DE.CM-3: giám sát hoạt động nhân sự | Có audit một số hành động Admin và API response controls; đây là dấu vết kỹ thuật cho các sự kiện đã tích hợp, không phải giám sát toàn bộ hoạt động nhân sự. | `CinemaBD.Api/Security/SecurityAuditActionFilter.cs`; `CinemaBD.Api/Security/SecurityAuditMiddleware.cs`; `CinemaBD.Infrastructure/Services/AdminSecurityResponseService.cs`; `CinemaBD.Tests/Services/SecurityAuditActionTests.cs`; commits `dbf3a86` (audit 403), `5ba3732`, `8ca3fea` | `SecurityAuditActionTests` dùng InMemory; `AdminSecurityResponseServiceTests` dùng InMemory. Kết quả SQL Server thật về audit an toàn/lockout có phạm vi hẹp, không xác minh đầy đủ mọi hoạt động nhân sự/quyền. | Một phần | Chưa có evidence coverage cho mọi thay đổi role/permission và hành động nhạy cảm, external alerting, quy trình rà soát log và phát hiện bất thường. Lock/unlock quản trị chưa được kiểm chứng SQL Server theo hồ sơ B7. |
+| Respond (RS) | RS.RP — RS.RP-1: thực thi kế hoạch ứng phó | Đã có runbook xử lý lộ tài khoản/token, mất MFA, mất Data Protection key và phục hồi DB; incident log ghi sự cố/bài học với cảnh báo không suy diễn khi thiếu chứng cứ. Tài liệu không chứng minh runbook đã diễn tập. | `docs/security/runbook-incident.md`; `docs/security/incident-log.md`; `docs/security/B6-operations-policy.md`; commit `8ca3fea`, `2288666` | Không có test thực thi runbook hoặc bằng chứng diễn tập SQL Server được ghi nhận. | Một phần | Chưa có kết quả diễn tập, người/nhóm chịu trách nhiệm, SLA/escalation và xác nhận kênh liên lạc/notification trong môi trường vận hành. |
+| Respond (RS) | RS.AN — RS.AN-1: phân tích sự cố | Runbook nêu bảo toàn log/audit/backup, lọc sự kiện theo tài khoản/session/thời gian và tương quan CorrelationId; incident log phân biệt mốc do operator cung cấp với nguyên nhân chưa xác nhận. | `docs/security/runbook-incident.md`; `docs/security/incident-log.md`; `CinemaBD.Infrastructure/Services/SecurityAuditQueryService.cs` | SQL Server thật — kết quả B7 cung cấp gồm replay/rotation, lockout bền vững và audit không chứa chuỗi giống token; đây là bằng chứng kiểm tra kỹ thuật cụ thể, không phải báo cáo điều tra forensics hoàn chỉnh. | Một phần | Chưa có quy trình thu thập chain-of-custody/hash độc lập được chứng minh, thời gian lưu bằng chứng đã phê duyệt, hoặc hồ sơ phân tích nguyên nhân/phạm vi cho các sự cố đã ghi. |
+| Respond (RS) | RS.MI — RS.MI-2: giảm thiểu/containment | Có revoke session/refresh token, lock/unlock account, force password change, endpoint từ chối khóa Master cuối và audit response event. | `CinemaBD.Infrastructure/Services/AdminSecurityResponseService.cs`; `CinemaBD.Infrastructure/Services/IdentitySessionService.cs`; `docs/security/runbook-incident.md`; commit `8ca3fea` | **SQL Server thật — kết quả B7 cung cấp:** khóa Master cuối trả `409`; refresh-token cũ bị replay trả `401` và phiên bị thu hồi. **Chưa kiểm chứng SQL Server:** lock/unlock tài khoản khác và `require-password-change`. `AdminSecurityResponseServiceTests` dùng InMemory. | Một phần | Cần kiểm chứng SQL Server cho lock/unlock, force-password-change và revoke-all trên tài khoản thử; cần kiểm tra audit/khả năng mở khóa an toàn và chống khóa nhầm trong vận hành. |
+| Recover (RC) | RC.RP — RC.RP-1: kế hoạch khôi phục | Runbook mô tả backup, restore vào DB cô lập, kiểm tra migration/schema/quan hệ nghiệp vụ và xác thực trước promote. Kiểm chứng cài mới 6 migration xác nhận một kịch bản khởi tạo, không xác nhận backup/restore. | `docs/security/runbook-incident.md`; `docs/security/B6-sqlserver-verification.md`; `CinemaBD.Infrastructure/Migrations/`; `CinemaBD.Infrastructure/Persistence/DatabaseInitializer.cs` | **SQL Server thật — kết quả B7 cung cấp:** cài đặt mới qua 6 migration. Tài liệu `B6-sqlserver-verification.md` là kịch bản chưa chạy; không có bằng chứng SQL Server về restore từ backup, kiểm tra integrity hoặc diễn tập khôi phục. | Một phần | Chưa có bằng chứng backup đã cấu hình/được kiểm tra restore, RPO/RTO, backup/khôi phục key ring, đối soát dữ liệu và diễn tập phục hồi. Không suy ra tính phục hồi từ Dockerfile, migration hoặc schema initializer. |
 
----
+## Sự cố & bài học
 
-## 2. Kế hoạch Triển khai Chi tiết theo Gói Công việc (Work Packages)
+Xem [Nhật ký sự cố bảo mật/vận hành](incident-log.md). Các bài học được giữ trong phạm vi bằng chứng hiện có:
 
-### 2.1. Danh mục Quick-Wins (Triển khai Ngay — Rủi ro Thấp, Giá trị Bảo vệ Cao)
+- **296 suất chiếu ngoài dự kiến:** initializer có thể tạo/cập nhật dữ liệu nghiệp vụ khi cấu hình demo phù hợp; cần tách opt-in, xác định đúng database và sao lưu/kiểm kê trước thay đổi. Nhật ký không đủ dữ liệu để quy kết chính xác từng bản ghi.
+- **Schema B3 xuất hiện trên `CinemaBD`:** thời điểm và tác động được ghi theo thông tin operator cung cấp. Bài học là không để startup tự migrate DB không được chọn tường minh; hiện cấu hình yêu cầu `Database:AllowAutoMigrate=true` cùng tên DB trong `Database:AllowedNames`. Guard cấu hình không khôi phục thay đổi cũ.
+- **DotEnvLoader chưa commit:** ghi nhận trong incident log chưa có build log/commit/phạm vi checkout xác minh độc lập. Bài học là kiểm tra build từ clone sạch và xác nhận biến môi trường được nạp đúng; không giả định `.env` tự được load trong mọi cách chạy.
 
-Những chỉnh sửa này có thể thực hiện độc lập, không làm thay đổi hợp đồng API hiện tại, giải quyết ngay các rủi ro đã xác định:
+## Kế hoạch rollout lên CinemaBD
 
-1. **QW-1: Sửa lỗi Rehash Mật khẩu Admin** (`CinemaBD.Infrastructure/Services/AdminAuthApiService.cs:30-35`):
-   - Thay thế kiểm tra plaintext `string.Equals(admin.Password, password)` bằng `_passwordHasher.NeedsRehash(admin.Password)`.
-   - Đảm bảo tài khoản admin đang mang hash MD5 sau khi login thành công sẽ tự động được nâng cấp lên PBKDF2 (`IDENTITY:`).
-2. **QW-2: Chuẩn hóa Thông báo Lỗi Đăng nhập Chống Account Enumeration**:
-   - Trong `AuthService.cs` và `AdminAuthApiService.cs`: Thay đổi các thông báo "Tài khoản không tồn tại" và "Sai mật khẩu" thành một thông báo chung: *"Tài khoản hoặc mật khẩu không chính xác."*
-3. **QW-3: Bổ sung Endpoint Đăng xuất Quản trị** (`AdminAuthController.cs`):
-   - Thêm `POST /api/admin/auth/logout` có `[Authorize]`, đọc `jti` và `exp` từ JWT của admin để lưu vào `RevokedTokens`.
-   - Cập nhật Web MVC (`AdminAccountController.Logout`) gọi endpoint này trước khi xóa Session.
-4. **QW-4: Bổ sung Thuộc tính An toàn cho Cookie của Web MVC** (`CinemaBD.Web/Program.cs`):
-   - Cấu hình Session Cookie: `options.Cookie.SecurePolicy = CookieSecurePolicy.Always`, `options.Cookie.SameSite = SameSiteMode.Lax`.
-   - Cấu hình Cookie Authentication: `options.Cookie.HttpOnly = true`, `options.Cookie.SecurePolicy = CookieSecurePolicy.Always`, `options.Cookie.SameSite = SameSiteMode.Lax`, `options.ExpireTimeSpan = TimeSpan.FromHours(8)`.
-5. **QW-5: Bổ sung Middleware Security Headers cho Web MVC** (`CinemaBD.Web/Program.cs`):
-   - Thêm header `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`.
+> Đây là kế hoạch vận hành đề xuất, **không phải xác nhận B3b/B3c/B5/B6 đã rollout lên database CinemaBD thật**. Theo hồ sơ B7, CinemaBD thật chưa được rollout B3b, B3c, B5, B6. Dữ kiện SQL Server cài mới 6 migration không chứng minh các migration trên đã áp dụng cho DB đó.
 
----
+1. **Xác định target và chủ sở hữu:** xác nhận đúng môi trường/`Initial Catalog`, phiên bản API/commit và quyền phê duyệt. Không dùng database dùng chung để thử thao tác phá hủy hoặc khóa tài khoản Master duy nhất.
+2. **Backup trước thay đổi:** tạo backup SQL Server nhất quán, kiểm tra backup và thử restore vào DB cô lập; lưu kết quả, thời điểm và người phê duyệt. Bảo vệ riêng Data Protection key ring và xác nhận có thể phục hồi key từ backup; không ghi khóa vào tài liệu/log.
+3. **Diễn tập/đối chiếu lược đồ:** trên bản khôi phục cô lập, đối chiếu `__EFMigrationsHistory`, schema hiện hữu và bản phát hành đích. Thứ tự migration trong checkout hiện tại:
+   - `20260524131837_InitialCinemaBdBaseline`
+   - `20261112174026_B3SessionRefreshSchema`
+   - `20261113110000_B3bSessionDeviceMetadata`
+   - `20261114000000_B3cSessionLastSeenIp`
+   - `20261114120000_B5AdminTotpMfaSchema`
+   - `20261115034812_B6DurableAccountLockout`
 
-### 2.2. Gói 1 (Ưu tiên Cao nhất): Thực thi Phân quyền Runtime + Seed SuperAdmin + FallbackPolicy (Chế độ Audit-Only)
+   Đây là thứ tự migration theo mã nguồn, không phải khẳng định tất cả đều pending trên CinemaBD; xác minh lịch sử/schema DB đích trước khi áp dụng. Thực hiện theo quy trình migration đã được review, một lần, trong cửa sổ bảo trì và với phương án rollback/restore đã được phê duyệt.
+4. **Cấu hình có chủ ý:** cung cấp `ConnectionStrings__DefaultConnection` qua secret store/biến môi trường; chỉ bật `Database__AllowAutoMigrate=true` cùng `Database__AllowedNames` khớp chính xác DB đã duyệt nếu phương thức rollout được phê duyệt dựa vào initializer. Tắt lại cờ sau khi hoàn tất. Giữ `DatabaseSeed__AllowDemoData=false` và `ShowtimeExpiry__Enabled=false` trừ khi có phê duyệt riêng. Xác nhận `Mfa__RequireForMaster=true` (hoặc `Mfa:RequireForMaster=true`) và ngưỡng `Security:Alerts:*`/`Security:AccountLockout:*` phù hợp vận hành. Kiểm tra biến cấu hình thực sự đến được process; không dựa vào DotEnvLoader đã bị gỡ.
+5. **Kiểm tra sau áp dụng:** xác minh đúng DB, migration history, bảng/cột session, MFA, recovery code, audit và lockout; thực hiện login/MFA, replay/challenge one-time, refresh rotation/reuse, lockout persistence sau restart và audit-secret scan bằng tài khoản thử. Ghi commit/build, SQL Server version, timestamp, status code và correlation ID an toàn; không lưu password/token/OTP/secret. Chỉ đánh dấu kiểm chứng sau khi thực sự chạy.
+6. **Giám sát và phục hồi:** theo dõi lỗi migration/auth, cảnh báo ngưỡng, audit và hoạt động initializer; giữ backup trước thay đổi. Nếu dữ liệu/migration sai hoặc khả năng phục hồi không rõ, dừng rollout, cô lập và dùng restore đã diễn tập; không tự rollback bằng cách xóa cột/bảng tùy tiện.
 
-> **Mục tiêu**: Xóa bỏ hoàn toàn tình trạng "quyền trên giấy", biến mọi permission trong CSDL thành kiểm soát thực tế tại runtime mà không làm gián đoạn hay khóa tài khoản admin đang hoạt động.
+## Việc tiếp theo
 
-#### Bước 1: Danh mục Hằng số Permission Chuẩn hóa (`Permissions.cs`)
-Tạo `CinemaBD.Application/Constants/Permissions.cs`:
-```csharp
-namespace CinemaBD.Application.Constants;
-
-public static class Permissions
-{
-    // Phim & Suất chiếu
-    public const string MoviesView = "Movies.View";
-    public const string MoviesManage = "Movies.Manage";
-    public const string ShowtimesManage = "Showtimes.Manage";
-    public const string CinemasManage = "Cinemas.Manage";
-    public const string RoomsManage = "Rooms.Manage";
-    public const string SeatsManage = "Seats.Manage";
-    public const string GenresManage = "Genres.Manage";
-
-    // Bán hàng & Khuyến mãi
-    public const string CombosManage = "Combos.Manage";
-    public const string ArticlesManage = "Articles.Manage";
-    public const string EventsManage = "Events.Manage";
-    public const string VouchersManage = "Vouchers.Manage";
-
-    // Vận hành & Tài chính
-    public const string InvoicesView = "Invoices.View";
-    public const string InvoicesCheckIn = "Invoices.CheckIn";
-    public const string InvoicesSync = "Invoices.Sync";
-    public const string RefundsApprove = "Refunds.Approve";
-    public const string LoyaltyAdjust = "Loyalty.Adjust";
-    public const string StatisticsView = "Statistics.View";
-
-    // Quản trị hệ thống & Kiểm toán
-    public const string RolesManage = "Roles.Manage";
-    public const string EmployeesManage = "Employees.Manage";
-    public const string CustomersManage = "Customers.Manage";
-    public const string AuditView = "Audit.View";
-}
-```
-
-#### Bước 2: Seed Idempotent Role SuperAdmin (Bảo toàn Quyền Admin Hiện tại)
-- Trong `DatabaseInitializer.cs`:
-  - Đồng bộ danh sách hằng số `Permissions` vào bảng `ChucNang` (`CHUCNANG`).
-  - Đảm bảo Role `Quản trị hệ thống` (`MaCV = 5` hoặc role có `IsMaster = 1`) được gán toàn bộ 100% permissions trong bảng `PhanQuyen`.
-  - Tài khoản `admin` hiện hữu được đảm bảo liên kết với Role này.
-  - Khi handler kiểm tra quyền: Nếu user thuộc Role có cờ `IsMaster == true`, handler lập tức cấp quyền bypass (`context.Succeed()`). **Cơ chế này loại bỏ hoàn toàn rủi ro khóa tài khoản admin đang vận hành.**
-
-#### Bước 3: Triển khai Attribute `[HasPermission]` & Caching Tối ưu
-- Tạo `HasPermissionAttribute(string permission)` kế thừa `AuthorizeAttribute`.
-- Triển khai `PermissionRequirement(string permission)` và `PermissionAuthorizationHandler : AuthorizationHandler<PermissionRequirement>`.
-- Handler đọc danh sách quyền của Admin từ `IMemoryCache` (TTL 5 phút, khóa cache `admin_permissions:{adminId}`). Khi có thay đổi role/permission qua `AdminRolesController`, hệ thống tự động xóa cache liên quan để quyền mới có hiệu lực tức thì.
-
-#### Bước 4: Chế độ Kiểm toán Trước khi Chặn Thật (Audit-Only / Dry-run Mode)
-- Cấu hình qua `appsettings.json`:
-  ```json
-  "Security": {
-    "Authorization": {
-      "AuditOnly": true
-    }
-  }
-  ```
-- Logic kiểm tra trong `PermissionAuthorizationHandler`:
-  ```csharp
-  if (!hasPermission)
-  {
-      _logger.LogWarning("[SECURITY_AUDIT_FAIL] Actor {UserId} lacks permission {Permission} on path {Path}. Mode: AuditOnly={AuditOnly}",
-          userId, requirement.Permission, httpContext.Request.Path, _options.AuditOnly);
-
-      if (_options.AuditOnly)
-      {
-          context.Succeed(requirement); // Cho phép đi tiếp trong giai đoạn kiểm thử
-          return Task.CompletedTask;
-      }
-
-      context.Fail(); // Chặn thật trả về 403 Forbidden khi AuditOnly = false
-      return Task.CompletedTask;
-  }
-  ```
-- **Lợi ích vận hành**: Cho phép triển khai và chạy thử trên môi trường staging/dev, quan sát log cảnh báo để kịp thời phát hiện endpoint nào bị gán nhầm quyền hoặc client nào bị ảnh hưởng trước khi chuyển sang chế độ chặn cứng.
-
-#### Bước 5: Thiết lập Deny-by-default (`FallbackPolicy`)
-- Gán tường minh `[AllowAnonymous]` cho toàn bộ endpoint công khai:
-  - `MoviesController`, `CombosController`, `ArticlesController`, `EventsController`.
-  - `ReviewsController:GetByMovie`.
-  - `BookingsController:GetSeats`.
-  - `PaymentsController:VnPayReturn`, `VnPayIpn`, `DemoConfirm`.
-  - `AuthController:Login`, `Register`, `Google`.
-  - `AdminAuthController:Login`.
-- Cấu hình `FallbackPolicy` trong `CinemaBD.Api/Program.cs`:
-  ```csharp
-  builder.Services.AddAuthorization(options =>
-  {
-      options.FallbackPolicy = new AuthorizationPolicyBuilder()
-          .RequireAuthenticatedUser()
-          .Build();
-  });
-  ```
-- Gắn `[HasPermission("...")]` cho toàn bộ các action trong 18 Controller quản trị và 3 action admin trong `ReviewsController`.
-
----
-
-### 2.3. Gói 2: Quản lý Phiên, Refresh Token Xoay vòng & Khóa Tài khoản (WP1)
-
-1. **Rút ngắn Thời hạn Access Token**:
-   - Điều chỉnh Access Token từ 12 giờ xuống còn **15 phút**.
-2. **Refresh Token Xoay vòng (Rotation) & Phát hiện Tái sử dụng (Reuse Detection)**:
-   - Tạo bảng `RefreshTokens`: `Id`, `UserId`, `TokenHash` (SHA-256), `FamilyId` (GUID), `ExpiresAtUtc` (7 ngày), `CreatedAtUtc`, `RevokedAtUtc`, `ReplacedByTokenHash`, `DeviceInfo`, `IpAddress`.
-   - Khi client gọi `/api/auth/refresh-token`:
-     - Nếu token hợp lệ: Cấp cặp Access Token mới + Refresh Token mới, đánh dấu token cũ `ReplacedByTokenHash = newTokenHash`.
-     - Nếu token đã bị thu hồi hoặc đã từng bị thay thế được gửi lại (dấu hiệu rò rỉ token / Replay Attack): Thu hồi lập tức toàn bộ FamilyId của chuỗi token này, bắt buộc đăng nhập lại từ đầu.
-3. **Khóa Tài khoản Tạm thời (Account Lockout)**:
-   - Thêm cột `AccessFailedCount` (int) và `LockoutEndUtc` (datetime2) vào bảng `Customer` và `Admin`.
-   - Nếu nhập sai mật khẩu 5 lần liên tiếp: Khóa tài khoản trong 15 phút. Mỗi lần đăng nhập đúng sẽ đặt lại `AccessFailedCount = 0`.
-4. **Xác thực Đa yếu tố MFA (TOTP)**:
-   - Sử dụng thư viện `Otp.NET` (chuẩn RFC 6238, HMAC-SHA1 TOTP).
-   - Bắt buộc kích hoạt cho toàn bộ tài khoản Admin và Nhân viên. Tùy chọn bật/tắt cho Khách hàng.
-   - Hỗ trợ 5 mã khôi phục sử dụng một lần (Backup Codes) lưu dạng băm trong DB.
-
----
-
-### 2.4. Gói 3: Nhật ký Kiểm toán Độc lập (Audit Trail) & Phát hiện Sự cố (WP4)
-
-1. **Tạo Bảng `AuditLogs` trong CSDL (Append-Only)**:
-   - Các trường: `Id` (long), `TimestampUtc`, `ActorId`, `ActorType` (Admin/Customer/Anonymous), `Action`, `Resource`, `StatusCode`, `IpAddress`, `UserAgent`, `TraceIdentifier`, `DetailsJson`.
-2. **Ghi nhận các Sự kiện An ninh Trọng yếu**:
-   - Xác thực: Đăng nhập thành công, đăng nhập thất bại, khóa tài khoản, đăng xuất, đổi mật khẩu, kích hoạt MFA.
-   - Phân quyền: Mọi thao tác gán/gỡ role, chỉnh sửa permission, tạo mới/vô hiệu hóa admin và nhân viên.
-   - Giao dịch nhạy cảm: Duyệt/từ chối hoàn tiền, điều chỉnh điểm tích lũy (kèm lý do bắt buộc), check-in vé, cập nhật trạng thái voucher.
-   - Vi phạm an ninh: Mọi lần từ chối quyền (HTTP 403) và cảnh báo Audit-Only.
-3. **API Truy xuất Audit Log cho Quản trị viên**:
-   - `GET /api/admin/audit-logs`: Yêu cầu quyền `Audit.View`, hỗ trợ lọc theo thời gian, actor, loại hành động, mã phản hồi; hỗ trợ phân trang.
-
----
-
-### 2.5. Gói 4: Cập nhật Đồng bộ Ứng dụng Web và Android (WP3)
-
-1. **Ứng dụng Web MVC (`CinemaBD.Web`)**:
-   - Cập nhật luồng Google Auth: Chuyển sang gửi Google ID Token lên `POST /api/auth/google`.
-   - Cập nhật `CinemaApiClient`: Bổ sung cơ chế tự động gửi refresh token khi nhận HTTP 401.
-   - Chuyển action `AccountController.Logout` sang `[HttpPost]` và gắn `[ValidateAntiForgeryToken]`.
-2. **Ứng dụng Di động Android (`android/`)**:
-   - Cập nhật `TokenDataStore.kt`: Nâng cấp lưu trữ JWT và Refresh Token từ plain DataStore sang `EncryptedSharedPreferences` (sử dụng Android Keystore với AES-256 GCM).
-   - Cập nhật `AuthInterceptor.kt`: Triển khai OkHttp `Authenticator` tự động gọi endpoint refresh token khi API trả về mã 401 Unauthorized.
-
----
-
-### 2.6. Gói 5: Kiểm thử Toàn diện & Nghiệm thu (WP6)
-
-1. **Kiểm thử Đơn vị (Unit Tests)**:
-   - Test thuật toán băm và cơ chế rehash-on-login (`Md5PasswordHasherTests`).
-   - Test cơ chế lockout tài khoản và backoff thời gian (`AccountLockoutTests`).
-   - Test xoay vòng refresh token và phát hiện token reuse (`RefreshTokenTests`).
-   - Test `PermissionAuthorizationHandler` ở cả hai chế độ `AuditOnly = true` và `AuditOnly = false`.
-2. **Kiểm thử Tích hợp (Integration Tests - WebApplicationFactory)**:
-   - **`PermissionsMatrixTests`**: Tự động duyệt qua 100% action của tất cả controller trong API. Báo lỗi ngay lập tức nếu phát hiện bất kỳ action nào thiếu attribute (không có `[AllowAnonymous]` và không có `[HasPermission]`).
-   - **`IdorSecurityTests`**: Kiểm thử các kịch bản User A gọi `hold-seats`, `release-seats`, `checkout`, `refund-request` với vé/hóa đơn của User B -> Đảm bảo bị từ chối 100%.
-   - **`AuditLogVerificationTests`**: Đảm bảo mọi thao tác quan trọng đều sinh bản ghi trong bảng `AuditLogs`.
-
----
-
-## 3. Ước lượng Tác động Hệ thống & Quản lý Rủi ro
-
-| Gói Công việc | Số file ảnh hưởng dự kiến | Yêu cầu EF Core Migration | Mức độ Rủi ro | Giải pháp Giảm thiểu Rủi ro (Mitigation) |
-|---|---|---|---|---|
-| **Quick-Wins** | ~5 files (`AdminAuthApiService`, `AuthService`, `Program.cs`, `AdminAuthController`, `AdminAccountController`) | Không | Thấp | Kiểm tra unit test luồng login/logout trước khi commit. |
-| **Gói 1: Runtime Permission & FallbackPolicy** | ~25 files (19 Admin Controllers, Program.cs, Authorization Handlers, Constants) | Seed data cho `ChucNang`, `PhanQuyen` | Trung bình | **Sử dụng chế độ Audit-Only (Dry-run)** trong giai đoạn đầu; **Seed role SuperAdmin** bypass để không khóa admin đang dùng. |
-| **Gói 2: Quản lý Phiên & Lockout** | ~10 files (`AppDbContext`, `Entities`, `AuthService`, `JwtTokenService`, Controllers) | Bảng `RefreshTokens`, cột `AccessFailedCount`, `LockoutEndUtc` | Trung bình | Đảm bảo migration có phương thức Down() rollback; duy trì thời gian chuyển tiếp cho token. |
-| **Gói 3: Nhật ký Kiểm toán** | ~8 files (`AppDbContext`, `Entities/AuditLog`, `AuditLogService`, `AdminAuditController`) | Bảng `AuditLogs` | Thấp | Bảng ghi dạng append-only, chỉ ghi thêm, không khóa bảng hay ảnh hưởng transaction nghiệp vụ chính. |
-| **Gói 4: Client Web & Android** | ~8 files (`CinemaApiClient`, `TokenDataStore.kt`, `AuthInterceptor.kt`, Controllers Web) | Không | Trung bình | Test độc lập trên từng client, giữ API contract tương thích ngược. |
-
----
-
-## 4. Thứ tự Thực hiện Đề xuất
-
-```text
-[Bổ sung iam-baseline.md]
-          |
-          v
-[Tạo nist-csf-mapping.md] (File này)
-          |
-          v
-[Gói Quick-Wins] (Rehash admin, Lỗi login chung, Web cookie/headers, Admin logout)
-          |
-          v
-[Gói 1: Runtime Permission + SuperAdmin Bypass + Audit-Only Mode + FallbackPolicy]
-          |
-          v
-[Chạy PermissionsMatrixTests xác minh 100% Endpoint]
-          |
-          v
-[Gói 2: Refresh Token Xoay vòng + Account Lockout + MFA]
-          |
-          v
-[Gói 3: Bảng AuditLog & Endpoint Truy vết An ninh]
-          |
-          v
-[Gói 4: Đồng bộ Client Web & Android]
-          |
-          v
-[Soạn thảo tài liệu NIST_2 đến NIST_5 & Nghiệm thu]
-```
+1. Bổ sung credential/IAM cho `NHANVIEN` hoặc quyết định có chủ ý về mô hình nhân viên; đánh giá yêu cầu MFA tương xứng quyền.
+2. Thiết kế MFA khách hàng tùy chọn hoặc bắt buộc theo rủi ro, đồng thời cân nhắc phương thức chống phishing thay vì TOTP cho nhóm rủi ro cao.
+3. Nâng cao phát hiện thiết bị lạ: xác định tín hiệu, baseline/ngưỡng, thông báo vận hành, xử lý false-positive và lưu bằng chứng; policy hiện tại chỉ phát Warning nội bộ.
+4. Chạy và lưu kết quả SQL Server có thể truy vết cho lock/unlock tài khoản khác, `require-password-change`, revoke-all và các kịch bản incident response/restore; không dùng checklist kỳ vọng chưa thực thi làm bằng chứng.
+5. Thiết lập backup/restore kiểm chứng được cho DB và Data Protection key ring; bảo vệ quyền truy cập, retention và kiểm tra khả năng giải mã MFA sau phục hồi.
+6. Đánh giá nguy cơ phishing của TOTP, chính sách mật khẩu/legacy hash, việc tên class/test `Pbkdf2PasswordHasher` đã thay cho tên legacy `Md5PasswordHasher`, và khả năng logging stack trace ở lỗi nghiệp vụ; chỉ ghi hoàn tất khi có bằng chứng kiểm tra cụ thể.
+7. Cập nhật ma trận khi rollout lên CinemaBD thật hoặc sau một lần diễn tập/sự cố có evidence; giữ riêng trạng thái code, test tự động, SQL Server verification và trạng thái production.
