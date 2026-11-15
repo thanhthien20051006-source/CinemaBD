@@ -26,19 +26,22 @@ services:
     build:
       context: .
       dockerfile: CinemaBD.Api/Dockerfile
-    container_name: cinemabd_api
     ports:
-      - "5188:8080"
+      - "127.0.0.1:5188:8080"
+    volumes:
+      - api_dataprotection_keys:/app/App_Data/DataProtection-Keys
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__DefaultConnection: "${LOCAL_SQL_CONNECTION:?LOCAL_SQL_CONNECTION is required; set it to the intended database}"
-      Database__AllowAutoMigrate: ${DATABASE_ALLOW_AUTO_MIGRATE:-false}
-      Database__AllowedNames__0: ${DATABASE_ALLOWED_NAME:-}
-      ShowtimeExpiry__Enabled: ${SHOWTIME_EXPIRY_ENABLED:-false}
+      Database__AllowAutoMigrate: "false"
+      Database__AllowedNames__0: ""
+      ShowtimeExpiry__Enabled: "false"
       DatabaseSeed__SchemaSqlFile: /app/Database/CinemaBD.schema.sql
       DatabaseSeed__DataSqlFile: /app/Database/CinemaBD.data.sql
-      DatabaseSeed__AllowDemoData: ${DATABASE_ALLOW_DEMO_DATA:-false}
+      DatabaseSeed__AllowDemoData: "false"
+      Mfa__RequireForMaster: "true"
+      Security__Cleanup__Enabled: "false"
       Jwt__Key: ${JWT_KEY:?JWT_KEY is required}
       Jwt__Issuer: ${JWT_ISSUER:-CinemaBD}
       Jwt__Audience: ${JWT_AUDIENCE:-CinemaBD.Client}
@@ -54,9 +57,8 @@ services:
     build:
       context: .
       dockerfile: CinemaBD.Web/Dockerfile
-    container_name: cinemabd_web
     ports:
-      - "7188:8080"
+      - "127.0.0.1:7188:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
@@ -66,7 +68,13 @@ services:
       Jwt__Audience: ${JWT_AUDIENCE:-CinemaBD.Client}
       Security__QrSigningKey: ${QR_SIGNING_KEY:?QR_SIGNING_KEY is required}
       Security__RequireSecureCookies: "false"
-      ConnectionStrings__DefaultConnection: Data Source=/app/data/cinemabd.web.db
+      ConnectionStrings__DefaultConnection: "${LOCAL_SQL_CONNECTION:?LOCAL_SQL_CONNECTION is required; set it to the intended database}"
+      Database__AllowAutoMigrate: "false"
+      Database__AllowedNames__0: ""
+      DatabaseSeed__AllowDemoData: "false"
+      ShowtimeExpiry__Enabled: "false"
+      Mfa__RequireForMaster: "true"
+      Security__Cleanup__Enabled: "false"
       PaymentSettings__Url: ${VNPAY_BASE_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
       PaymentSettings__ReturnUrl: ${WEB_PUBLIC_URL:-http://localhost:7188}/booking/payment-return
       PaymentSettings__TmnCode: ${VNPAY_TMN_CODE:-CHANGE_ME}
@@ -100,3 +108,5 @@ volumes:
   sqlserver_data:
   web_data:
   web_dataprotection_keys:
+  api_dataprotection_keys:
+    name: cinemabd_api_dataprotection_keys
