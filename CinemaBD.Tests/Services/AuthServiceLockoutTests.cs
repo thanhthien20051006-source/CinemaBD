@@ -1,3 +1,4 @@
+using CinemaBD.Application.Exceptions;
 using CinemaBD.Application.Interfaces;
 using CinemaBD.Domain.Entities;
 using CinemaBD.Infrastructure.Persistence;
@@ -34,7 +35,7 @@ public sealed class AuthServiceLockoutTests
     }
 
     [Fact]
-    public async Task AdminLogin_LocksAtThresholdAndReturnsSameGenericErrorWhileLocked()
+    public async Task AdminLogin_LocksAtThresholdAndReturnsSpecificLockoutExceptionWhileLocked()
     {
         using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
         var config = Configuration(2, 15);
@@ -47,9 +48,11 @@ public sealed class AuthServiceLockoutTests
 
         var first = await Assert.ThrowsAsync<InvalidOperationException>(() => service.LoginAsync("alice", "wrong-password"));
         var second = await Assert.ThrowsAsync<InvalidOperationException>(() => service.LoginAsync("alice", "wrong-password"));
-        var locked = await Assert.ThrowsAsync<InvalidOperationException>(() => service.LoginAsync("alice", "wrong-password"));
+        var locked = await Assert.ThrowsAsync<AccountLockedException>(() => service.LoginAsync("alice", "wrong-password"));
 
-        first.Message.Should().Be(second.Message).And.Be(locked.Message);
+        first.Message.Should().Be(second.Message);
+        locked.LockoutEndUtc.Should().BeAfter(DateTime.UtcNow);
+        locked.Message.Should().Be("Account is locked.");
         (await lockout.GetAsync("Admin", "alice")).IsLocked.Should().BeTrue();
         audit.Events.Should().Contain(item => item.EventType == "account_locked");
         audit.Events.Should().Contain(item => item.EventType == "login_failed");

@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using CinemaBD.Web.Models;
+using CinemaBD.Web.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
@@ -133,21 +134,31 @@ public class CinemaApiClient
         }
     }
 
-    public async Task<AdminAuthResult?> AdminLoginAsync(string username, string password, CancellationToken cancellationToken = default)
+    public async Task<AdminLoginOutcome> AdminLoginAsync(string username, string password, CancellationToken cancellationToken = default)
     {
         try
         {
             using var response = await _httpClient.PostAsJsonAsync("api/admin/auth/login", new { username, password, deviceName = "CinemaBD Web Admin" }, cancellationToken);
+            if (response.StatusCode == System.Net.HttpStatusCode.Locked)
+            {
+                var lockedPayload = await response.Content.ReadFromJsonAsync<ApiResponse<LockedLoginData>>(cancellationToken: cancellationToken);
+                return new AdminLoginOutcome(null, lockedPayload?.Message, true);
+            }
             if (!response.IsSuccessStatusCode)
-                return null;
+                return new AdminLoginOutcome(null);
 
             var payload = await response.Content.ReadFromJsonAsync<ApiResponse<AdminAuthResult>>(cancellationToken: cancellationToken);
-            return payload?.Data;
+            return new AdminLoginOutcome(payload?.Data);
         }
         catch (HttpRequestException)
         {
-            return null;
+            return new AdminLoginOutcome(null);
         }
+    }
+
+    public sealed class LockedLoginData
+    {
+        public int? RemainingMinutes { get; set; }
     }
 
     public async Task<AdminAuthResult?> AdminVerifyMfaAsync(string mfaChallenge, string code, bool isRecoveryCode = false, CancellationToken cancellationToken = default)
