@@ -24,6 +24,19 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
     public AdminAuthLogoutIntegrationTests(TestApiFactory factory) => _factory = factory;
 
     [Fact]
+    public async Task AdminWithoutMfaEnrollment_CannotCallRolesEndpoint()
+    {
+        var client = _factory.CreateClient();
+        var sessionId = _factory.CreateActiveSession();
+        var token = CreateTestAdminToken("admin:1", sessionId, isMaster: true, includeSessionId: true, mfaEnrollmentOnly: true, permissions: ["phanquyen"]);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await client.GetAsync("/api/admin/roles");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
     public async Task AdminToken_WithMasterAndPermissionClaims_ShouldAccessAdminEndpoint()
     {
         var client = _factory.CreateClient();
@@ -34,6 +47,62 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
         var response = await client.GetAsync("/api/admin/roles");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task AdminWithMfaVerifiedAndPermission_CanRevokeAllCustomerSessions()
+    {
+        var client = _factory.CreateClient();
+        _factory.SeedCustomer("KH-TEST");
+        var sessionId = _factory.CreateActiveSession();
+        var token = CreateTestAdminToken("admin:1", sessionId, isMaster: true, mfaVerified: true, includeSessionId: true, permissions: ["phanquyen"]);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var response = await client.PostAsync("/api/admin/security/accounts/sessions/revoke-all", System.Net.Http.Json.JsonContent.Create(new { accountType = "KHACHHANG", accountId = "KH-TEST" }));
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        _factory.AuditEvents.Should().Contain("admin_sessions_revoked");
+    }
+
+    [Fact]
+    public async Task AdminWithMfaVerifiedAndPermission_CanLockAndUnlockCustomer()
+    {
+        var client = _factory.CreateClient();
+        _factory.SeedCustomer("KH-LOCK");
+        var sessionId = _factory.CreateActiveSession();
+        var token = CreateTestAdminToken("admin:1", sessionId, isMaster: true, mfaVerified: true, includeSessionId: true, permissions: ["phanquyen"]);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var lockResponse = await client.PostAsync("/api/admin/security/accounts/lock", System.Net.Http.Json.JsonContent.Create(new { accountType = "KHACHHANG", accountId = "KH-LOCK", locked = true }));
+        lockResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var unlockResponse = await client.PostAsync("/api/admin/security/accounts/lock", System.Net.Http.Json.JsonContent.Create(new { accountType = "KHACHHANG", accountId = "KH-LOCK", locked = false }));
+        unlockResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        _factory.AuditEvents.Should().Contain("admin_account_locked");
+        _factory.AuditEvents.Should().Contain("admin_account_unlocked");
+    }
+
+    [Fact]
+    public async Task AdminToken_WithoutMfaVerifiedClaim_IsForbiddenFromSecurityResponse()
+    {
+        var client = _factory.CreateClient();
+        var sessionId = _factory.CreateActiveSession();
+        var token = CreateTestAdminToken("admin:1", sessionId, isMaster: true, includeSessionId: true, permissions: ["phanquyen"]);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var response = await client.PostAsync("/api/admin/security/accounts/sessions/revoke-all", System.Net.Http.Json.JsonContent.Create(new { accountType = "KHACHHANG", accountId = "KH-1" }));
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task AdminWithMfaVerifiedAndPermission_CanForcePasswordChangeAndRevokeSessions()
+    {
+        var client = _factory.CreateClient();
+        _factory.SeedCustomer("KH-FORCE");
+        var sessionId = _factory.CreateActiveSession();
+        var token = CreateTestAdminToken("admin:1", sessionId, isMaster: true, mfaVerified: true, includeSessionId: true, permissions: ["phanquyen"]);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var response = await client.PostAsync("/api/admin/security/accounts/require-password-change", System.Net.Http.Json.JsonContent.Create(new { accountType = "KHACHHANG", accountId = "KH-FORCE" }));
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        (await db.Customers.SingleAsync(x => x.MaKH == "KH-FORCE")).MustChangePassword.Should().BeTrue();
+        _factory.AuditEvents.Should().Contain("admin_password_change_required");
     }
 
     [Fact]
@@ -96,6 +165,8 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
         Guid? sessionId,
         bool includeSessionId = true,
         bool isMaster = false,
+        bool mfaEnrollmentOnly = false,
+        bool mfaVerified = false,
         params string[] permissions)
     {
         var claims = new List<Claim>
@@ -108,6 +179,8 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
             new(ClaimTypes.Role, "Admin"),
             new("is_master", isMaster ? "true" : "false")
         };
+        if (mfaEnrollmentOnly) claims.Add(new Claim("mfa_enrollment_only", "true"));
+        if (mfaVerified) claims.Add(new Claim("mfa_verified", "true"));
 
         if (includeSessionId)
         {
@@ -142,7 +215,21 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
         private readonly string _databaseName = "AdminAuthLogoutTestDb_" + Guid.NewGuid();
         private readonly TestIdentitySessionService _identitySessionService = new();
 
+        private readonly List<string> _auditEvents = [];
+        public IReadOnlyList<string> AuditEvents => _auditEvents;
         public Guid CreateActiveSession() => _identitySessionService.CreateActiveSession();
+
+        public void SeedCustomer(string customerId)
+        {
+            using var scope = Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            if (!db.Customers.Any(x => x.MaKH == customerId))
+            {
+                db.Customers.Add(new CinemaBD.Infrastructure.Persistence.LegacyCustomer { MaKH = customerId, HoTen = "Test customer", TKhoan = "test", MatKhau = "hash" });
+                db.SaveChanges();
+            }
+            _identitySessionService.AddSession(customerId, "KHACHHANG");
+        }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
@@ -155,6 +242,7 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
             builder.UseSetting("DatabaseSeed:AllowDemoData", "false");
             builder.UseSetting("Database:AllowAutoMigrate", "false");
             builder.UseSetting("Database:AllowedNames:0", string.Empty);
+            builder.UseSetting("Mfa:RequireForMaster", "true");
 
             builder.ConfigureServices(services =>
             {
@@ -172,6 +260,8 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
                 services.AddSingleton<IIdentitySessionService>(_identitySessionService);
                 RemoveService<IRefreshTokenService>(services);
                 services.AddScoped<IRefreshTokenService, TestRefreshTokenService>();
+                RemoveService<ISecurityAuditWriter>(services);
+                services.AddSingleton<ISecurityAuditWriter>(new IntegrationAuditWriter(_auditEvents));
             });
         }
 
@@ -180,6 +270,15 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
             var descriptors = services.Where(descriptor => descriptor.ServiceType == typeof(TService)).ToList();
             foreach (var descriptor in descriptors)
                 services.Remove(descriptor);
+        }
+
+        private sealed class IntegrationAuditWriter(List<string> events) : ISecurityAuditWriter
+        {
+            public Task WriteAsync(SecurityAuditEvent auditEvent, CancellationToken cancellationToken = default)
+            {
+                events.Add(auditEvent.EventType);
+                return Task.CompletedTask;
+            }
         }
 
         private sealed class TestRefreshTokenService : IRefreshTokenService
@@ -199,9 +298,19 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
                 return sessionId;
             }
 
+            public void AddSession(string accountId, string accountType)
+            {
+                var id = Guid.NewGuid();
+                _activeSessions[id] = true;
+                _sessionOwners[id] = (accountType, accountId);
+            }
+
+            private readonly ConcurrentDictionary<Guid, (string AccountType, string AccountId)> _sessionOwners = new();
+
             public Task<Guid> CreateSessionAsync(string accountType, string accountId, string? deviceName = null, string? userAgent = null, CancellationToken cancellationToken = default)
             {
                 var sessionId = CreateActiveSession();
+                _sessionOwners[sessionId] = (accountType, accountId);
                 return Task.FromResult(sessionId);
             }
 
@@ -220,8 +329,9 @@ public class AdminAuthLogoutIntegrationTests : IClassFixture<AdminAuthLogoutInte
             public Task<bool> RevokeSessionByRefreshTokenAsync(string refreshToken, string accountType, string accountId, string reason, CancellationToken cancellationToken = default) => Task.FromResult(false);
             public Task RevokeAllAsync(string accountType, string accountId, string reason, CancellationToken cancellationToken = default)
             {
-                foreach (var sessionId in _activeSessions.Keys)
-                    _activeSessions[sessionId] = false;
+                foreach (var (sessionId, owner) in _sessionOwners)
+                    if (owner.AccountType == accountType && owner.AccountId == accountId)
+                        _activeSessions[sessionId] = false;
                 return Task.CompletedTask;
             }
         }

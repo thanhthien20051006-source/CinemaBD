@@ -161,7 +161,11 @@ public class AdminAuthApiService : IAdminAuthApiService
         var mfa = await _db.AdminMfas.FirstOrDefaultAsync(x => x.AdminID == admin.AdminID, cancellationToken);
         var isMfaEnabled = mfa?.Enabled == true;
 
-        if (isMfaEnabled)
+        var access = await _adminAuthorizationService.GetAccessForAdminAsync(admin.AdminID, cancellationToken);
+        var isMaster = access.IsMaster;
+        var requireForMaster = _configuration.GetValue<bool>("Mfa:RequireForMaster", true);
+        var requireForAllAdmins = _configuration.GetValue<bool>("Mfa:RequireForAllAdmins", false);
+        if (isMfaEnabled || requireForAllAdmins)
         {
             var challengeToken = _tokenService.CreateMfaChallengeToken(admin.AdminID, admin.Username, out _, out _);
             return new AdminLoginResult(
@@ -175,13 +179,11 @@ public class AdminAuthApiService : IAdminAuthApiService
                 mustChangePassword,
                 passwordExpired,
                 MfaRequired: true,
-                MfaChallenge: challengeToken);
+                MfaChallenge: challengeToken,
+                MfaEnrollmentRestricted: isMaster && requireForMaster || requireForAllAdmins);
         }
 
-        var access = await _adminAuthorizationService.GetAccessForAdminAsync(admin.AdminID, cancellationToken);
-        var isMaster = access.IsMaster;
-        var requireForMaster = _configuration.GetValue<bool>("Mfa:RequireForMaster", true);
-        var isMfaEnrollmentRestricted = isMaster && requireForMaster;
+        var isMfaEnrollmentRestricted = isMaster && requireForMaster || requireForAllAdmins && !isMfaEnabled;
 
         var account = new UserAccount
         {
@@ -200,7 +202,7 @@ public class AdminAuthApiService : IAdminAuthApiService
         var sessionId = await _identitySessionService.CreateSessionAsync("Admin", accountId, deviceName, userAgent, cancellationToken);
         try
         {
-            var token = _tokenService.CreateToken(account, sessionId, mustChangePassword, isMfaEnrollmentRestricted);
+            var token = _tokenService.CreateToken(account, sessionId, mustChangePassword, isMfaEnrollmentRestricted, mfaVerified: false);
             var refreshToken = await _identitySessionService.IssueRefreshTokenAsync(sessionId, cancellationToken);
             await WriteAuditSafelyAsync("login_success", "Admin", accountId, deviceName, userAgent, "success", "Login succeeded.", cancellationToken, sessionId);
             if (_lockoutService is not null)
@@ -375,7 +377,7 @@ public class AdminAuthApiService : IAdminAuthApiService
         var sessionId = await _identitySessionService.CreateSessionAsync("Admin", accountId, deviceName, userAgent, cancellationToken);
         try
         {
-            var token = _tokenService.CreateToken(account, sessionId, mustChangePassword, restrictedToMfaEnrollment: false);
+            var token = _tokenService.CreateToken(account, sessionId, mustChangePassword, restrictedToMfaEnrollment: false, mfaVerified: true);
             var refreshToken = await _identitySessionService.IssueRefreshTokenAsync(sessionId, cancellationToken);
             await WriteAuditSafelyAsync("mfa_login_success", "Admin", accountId, deviceName, userAgent, "success", isRecoveryCode ? "MFA login succeeded via recovery code." : "MFA login succeeded via TOTP.", cancellationToken, sessionId);
 

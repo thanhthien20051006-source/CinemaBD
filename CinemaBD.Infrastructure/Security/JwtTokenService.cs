@@ -21,6 +21,9 @@ public class JwtTokenService : ITokenService
         => CreateToken(user, sessionId, restrictedToPasswordChange, false);
 
     public string CreateToken(UserAccount user, Guid sessionId, bool restrictedToPasswordChange, bool restrictedToMfaEnrollment)
+        => CreateToken(user, sessionId, restrictedToPasswordChange, restrictedToMfaEnrollment, false);
+
+    public string CreateToken(UserAccount user, Guid sessionId, bool restrictedToPasswordChange, bool restrictedToMfaEnrollment, bool mfaVerified)
     {
         if (sessionId == Guid.Empty)
             throw new ArgumentException("A valid identity session is required to issue an access token.", nameof(sessionId));
@@ -53,6 +56,8 @@ public class JwtTokenService : ITokenService
 
         if (restrictedToMfaEnrollment)
             claims.Add(new Claim("mfa_enrollment_only", "true"));
+        if (isAdmin && mfaVerified)
+            claims.Add(new Claim("mfa_verified", "true"));
 
         var credentials = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),

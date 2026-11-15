@@ -2,11 +2,12 @@ using CinemaBD.Application.Interfaces;
 using CinemaBD.Infrastructure.Persistence;
 using CinemaBD.Infrastructure.Security;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 namespace CinemaBD.Infrastructure.Services;
 
 /// <summary>Single persistence boundary for sanitized security audit events.</summary>
-public sealed class SecurityAuditWriter(AppDbContext db, IHttpContextAccessor? httpContextAccessor = null) : ISecurityAuditWriter
+public sealed class SecurityAuditWriter(AppDbContext db, IHttpContextAccessor? httpContextAccessor = null, SecurityAlertEvaluator? alertEvaluator = null, ILogger<SecurityAuditWriter>? logger = null) : ISecurityAuditWriter
 {
     public async Task WriteAsync(SecurityAuditEvent auditEvent, CancellationToken cancellationToken = default)
     {
@@ -56,6 +57,17 @@ public sealed class SecurityAuditWriter(AppDbContext db, IHttpContextAccessor? h
             Details = metadata
         });
         await db.SaveChangesAsync(cancellationToken);
+        if (alertEvaluator is not null)
+        {
+            try
+            {
+                await alertEvaluator.EvaluateAsync(eventType, safeActorType, safeActorId, sessionId, safeCorrelationId, cancellationToken);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                logger?.LogWarning(exception, "Security alert evaluation failed for {EventType}, CorrelationId {CorrelationId}.", eventType, safeCorrelationId);
+            }
+        }
     }
 
     private static string BuildMetadata(string? deviceName, string? userAgent, string result, string? details)

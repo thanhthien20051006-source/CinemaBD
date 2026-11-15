@@ -16,6 +16,13 @@
 - **Nguyên nhân gốc:** API mặc định chứa connection string trỏ thẳng tới database tên `CinemaBD`, còn initializer tự áp dụng pending migrations khi startup mà không yêu cầu allowlist hay cờ riêng để xác nhận đây là target được chấp thuận. Do vậy, chạy API có thể làm thay đổi database đích không được chọn tường minh cho migration.
 - **Biện pháp:** Xóa tên database khỏi cấu hình API mặc định; bắt buộc cấu hình `ConnectionStrings__DefaultConnection`; cho phép initializer chỉ khi `Database__AllowAutoMigrate=true` và tên `Initial Catalog` có trong `Database__AllowedNames`. Mọi trường hợp thiếu điều kiện chỉ cảnh báo và bỏ qua. Không thực hiện migration, seed hoặc kiểm tra ghi lên database production như một phần của guard này; xác minh qua test không kết nối SQL Server.
 
+## Sự cố 3 — DotEnvLoader chưa commit làm build ngầm hỏng
+
+- **Thời điểm:** Chưa có mốc thời gian cụ thể được xác nhận.
+- **Timeline:** Theo ghi nhận được cung cấp, thành phần `DotEnvLoader` chưa được commit và khiến build lỗi ngầm/không được nhận diện kịp thời. Hiện chưa có log build, commit ID, phạm vi checkout hay bản phát hành để xác minh độc lập.
+- **Nguyên nhân gốc:** Chưa đủ bằng chứng để khẳng định nguyên nhân kỹ thuật cụ thể; ghi nhận hiện có là trạng thái source chưa đồng bộ với thành phần `DotEnvLoader` cần thiết.
+- **Bài học/biện pháp:** Trước khi kết luận build/test thành công hoặc tạo release, xác minh trên bản clone sạch từ commit đích. Chạy restore/build và tập test phù hợp trên clone đó; kiểm tra tracked/untracked files và artifact cần thiết, không dựa riêng vào working tree của máy phát triển. Lưu output build/test thực tế cùng commit ID.
+
 ## Trạng thái sau guard
 
 Guard đóng vai trò kiểm soát cấu hình và không tự khôi phục dữ liệu đã thay đổi. Với từng sự cố, cần xác minh trạng thái DB từ backup/audit/deployment logs của môi trường liên quan, sau đó áp dụng quy trình restore/repair được phê duyệt riêng. Không coi các đề xuất phục hồi này là đã thực thi.

@@ -58,8 +58,9 @@ public sealed class IdentitySessionService : IIdentitySessionService
         await WriteAuditSafelyAsync("login_success", accountType, accountId, sessionId, "success", "Login session created.", cancellationToken);
         if (isNewDevice)
         {
-            _logger?.LogWarning("Login from an unfamiliar device detected for {AccountType} account {AccountId}, session {SessionId}.", accountType, accountId, sessionId);
-            await WriteAuditSafelyAsync("new_device_login", accountType, accountId, sessionId, "detected", "Device metadata differs from previous sessions.", cancellationToken);
+            var correlationId = Guid.NewGuid().ToString("N");
+            _logger?.LogWarning("Login from an unfamiliar device detected for {AccountType} account {AccountId}, session {SessionId}, CorrelationId {CorrelationId}.", accountType, accountId, sessionId, correlationId);
+            await WriteAuditSafelyAsync("new_device_login", accountType, accountId, sessionId, "detected", "Device metadata differs from previous sessions.", cancellationToken, correlationId);
         }
         return sessionId;
     }
@@ -159,14 +160,14 @@ public sealed class IdentitySessionService : IIdentitySessionService
         }
     }
 
-    private async Task WriteAuditSafelyAsync(string eventType, string accountType, string accountId, Guid? sessionId, string result, string details, CancellationToken cancellationToken)
+    private async Task WriteAuditSafelyAsync(string eventType, string accountType, string accountId, Guid? sessionId, string result, string details, CancellationToken cancellationToken, string? correlationId = null)
     {
         try
         {
             if (_securityAuditWriter is not null)
-                await _securityAuditWriter.WriteAsync(new SecurityAuditEvent(eventType, accountType, accountId, sessionId, Result: result, Details: details), cancellationToken);
+                await _securityAuditWriter.WriteAsync(new SecurityAuditEvent(eventType, accountType, accountId, sessionId, Result: result, Details: details, CorrelationId: correlationId), cancellationToken);
             else
-                _logger?.LogInformation("Security event {EventType} for {AccountType} {AccountId}: {Details}", eventType, accountType, accountId, details);
+                _logger?.LogInformation("Security event {EventType} for {AccountType} {AccountId}, CorrelationId {CorrelationId}: {Details}", eventType, accountType, accountId, correlationId, details);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {

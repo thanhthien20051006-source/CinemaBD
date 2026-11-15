@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -22,13 +23,14 @@ namespace CinemaBD.Tests.Security;
 
 public sealed class MasterMfaEnforcementTests
 {
-    private static IConfiguration CreateConfig(bool requireForMaster = true)
+    private static IConfiguration CreateConfig(bool requireForMaster = true, bool requireForAllAdmins = false)
         => new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Jwt:Key"] = "0123456789abcdef0123456789abcdef",
             ["Jwt:Issuer"] = "CinemaBD",
             ["Jwt:Audience"] = "CinemaBD.Client",
             ["Mfa:RequireForMaster"] = requireForMaster ? "true" : "false",
+            ["Mfa:RequireForAllAdmins"] = requireForAllAdmins ? "true" : "false",
             ["ADMIN_RECOVERY_KEY"] = "RecoveryKeySecret123!"
         }).Build();
 
@@ -118,6 +120,7 @@ public sealed class MasterMfaEnforcementTests
 
         var actionContext = new ActionContext(context, new RouteData(), new ActionDescriptor());
         var filterContext = new AuthorizationFilterContext(actionContext, Array.Empty<IFilterMetadata>());
+        context.RequestServices = new ServiceCollection().AddSingleton<IConfiguration>(CreateConfig()).BuildServiceProvider();
         var filter = new MfaEnrollmentRestrictionFilter();
 
         await filter.OnAuthorizationAsync(filterContext);

@@ -114,8 +114,10 @@ public sealed class IdentitySessionServiceTests
 
         await service.CreateSessionAsync("Admin", "3", "Unrecognized phone", "Agent B");
 
-        audit.Events.Should().ContainSingle(item => item.EventType == "new_device_login");
-        logger.Messages.Should().Contain(message => message.Contains("unfamiliar device", StringComparison.OrdinalIgnoreCase));
+        var alert = audit.Events.Should().ContainSingle(item => item.EventType == "new_device_login").Which;
+        alert.CorrelationId.Should().NotBeNullOrWhiteSpace();
+        logger.Messages.Should().Contain(message => message.Contains("unfamiliar device", StringComparison.OrdinalIgnoreCase)
+            && message.Contains("CorrelationId", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

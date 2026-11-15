@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using System.Security.Claims;
 
 namespace CinemaBD.Api.Filters;
 
@@ -25,14 +24,15 @@ public sealed class MfaEnrollmentRestrictionFilter : IAsyncAuthorizationFilter
         if (!user.Identity?.IsAuthenticated ?? true)
             return Task.CompletedTask;
 
-        if (!user.HasClaim("mfa_enrollment_only", "true"))
-            return Task.CompletedTask;
-
         var path = context.HttpContext.Request.Path.Value?.TrimEnd('/') ?? string.Empty;
-        if (AllowedEndpoints.Contains((context.HttpContext.Request.Method, path)))
+        if (path.StartsWith("/api/admin/auth", StringComparison.OrdinalIgnoreCase)
+            && AllowedEndpoints.Contains((context.HttpContext.Request.Method, path)))
             return Task.CompletedTask;
 
-        context.Result = new ForbidResult();
+        var requiresMfaForEndpoint = path.StartsWith("/api/admin/security", StringComparison.OrdinalIgnoreCase);
+        if (user.HasClaim("mfa_enrollment_only", "true")
+            || requiresMfaForEndpoint && !user.HasClaim("mfa_verified", "true"))
+            context.Result = new ForbidResult();
         return Task.CompletedTask;
     }
 }

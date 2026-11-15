@@ -27,8 +27,12 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<Pbkdf2PasswordHasher>();
         services.AddScoped<IAccountPasswordService, AccountPasswordService>();
+        services.AddSingleton<CinemaBD.Infrastructure.Security.SecurityAlertThresholds>();
+        services.AddScoped<SecurityAlertEvaluator>();
         services.AddScoped<ISecurityAuditWriter, SecurityAuditWriter>();
-        services.AddScoped<IAccountLockoutService, AccountLockoutService>();
+        services.AddScoped<AccountLockoutService>();
+        services.AddScoped<IAccountLockoutService>(provider => provider.GetRequiredService<AccountLockoutService>());
+        services.AddScoped<IAdministrativeAccountLockoutService>(provider => provider.GetRequiredService<AccountLockoutService>());
         services.AddScoped<VnPayUrlBuilder>();
         services.AddScoped<VnPaySignatureValidator>();
         services.AddScoped<DatabaseInitializer>();
@@ -37,6 +41,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAdminEmergencyRecoveryService, AdminEmergencyRecoveryService>();
         services.AddScoped<IRevokedTokenService, RevokedTokenService>();
         services.AddScoped<IIdentitySessionService, IdentitySessionService>();
+        services.AddScoped<IAdminSecurityResponseService, AdminSecurityResponseService>();
+        services.AddScoped<ISecurityAuditQueryService, SecurityAuditQueryService>();
+        services.AddScoped<ISecurityDataCleanupService, SecurityDataCleanupService>();
+        if (configuration.GetValue("Security:Cleanup:Enabled", true))
+            services.AddHostedService<SecurityDataCleanupHostedService>();
         services.AddScoped<IRefreshTokenStore, EfRefreshTokenStore>();
         services.AddScoped<IRefreshTokenService, RefreshTokenService>();
         services.AddSingleton<IQrCodeSecurityService, HmacQrCodeSecurityService>();

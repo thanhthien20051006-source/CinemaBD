@@ -29,7 +29,8 @@ public sealed class AdminPermissionAuthorizationFilter : IAsyncAuthorizationFilt
         ["AdminSeats"] = ["ghe"],
         ["AdminShowtimes"] = ["lichchieu"],
         ["AdminStatistics"] = ["thongke", "doanhthu", "baocao"],
-        ["AdminVouchers"] = ["voucher", "khuyenmai"]
+        ["AdminVouchers"] = ["voucher", "khuyenmai"],
+        ["AdminSecurityResponse"] = ["phanquyen"]
     };
 
     private readonly IAdminAuthorizationService _authorizationService;
@@ -55,6 +56,13 @@ public sealed class AdminPermissionAuthorizationFilter : IAsyncAuthorizationFilt
             && context.HttpContext.Request.Path.StartsWithSegments("/api/reviews/admin");
         if (controllerName is null || (!ControllerPermissions.ContainsKey(controllerName) && !isAdminReviewAction))
             return;
+
+        if (context.HttpContext.Request.Path.StartsWithSegments("/api/admin/security")
+            && !context.HttpContext.User.HasClaim("mfa_verified", "true"))
+        {
+            context.Result = new ForbidResult();
+            return;
+        }
 
         string[] requiredPermissions = isAdminReviewAction
             ? ["phanhoi", "review", "danhgia"]

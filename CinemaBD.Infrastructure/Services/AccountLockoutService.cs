@@ -1,13 +1,12 @@
 using CinemaBD.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using System.Collections.Concurrent;
 using CinemaBD.Application.Interfaces;
 
 namespace CinemaBD.Infrastructure.Services;
 
 /// <summary>Persists consecutive login failure state on Admin and KHACHHANG records.</summary>
-public sealed class AccountLockoutService : IAccountLockoutService
+public sealed class AccountLockoutService : IAccountLockoutService, IAdministrativeAccountLockoutService
 {
     private readonly AppDbContext _db;
     private readonly int _threshold;

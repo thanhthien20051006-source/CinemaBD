@@ -17,7 +17,8 @@ public sealed class AdminPermissionClaimAuthorizationFilter : IAsyncAuthorizatio
         ["AdminLoyaltyPoints"] = ["tichdiem", "khachhang", "nguoidung"], ["AdminMovies"] = ["phim"],
         ["AdminRefunds"] = ["hoadon", "invoice"], ["AdminRoles"] = ["phanquyen"],
         ["AdminRooms"] = ["rap", "phong"], ["AdminSeats"] = ["ghe"], ["AdminShowtimes"] = ["lichchieu"],
-        ["AdminStatistics"] = ["thongke", "doanhthu", "baocao"], ["AdminVouchers"] = ["voucher", "khuyenmai"]
+        ["AdminStatistics"] = ["thongke", "doanhthu", "baocao"], ["AdminVouchers"] = ["voucher", "khuyenmai"],
+        ["AdminSecurityResponse"] = ["phanquyen"]
     };
 
     public Task OnAuthorizationAsync(AuthorizationFilterContext context)
@@ -29,6 +30,12 @@ public sealed class AdminPermissionClaimAuthorizationFilter : IAsyncAuthorizatio
         if (name is null || (!ControllerPermissions.ContainsKey(name) && !review)) return Task.CompletedTask;
         if (name == "AdminRoles" && descriptor?.ActionName == "GetAuthorizationAccess") return Task.CompletedTask;
         if (!string.Equals(context.HttpContext.User.FindFirst("account_type")?.Value, "admin", StringComparison.OrdinalIgnoreCase)) return Task.CompletedTask;
+        if (context.HttpContext.Request.Path.StartsWithSegments("/api/admin/security")
+            && !context.HttpContext.User.HasClaim("mfa_verified", "true"))
+        {
+            context.Result = new ForbidResult();
+            return Task.CompletedTask;
+        }
 
         var masterClaim = context.HttpContext.User.FindFirst("is_master")?.Value;
         var permissions = context.HttpContext.User.FindAll("permission").Select(claim => claim.Value).ToArray();
