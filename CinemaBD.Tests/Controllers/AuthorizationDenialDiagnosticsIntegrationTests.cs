@@ -4,6 +4,8 @@ using CinemaBD.Domain.Entities;
 using CinemaBD.Infrastructure.Persistence;
 using CinemaBD.Infrastructure.Services;
 using FluentAssertions;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -11,13 +13,15 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using System.Collections.Concurrent;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
-using System.Collections.Concurrent;
+using System.Text.Json;
 
 namespace CinemaBD.Tests.Controllers;
 
@@ -43,6 +47,59 @@ public sealed class AuthorizationDenialDiagnosticsIntegrationTests : IClassFixtu
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         AssertDiagnosticFields(_factory.Logs, "subject_format_invalid", true, true, true);
         AssertNoSensitiveValues("admin-without-id", _factory.Logs);
+    }
+
+    [Fact]
+    public async Task AdminRoles_MfaVerifiedTokenIssuedByJwtTokenService_ReturnsMasterAccess()
+    {
+        _factory.ClearLogs();
+        using var client = _factory.CreateClient();
+        var handlerOptions = _factory.Services.GetRequiredService<IOptionsMonitor<JwtBearerOptions>>()
+            .Get(JwtBearerDefaults.AuthenticationScheme);
+        handlerOptions.UseSecurityTokenValidators.Should().BeFalse();
+        handlerOptions.TokenHandlers[0].Should().BeOfType<Microsoft.IdentityModel.JsonWebTokens.JsonWebTokenHandler>();
+        var originalTokenValidated = handlerOptions.Events.OnTokenValidated;
+        var principalTask = new TaskCompletionSource<ClaimsPrincipal>(TaskCreationOptions.RunContinuationsAsynchronously);
+        handlerOptions.Events.OnTokenValidated = async context =>
+        {
+            if (originalTokenValidated is not null)
+                await originalTokenValidated(context);
+            principalTask.TrySetResult(context.Principal!);
+        };
+
+        var sessionId = Guid.NewGuid();
+        await _factory.ActivateSessionAsync(sessionId);
+        await _factory.SeedMasterAdminAsync(1, roleId: 1);
+
+        string token;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var tokenService = scope.ServiceProvider.GetRequiredService<ITokenService>();
+            token = tokenService.CreateToken(new UserAccount
+            {
+                Id = "admin:1",
+                Username = "admin-test",
+                FullName = "Admin Test",
+                PasswordHash = "unused",
+                RoleId = 1,
+                IsMaster = true
+            }, sessionId, restrictedToPasswordChange: false, restrictedToMfaEnrollment: false, mfaVerified: true);
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/admin/roles/authorization-access");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await client.SendAsync(request);
+        var principal = await principalTask.Task;
+        var principalClaims = principal.Claims.ToDictionary(claim => claim.Type, claim => claim.Value);
+
+        handlerOptions.MapInboundClaims.Should().BeTrue();
+        principalClaims.Should().ContainKey(ClaimTypes.NameIdentifier);
+        principalClaims.Should().NotContainKey(JwtRegisteredClaimNames.Sub);
+        principalClaims.Should().ContainKey("mfa_verified");
+        _factory.Logs.Should().NotContain(log => log.Contains("ReasonCode=subject_format_invalid", StringComparison.Ordinal));
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        body.RootElement.GetProperty("data").GetProperty("isMaster").GetBoolean().Should().BeTrue();
     }
 
     [Fact]
@@ -149,6 +206,7 @@ public sealed class AuthorizationDenialDiagnosticsIntegrationTests : IClassFixtu
         private readonly RecordingLoggerProvider _logs = new();
         public IReadOnlyCollection<string> Logs => _logs.Messages;
         public void ClearLogs() => _logs.Clear();
+
         public async Task ActivateSessionAsync(Guid sessionId)
         {
             await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(_connection).Options);
@@ -160,6 +218,29 @@ public sealed class AuthorizationDenialDiagnosticsIntegrationTests : IClassFixtu
                 CreatedAtUtc = DateTime.UtcNow,
                 LastSeenAtUtc = DateTime.UtcNow,
                 ExpiresAtUtc = DateTime.UtcNow.AddMinutes(30)
+            });
+            await db.SaveChangesAsync();
+        }
+
+        public async Task SeedMasterAdminAsync(int adminId, int roleId)
+        {
+            await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(_connection).Options);
+            db.Roles.Add(new LegacyRole
+            {
+                MaCV = roleId,
+                TenChucVu = "Test master",
+                IsMaster = true,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            });
+            db.Admins.Add(new LegacyAdmin
+            {
+                AdminID = adminId,
+                Username = "admin-test",
+                Password = "unused",
+                FullName = "Admin Test",
+                IsActive = true,
+                MaCV = roleId
             });
             await db.SaveChangesAsync();
         }
@@ -194,6 +275,30 @@ public sealed class AuthorizationDenialDiagnosticsIntegrationTests : IClassFixtu
                         "Jti" TEXT NOT NULL PRIMARY KEY,
                         "ExpiresAtUtc" TEXT NOT NULL
                     );
+                    CREATE TABLE IF NOT EXISTS "Admin" (
+                        "AdminID" INTEGER NOT NULL PRIMARY KEY,
+                        "Username" TEXT NOT NULL,
+                        "Password" TEXT NOT NULL,
+                        "FullName" TEXT NULL,
+                        "Email" TEXT NULL,
+                        "Phone" TEXT NULL,
+                        "Role" TEXT NULL,
+                        "CreatedAt" TEXT NULL,
+                        "IsActive" INTEGER NOT NULL,
+                        "AccessFailedCount" INTEGER NULL,
+                        "LockoutEndUtc" TEXT NULL,
+                        "MaCV" INTEGER NULL,
+                        "MustChangePassword" INTEGER NOT NULL,
+                        "PasswordExpiresAt" TEXT NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS "ChucVu" (
+                        "MaCV" INTEGER NOT NULL PRIMARY KEY,
+                        "TenChucVu" TEXT NOT NULL,
+                        "IsMaster" INTEGER NOT NULL,
+                        "IsActive" INTEGER NOT NULL,
+                        "CreatedAt" TEXT NOT NULL,
+                        "UpdatedAt" TEXT NULL
+                    );
                     """;
                 schema.ExecuteNonQuery();
             }
@@ -223,7 +328,7 @@ public sealed class AuthorizationDenialDiagnosticsIntegrationTests : IClassFixtu
                 RemoveService<ISecurityAuditWriter>(services);
                 services.AddSingleton<ISecurityAuditWriter, TestAuditWriter>();
                 RemoveService<IAdminAuthorizationService>(services);
-                services.AddSingleton<IAdminAuthorizationService, EmptyAdminAuthorizationService>();
+                services.AddScoped<IAdminAuthorizationService, AdminAuthorizationService>();
             });
         }
 
@@ -266,12 +371,6 @@ public sealed class AuthorizationDenialDiagnosticsIntegrationTests : IClassFixtu
         private sealed class TestAuditWriter : ISecurityAuditWriter
         {
             public Task WriteAsync(SecurityAuditEvent auditEvent, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        }
-
-        private sealed class EmptyAdminAuthorizationService : IAdminAuthorizationService
-        {
-            public Task<AdminAuthorizationAccess> GetAccessForAdminAsync(int adminId, CancellationToken cancellationToken = default)
-                => Task.FromResult(new AdminAuthorizationAccess(1, false, Array.Empty<string>()));
         }
 
         private sealed class RecordingLoggerProvider : ILoggerProvider
