@@ -43,9 +43,13 @@ public sealed class AdminNavigationService : IAdminNavigationService
     {
         var httpContext = _httpContextAccessor.HttpContext;
         var token = httpContext?.Session.GetString("AdminToken");
-        if (string.IsNullOrWhiteSpace(token) || !int.TryParse(httpContext?.Session.GetString("AdminId"), out var adminId) || adminId <= 0)
+        var adminIdValue = httpContext?.Session.GetString("AdminId");
+        var hasAdminToken = !string.IsNullOrWhiteSpace(token);
+        var hasAdminId = !string.IsNullOrWhiteSpace(adminIdValue);
+        if (!hasAdminToken || !int.TryParse(adminIdValue, out var adminId) || adminId <= 0)
         {
             _logger.LogWarning("Admin permission check denied because authenticated role context is missing.");
+            LogAuthorizationDenial(httpContext, hasAdminToken, hasAdminId, statusCode: null);
             return new AdminNavigationAccess();
         }
 
@@ -57,6 +61,7 @@ public sealed class AdminNavigationService : IAdminNavigationService
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("Admin permission check denied for admin {AdminId}; authorization lookup returned HTTP {StatusCode}.", adminId, (int)response.StatusCode);
+                LogAuthorizationDenial(httpContext, hasAdminToken, hasAdminId, (int)response.StatusCode);
                 return new AdminNavigationAccess();
             }
 
@@ -64,6 +69,7 @@ public sealed class AdminNavigationService : IAdminNavigationService
             if (payload is not { Success: true } || payload.Data.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
             {
                 _logger.LogWarning("Admin permission check denied for admin {AdminId}; authorization response was invalid.", adminId);
+                LogAuthorizationDenial(httpContext, hasAdminToken, hasAdminId, (int)response.StatusCode);
                 return new AdminNavigationAccess();
             }
 
@@ -71,6 +77,7 @@ public sealed class AdminNavigationService : IAdminNavigationService
             if (access is null || access.RoleId <= 0 || access.Permissions is null)
             {
                 _logger.LogWarning("Admin permission check denied for admin {AdminId}; authorization response was invalid.", adminId);
+                LogAuthorizationDenial(httpContext, hasAdminToken, hasAdminId, (int)response.StatusCode);
                 return new AdminNavigationAccess();
             }
 
@@ -87,8 +94,24 @@ public sealed class AdminNavigationService : IAdminNavigationService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Admin permission check denied for admin {AdminId} after an authorization lookup failure.", adminId);
+            LogAuthorizationDenial(httpContext, hasAdminToken, hasAdminId, statusCode: null);
             return new AdminNavigationAccess();
         }
+    }
+
+    private void LogAuthorizationDenial(HttpContext? context, bool hasAdminToken, bool hasAdminId, int? statusCode)
+    {
+        var route = context?.Request.Path.Value ?? "unavailable";
+        if (route.Length > 256)
+            route = route[..256];
+
+        _logger.LogInformation(
+            "Admin navigation authorization lookup denied. TraceId={TraceId} Route={Route} HasAdminToken={HasAdminToken} HasAdminId={HasAdminId} HttpStatus={HttpStatus}",
+            context?.TraceIdentifier ?? "unavailable",
+            route,
+            hasAdminToken,
+            hasAdminId,
+            statusCode);
     }
 
     private sealed record ApiResponse<T>(bool Success, string Message, T Data);

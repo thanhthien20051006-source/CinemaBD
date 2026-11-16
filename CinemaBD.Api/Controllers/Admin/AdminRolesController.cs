@@ -4,6 +4,7 @@ using CinemaBD.Application.Interfaces;
 using CinemaBD.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using CinemaBD.Api.Security;
 
 namespace CinemaBD.Api.Controllers.Admin;
 
@@ -14,11 +15,16 @@ public class AdminRolesController : ControllerBase
 {
     private readonly IAdminRoleService _service;
     private readonly IAdminAuthorizationService _authorizationService;
+    private readonly ILogger<AdminRolesController> _logger;
 
-    public AdminRolesController(IAdminRoleService service, IAdminAuthorizationService authorizationService)
+    public AdminRolesController(
+        IAdminRoleService service,
+        IAdminAuthorizationService authorizationService,
+        ILogger<AdminRolesController> logger)
     {
         _service = service;
         _authorizationService = authorizationService;
+        _logger = logger;
     }
 
     [HttpGet("authorization-access")]
@@ -27,7 +33,10 @@ public class AdminRolesController : ControllerBase
         var subject = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
         if (subject is null || !subject.StartsWith("admin:", StringComparison.OrdinalIgnoreCase)
             || !int.TryParse(subject["admin:".Length..], out var adminId) || adminId <= 0)
+        {
+            AuthorizationDenialDiagnostics.Log(_logger, HttpContext, "subject_format_invalid");
             return Forbid();
+        }
 
         try
         {
