@@ -1,4 +1,5 @@
-﻿using CinemaBD.Api.Contracts.Admin;
+﻿using System.Security.Claims;
+using CinemaBD.Api.Contracts.Admin;
 using CinemaBD.Api.Contracts.Common;
 using CinemaBD.Application.Interfaces;
 using CinemaBD.Domain.Entities;
@@ -27,12 +28,22 @@ public class AdminRolesController : ControllerBase
         _logger = logger;
     }
 
+    private static bool TryGetAdminIdFromSubject(ClaimsPrincipal user, out int adminId)
+    {
+        adminId = default;
+        var subject = user.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
+            ?? user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        return subject is not null
+            && subject.StartsWith("admin:", StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(subject["admin:".Length..], out adminId)
+            && adminId > 0;
+    }
+
     [HttpGet("authorization-access")]
     public async Task<IActionResult> GetAuthorizationAccess(CancellationToken cancellationToken)
     {
-        var subject = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
-        if (subject is null || !subject.StartsWith("admin:", StringComparison.OrdinalIgnoreCase)
-            || !int.TryParse(subject["admin:".Length..], out var adminId) || adminId <= 0)
+        if (!TryGetAdminIdFromSubject(User, out var adminId))
         {
             AuthorizationDenialDiagnostics.Log(_logger, HttpContext, "subject_format_invalid");
             return Forbid();
