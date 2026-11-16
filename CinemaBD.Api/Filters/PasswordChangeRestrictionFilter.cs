@@ -1,12 +1,18 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using System.Security.Claims;
+using CinemaBD.Api.Security;
 
 namespace CinemaBD.Api.Filters;
 
 /// <summary>Limits lifecycle-restricted bearer tokens to password-change endpoints.</summary>
 public sealed class PasswordChangeRestrictionFilter : IAsyncAuthorizationFilter
 {
+    private readonly ILogger<PasswordChangeRestrictionFilter> _logger;
+
+    public PasswordChangeRestrictionFilter() : this(Microsoft.Extensions.Logging.Abstractions.NullLogger<PasswordChangeRestrictionFilter>.Instance) { }
+
+    public PasswordChangeRestrictionFilter(ILogger<PasswordChangeRestrictionFilter> logger) => _logger = logger;
+
     private static readonly HashSet<(string Method, string Path)> AllowedEndpoints = new()
     {
         ("POST", "/api/auth/password/change"),
@@ -25,6 +31,7 @@ public sealed class PasswordChangeRestrictionFilter : IAsyncAuthorizationFilter
         if (AllowedEndpoints.Contains((context.HttpContext.Request.Method, path)))
             return Task.CompletedTask;
 
+        AuthorizationDenialDiagnostics.Log(_logger, context.HttpContext, "password_change_restricted");
         context.Result = new ForbidResult();
         return Task.CompletedTask;
     }

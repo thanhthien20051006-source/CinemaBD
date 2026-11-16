@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using CinemaBD.Api.Security;
 
 namespace CinemaBD.Api.Filters;
 
@@ -9,6 +10,12 @@ namespace CinemaBD.Api.Filters;
 /// </summary>
 public sealed class MfaEnrollmentRestrictionFilter : IAsyncAuthorizationFilter
 {
+    private readonly ILogger<MfaEnrollmentRestrictionFilter> _logger;
+
+    public MfaEnrollmentRestrictionFilter() : this(Microsoft.Extensions.Logging.Abstractions.NullLogger<MfaEnrollmentRestrictionFilter>.Instance) { }
+
+    public MfaEnrollmentRestrictionFilter(ILogger<MfaEnrollmentRestrictionFilter> logger) => _logger = logger;
+
     private static readonly HashSet<(string Method, string Path)> AllowedEndpoints = new()
     {
         ("POST", "/api/admin/auth/mfa/enroll/start"),
@@ -32,7 +39,10 @@ public sealed class MfaEnrollmentRestrictionFilter : IAsyncAuthorizationFilter
         var requiresMfaForEndpoint = path.StartsWith("/api/admin/security", StringComparison.OrdinalIgnoreCase);
         if (user.HasClaim("mfa_enrollment_only", "true")
             || requiresMfaForEndpoint && !user.HasClaim("mfa_verified", "true"))
+        {
+            AuthorizationDenialDiagnostics.Log(_logger, context.HttpContext, "mfa_enrollment_restricted");
             context.Result = new ForbidResult();
+        }
         return Task.CompletedTask;
     }
 }
