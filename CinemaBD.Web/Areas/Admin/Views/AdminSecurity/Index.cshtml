@@ -1,0 +1,145 @@
+@model CinemaBD.Web.Areas.Admin.Controllers.SecurityAuditPageViewModel
+@{
+    ViewData["Title"] = "Bảo mật";
+    var totalPages = Math.Max(1, (int)Math.Ceiling(Model.TotalCount / (double)Math.Max(1, Model.PageSize)));
+    var previousPage = Math.Max(1, Model.Page - 1);
+    var nextPage = Math.Min(totalPages, Model.Page + 1);
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Bảo mật</h1>
+            <p class="text-muted mb-0">Quản lý trạng thái tài khoản và xem nhật ký bảo mật.</p>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] is string successMessage)
+    {
+        <div class="alert alert-success" role="status">@successMessage</div>
+    }
+    @if (TempData["Error"] is string errorMessage)
+    {
+        <div class="alert alert-warning" role="alert">@errorMessage</div>
+    }
+
+    <div class="row g-4 mb-4">
+        <div class="col-12 col-xl-6">
+            <section class="card h-100">
+                <div class="card-body p-4">
+                    <h2 class="h5 mb-3">Khóa hoặc mở khóa tài khoản</h2>
+                    <form asp-area="Admin" asp-controller="AdminSecurity" asp-action="LockAccount" method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="row g-3 align-items-end">
+                            <div class="col-12 col-md-4">
+                                <label for="lockAccountType" class="form-label">Loại tài khoản</label>
+                                <select id="lockAccountType" name="accountType" class="form-select">
+                                    <option value="Admin">Admin</option>
+                                    <option value="KHACHHANG">KHACHHANG</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-8">
+                                <label for="lockAccountId" class="form-label">Mã tài khoản</label>
+                                <input id="lockAccountId" name="accountId" type="text" class="form-control" required maxlength="100" />
+                            </div>
+                            <div class="col-12 d-flex flex-wrap gap-2">
+                                <button type="submit" name="locked" value="true" class="btn btn-danger">Khóa</button>
+                                <button type="submit" name="locked" value="false" class="btn btn-outline-success">Mở khóa</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        </div>
+        <div class="col-12 col-xl-6">
+            <section class="card h-100">
+                <div class="card-body p-4">
+                    <h2 class="h5 mb-3">Thu hồi phiên đăng nhập</h2>
+                    <form asp-area="Admin" asp-controller="AdminSecurity" asp-action="RevokeSessions" method="post" onsubmit="return confirm('Thu hồi tất cả phiên đăng nhập của tài khoản này?');">
+                        @Html.AntiForgeryToken()
+                        <div class="row g-3 align-items-end">
+                            <div class="col-12 col-md-4">
+                                <label for="revokeAccountType" class="form-label">Loại tài khoản</label>
+                                <select id="revokeAccountType" name="accountType" class="form-select">
+                                    <option value="Admin">Admin</option>
+                                    <option value="KHACHHANG">KHACHHANG</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-8">
+                                <label for="revokeAccountId" class="form-label">Mã tài khoản</label>
+                                <input id="revokeAccountId" name="accountId" type="text" class="form-control" required maxlength="100" />
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-warning">Thu hồi phiên</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <section class="card">
+        <div class="card-body p-4">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+                <div>
+                    <h2 class="h5 mb-1">Nhật ký bảo mật</h2>
+                    <span class="text-muted small">Tổng cộng @Model.TotalCount sự kiện</span>
+                </div>
+                <form asp-area="Admin" asp-controller="AdminSecurity" asp-action="Index" method="get" class="d-flex align-items-center gap-2">
+                    <label for="eventType" class="form-label mb-0">Loại sự kiện</label>
+                    <select id="eventType" name="eventType" class="form-select" onchange="this.form.submit()">
+                        <option value="login_failed" selected="@(Model.EventTypeFilter == "login_failed")">login_failed</option>
+                        <option value="account_locked" selected="@(Model.EventTypeFilter == "account_locked")">account_locked</option>
+                    </select>
+                    <input type="hidden" name="page" value="1" />
+                </form>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Thời gian (UTC)</th>
+                            <th scope="col">Loại sự kiện</th>
+                            <th scope="col">Loại tài khoản</th>
+                            <th scope="col">Mã tài khoản</th>
+                            <th scope="col">Mã tương quan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @if (Model.Items.Count == 0)
+                    {
+                        <tr><td colspan="5" class="text-center text-muted py-4">Không có sự kiện phù hợp.</td></tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in Model.Items)
+                        {
+                            <tr>
+                                <td>@item.OccurredAtUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                <td>@item.EventType</td>
+                                <td>@(item.AccountType ?? "—")</td>
+                                <td>@(item.AccountId ?? "—")</td>
+                                <td>@(item.CorrelationId ?? "—")</td>
+                            </tr>
+                        }
+                    }
+                    </tbody>
+                </table>
+            </div>
+
+            <nav class="d-flex align-items-center justify-content-between mt-3" aria-label="Phân trang nhật ký bảo mật">
+                <a class="btn btn-outline-secondary @(Model.Page <= 1 ? "disabled" : string.Empty)"
+                   asp-area="Admin" asp-controller="AdminSecurity" asp-action="Index"
+                   asp-route-eventType="@Model.EventTypeFilter" asp-route-page="@previousPage"
+                   aria-disabled="@(Model.Page <= 1)">Trước</a>
+                <span class="text-muted small">Trang @Model.Page / @totalPages</span>
+                <a class="btn btn-outline-secondary @(Model.Page >= totalPages ? "disabled" : string.Empty)"
+                   asp-area="Admin" asp-controller="AdminSecurity" asp-action="Index"
+                   asp-route-eventType="@Model.EventTypeFilter" asp-route-page="@nextPage"
+                   aria-disabled="@(Model.Page >= totalPages)">Sau</a>
+            </nav>
+        </div>
+    </section>
+</div>
