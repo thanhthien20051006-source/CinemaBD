@@ -56,6 +56,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAdminShowtimeService, AdminShowtimeService>();
         services.AddScoped<IAdminCustomerService, AdminCustomerService>();
         services.AddScoped<IAdminEmployeeService, AdminEmployeeService>();
+        services.AddScoped<IAdminAccountService, AdminAccountService>();
         services.AddScoped<IAdminRoleService, AdminRoleService>();
         services.AddScoped<IAdminAuthorizationService, AdminAuthorizationService>();
         services.AddScoped<IAdminCinemaService, AdminCinemaService>();
