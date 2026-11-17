@@ -393,3 +393,5 @@ certs/
 **/App_Data/
 
 CinemaBD.Web/cinemabd.web.db
+CinemaBD.Web/cinemabd.web.db-shm
+CinemaBD.Web/cinemabd.web.db-wal
