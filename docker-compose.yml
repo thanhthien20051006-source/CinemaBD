@@ -34,12 +34,14 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__DefaultConnection: "${LOCAL_SQL_CONNECTION:?LOCAL_SQL_CONNECTION is required; set it to the intended database}"
-      Database__AllowAutoMigrate: "false"
-      Database__AllowedNames__0: ""
+      Database__AllowAutoMigrate: ${DB_AUTO_MIGRATE:-false}
+      Database__AllowedNames__0: ${DB_ALLOWED_NAME:-CinemaBD}
       ShowtimeExpiry__Enabled: "false"
       DatabaseSeed__SchemaSqlFile: /app/Database/CinemaBD.schema.sql
       DatabaseSeed__DataSqlFile: /app/Database/CinemaBD.data.sql
       DatabaseSeed__AllowDemoData: "false"
+      BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD}
       Mfa__RequireForMaster: "true"
       Security__Cleanup__Enabled: "false"
       Jwt__Key: ${JWT_KEY:?JWT_KEY is required}
