@@ -1,4 +1,5 @@
-﻿using CinemaBD.Web.Models;
+﻿using CinemaBD.Web.Core;
+using CinemaBD.Web.Models;
 using CinemaBD.Web.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -45,6 +46,13 @@ public class AdminAccountController : Controller
             return RedirectToAction(nameof(VerifyMfa));
         }
 
+        if (AdminSessionGate.TryReadMfaEnrollmentRestricted(admin.Token))
+        {
+            HttpContext.Session.Clear();
+            TempData["Error"] = "Tài khoản cần bật xác thực hai lớp trước khi truy cập khu vực quản trị. Vui lòng liên hệ quản trị viên.";
+            return RedirectToAction(nameof(Login), new { returnUrl });
+        }
+
         HttpContext.Session.Clear();
         HttpContext.Session.SetString("AdminToken", admin.Token);
         HttpContext.Session.SetString("AdminUser", admin.Username);
@@ -52,6 +60,8 @@ public class AdminAccountController : Controller
         HttpContext.Session.SetString("AdminFullName", admin.FullName ?? string.Empty);
         HttpContext.Session.SetString("AdminRole", admin.Role ?? string.Empty);
         HttpContext.Session.SetString("LoginType", "Admin");
+        HttpContext.Session.SetString("AdminMfaExempt", bool.TrueString);
+        HttpContext.Session.SetString("AdminMfaVerified", bool.FalseString);
 
         if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
         return RedirectToAction("Index", "Dashboard", new { area = "Admin" });
@@ -108,6 +118,8 @@ public class AdminAccountController : Controller
         HttpContext.Session.SetString("AdminFullName", admin.FullName ?? string.Empty);
         HttpContext.Session.SetString("AdminRole", admin.Role ?? string.Empty);
         HttpContext.Session.SetString("LoginType", "Admin");
+        HttpContext.Session.SetString("AdminMfaVerified", bool.TrueString);
+        HttpContext.Session.SetString("AdminMfaExempt", bool.FalseString);
 
         if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
         return RedirectToAction("Index", "Dashboard", new { area = "Admin" });
@@ -127,4 +139,3 @@ public class AdminAccountController : Controller
         return RedirectToAction("Login", "Account", new { area = "" });
     }
 }
-
