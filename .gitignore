@@ -391,3 +391,5 @@ certs/
 
 # Data Protection key ring (never commit)
 **/App_Data/
+
+CinemaBD.Web/cinemabd.web.db
