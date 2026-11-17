@@ -52,6 +52,7 @@ public class AdminSuatChieuController : AdminApiCrudController
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> GenerateShowtimesAjax(string movieIds, string roomIds, DateTime fromDate, DateTime toDate, string startTimes, decimal ticketPrice, CancellationToken ct)
     {
         var body = new

@@ -281,7 +281,9 @@ async function deleteShowtime(id, canDelete) {
 }
 async function generateShowtimes(e) {
     e.preventDefault();
-    const res = await fetch('/Admin/AdminSuatChieu/GenerateShowtimesAjax', { method: 'POST', body: new FormData(e.target), headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    const formData = new FormData(e.target);
+    formData.append('__RequestVerificationToken', document.querySelector('#generateForm input[name="__RequestVerificationToken"]').value);
+    const res = await fetch('/Admin/AdminSuatChieu/GenerateShowtimesAjax', { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     const data = await res.json();
     setMessage('generateMessage', data.message || (data.success ? 'Đã sinh lịch' : 'Không sinh được lịch'), data.success);
     if (data.success) setTimeout(() => location.reload(), 900);
