@@ -111,6 +111,7 @@
                         @if (nav.Can("role", "chucvu")) { <li><a class="dropdown-item" asp-area="Admin" asp-controller="Role" asp-action="Index"><span class="marker">›</span> Chức Vụ</a></li> }
                         @if (nav.Can("phanquyen")) { <li><a class="dropdown-item" asp-area="Admin" asp-controller="RolePermission" asp-action="Index"><span class="marker">›</span> Phân Quyền</a></li> }
                         @if (nav.Can("phanquyen")) { <li><a class="dropdown-item" asp-area="Admin" asp-controller="AdminSecurity" asp-action="Index"><span class="marker">›</span> Bảo mật</a></li> }
+                        @if (nav.Can("phanquyen") && nav.IsMaster) { <li><a class="dropdown-item" asp-area="Admin" asp-controller="AdminUserCreate" asp-action="Index"><span class="marker">›</span> Tạo tài khoản quản trị</a></li> }
                     </ul>
                 </li>
             }
