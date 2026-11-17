@@ -121,6 +121,11 @@ public class AccountController : Controller
         }
 
         var auth = await _apiClient.LoginAsync(model.Username, model.Password, cancellationToken);
+        if (auth?.ErrorCode == "account_locked")
+        {
+            ViewBag.Error = "Tài khoản đang bị khóa. Vui lòng liên hệ quản trị viên.";
+            return View(model);
+        }
         if (auth == null)
         {
             ViewBag.Error = "Đăng nhập thất bại. Kiểm tra lại tài khoản hoặc mật khẩu.";

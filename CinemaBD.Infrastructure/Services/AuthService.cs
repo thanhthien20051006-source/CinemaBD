@@ -11,6 +11,14 @@ using System.Security.Cryptography;
 
 namespace CinemaBD.Infrastructure.Services;
 
+public sealed class CustomerAccountLockedException : Exception
+{
+    public CustomerAccountLockedException()
+        : base("Tài khoản đang bị khóa. Vui lòng liên hệ quản trị viên.")
+    {
+    }
+}
+
 public class AuthService : IAuthService
 {
     private readonly AppDbContext _db;
@@ -65,9 +73,14 @@ public class AuthService : IAuthService
 
         if (lockout?.IsLocked == true)
         {
-            _passwordHasher.DummyVerify(password);
-            await WriteAuditSafelyAsync("login_failed", "KHACHHANG", user.MaKH, "failure", "Invalid credentials; temporary lockout active.", cancellationToken);
-            throw new InvalidOperationException("Tài khoản hoặc mật khẩu không chính xác.");
+            var lockedVerification = _passwordHasher.VerifyDetailed(password, user.MatKhau);
+            if (lockedVerification == PasswordVerificationResult.Failed)
+            {
+                await WriteAuditSafelyAsync("login_failed", "KHACHHANG", user.MaKH, "failure", "Invalid credentials; temporary lockout active.", cancellationToken);
+                throw new InvalidOperationException("Tài khoản hoặc mật khẩu không chính xác.");
+            }
+
+            throw new CustomerAccountLockedException();
         }
 
         var verification = _passwordHasher.VerifyDetailed(password, user.MatKhau);

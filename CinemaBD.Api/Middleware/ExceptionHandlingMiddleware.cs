@@ -1,5 +1,6 @@
 ﻿using CinemaBD.Api.Contracts.Common;
 using CinemaBD.Application.Exceptions;
+using CinemaBD.Infrastructure.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CinemaBD.Api.Middleware;
@@ -20,6 +21,23 @@ public class ExceptionHandlingMiddleware
         try
         {
             await _next(context);
+        }
+        catch (CustomerAccountLockedException ex)
+        {
+            _logger.LogInformation("Customer login rejected because the account is locked. TraceId: {TraceId}.", context.TraceIdentifier);
+            context.Response.Clear();
+            context.Response.StatusCode = StatusCodes.Status423Locked;
+            context.Response.ContentType = "application/problem+json";
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status423Locked,
+                Title = "Tài khoản đang bị khóa.",
+                Detail = ex.Message,
+                Instance = context.Request.Path
+            };
+            problem.Extensions["errorCode"] = "account_locked";
+            problem.Extensions["traceId"] = context.TraceIdentifier;
+            await context.Response.WriteAsJsonAsync(problem, options: new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web), contentType: "application/problem+json");
         }
         catch (AccountLockedException ex)
         {

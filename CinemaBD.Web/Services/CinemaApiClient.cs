@@ -123,7 +123,12 @@ public class CinemaApiClient
         {
             using var response = await _httpClient.PostAsJsonAsync("api/auth/login", new { username, password, deviceName = "CinemaBD Web" }, cancellationToken);
             if (!response.IsSuccessStatusCode)
-                return null;
+            {
+                var errorCode = await ReadErrorCodeAsync(response, cancellationToken);
+                return string.Equals(errorCode, "account_locked", StringComparison.Ordinal)
+                    ? new AuthResult { ErrorCode = errorCode }
+                    : null;
+            }
 
             var payload = await response.Content.ReadFromJsonAsync<ApiResponse<AuthResult>>(cancellationToken: cancellationToken);
             return payload?.Data;
@@ -558,8 +563,32 @@ public class CinemaApiClient
         };
     }
 
+    private static async Task<string?> ReadErrorCodeAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                return null;
+            foreach (var property in document.RootElement.EnumerateObject())
+            {
+                if (string.Equals(property.Name, "errorCode", StringComparison.OrdinalIgnoreCase)
+                    && property.Value.ValueKind == JsonValueKind.String)
+                    return property.Value.GetString();
+            }
+        }
+        catch (JsonException)
+        {
+            // Keep the existing generic login failure behavior for unrecognized responses.
+        }
+
+        return null;
+    }
+
     public sealed class AuthResult
     {
+        public string? ErrorCode { get; set; }
         public string UserId { get; set; } = string.Empty;
         public string Username { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
